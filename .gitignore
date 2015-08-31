@@ -1,4 +1,5 @@
 *.egg-info
 *.pyo
 *.pyc
+.DS_Store
 __pycache__
