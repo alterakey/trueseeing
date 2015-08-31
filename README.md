@@ -1,7 +1,7 @@
 <!-- mode: markdown; indent-tabs-mode: nil -->
 # README #
 
-[travis]: https://magnum.travis-ci.com/taky/trueseeing.svg?token=1dpmBT6dBSvBJ7CstvxF
+![travis](https://magnum.travis-ci.com/taky/trueseeing.svg?token=1dpmBT6dBSvBJ7CstvxF)
 
 Copyright (C) 2015 Takahiro Yoshimura <altakey@gmail.com>
 
