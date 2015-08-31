@@ -4,3 +4,5 @@
 .DS_Store
 .hypothesis
 __pycache__
+build
+dist
