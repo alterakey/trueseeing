@@ -1,7 +1,7 @@
-import sys
+import getopt
 
-def entry():
-  errors = [
+def processed():
+  return [
 	'AndroidManifest.xml:1:0: warning: open permissions: android.permission.READ_PHONE_STATE [-Wmanifest-open-permission]',
 	'AndroidManifest.xml:1:0: warning: open permissions: android.permission.READ_SMS [-Wmanifest-open-permission]',
 	'AndroidManifest.xml:1:0: warning: missing permissions: android.permission.READ_CONTACTS [-Wmanifest-open-permission]',
@@ -14,8 +14,20 @@ def entry():
 	'com/gmail/altakey/api/ApiClient.java:48:0: warning: insecure data flow on wire: IMEI/IMSI [-Wsecurity-dataflow-wire]',
 ]
 
-  if len(sys.argv) > 1:
-    for e in errors:
+def shell(argv):
+  try:
+    opts, files = getopt.Getopt(argv[1:], 'f', [])
+    for o, a in opts:
+      pass
+    for e in processed(files):
       print(e)
-  else:
-    print("%s: no input files" % sys.argv[0])
+      return 1
+    else:
+      return 0
+  except :
+    print("%s: no input files" % argv[0])
+    return 2
+
+def entry():
+  import sys
+  return shell(sys.argv)

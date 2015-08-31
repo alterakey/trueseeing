@@ -2,4 +2,5 @@
 *.pyo
 *.pyc
 .DS_Store
+.hypothesis
 __pycache__
