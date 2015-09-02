@@ -1,7 +1,7 @@
 <!-- mode: markdown; indent-tabs-mode: nil -->
 # README #
 
-![travis](https://magnum.travis-ci.com/taky/trueseeing.svg?token=1dpmBT6dBSvBJ7CstvxF)
+[![wercker status](https://app.wercker.com/status/23b019ddf920edff35f141143cfb2223/m "wercker status")](https://app.wercker.com/project/bykey/23b019ddf920edff35f141143cfb2223)
 
 Copyright (C) 2015 Takahiro Yoshimura <altakey@gmail.com>
 
