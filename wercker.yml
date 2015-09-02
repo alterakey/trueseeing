@@ -1,0 +1,15 @@
+box: python:3.4-slim
+
+dev:
+  steps:
+    - pip-install
+    - internal-watch:
+      code: nosetests
+      reload: true
+
+build:
+  steps:
+    - pip-install
+    - script:
+      name: tests
+      code: nosetests
