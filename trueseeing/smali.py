@@ -71,18 +71,22 @@ class Op(Token):
 
 class Class(Op):
   attrs = None
-  methods = None
-  fields = None
+  methods = []
+  fields = []
   super_ = None
   source = None
+  ops = []
 
   def __init__(self, p, methods, fields):
     super().__init__('class', [t for t in p if t.t == 'reflike'][0], None)
-    self.methods, self.fields = methods, fields
     self.attrs = set([t for t in p if t.t == 'id'])
+    if methods:
+      self.methods = methods
+    if fields:
+      self.fields = fields
 
   def __repr__(self):
-    return '<Class %s:%s, attrs=%s, super:%s, source:%s, methods:%s, fields:%s>' % (self.t, self.v, self.attrs, self.super_, self.source, self.methods, self.fields)
+    return '<Class %s:%s, attrs:%s, super:%s, source:%s, methods:[%d methods], fields:[%d fields], ops:[%d ops]>' % (self.t, self.v, self.attrs, self.super_, self.source, len(self.methods), len(self.fields), len(self.ops))
 
 class Annotation(Op):
   name = None
@@ -100,11 +104,12 @@ class Method(Op):
   ops = None
 
   def __init__(self, p, ops):
-    super().__init__('method', '', p)
+    super().__init__('method', Token('prototype', ''.join((t.v for t in p[-2:]))), p)
+    self.attrs = set(p[:-2])
     self.ops = ops
 
   def __repr__(self):
-    return '<Method %s:%s:%s, ops:%s>' % (self.t, self.v, self.p, self.ops)
+    return '<Method %s:%s, attrs:%s, ops:[%d ops]>' % (self.t, self.v, self.attrs, len(self.ops))
 
 class P:
   @staticmethod
@@ -124,6 +129,7 @@ class P:
         if t.t == 'directive' and t.v == 'class':
           class_ = Class(t.p, [], [])
       else:
+        class_.ops.append(t)
         if method_ is None:
           if t.t == 'directive':
             if t.v == 'super':
