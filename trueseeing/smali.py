@@ -69,6 +69,43 @@ class Op(Token):
   def __repr__(self):
     return '<Op %s:%s:%s>' % (self.t, self.v, self.p)
 
+class DataFlow:
+  @staticmethod
+  def into(op):
+    refs = DataFlow.refered_registers_from(op)
+    print(DataFlow.search_backwards_on(refs, 'store', op))
+
+  @staticmethod
+  def refered_registers_from(op):
+    ref = op.p[0]
+    if ref.t == 'multireg':
+      regs = ref.v
+      if ' .. ' in regs:
+        from_, to_ = reg.split(' .. ')
+        return ['%s%d' % (from_[0], c) for c in range(int(from_[1]), int(to_[1]) + 1)]
+      elif ',' in regs:
+        return [r.strip() for r in regs.split(',')]
+      else:
+        return [regs.strip()]
+    elif ref.t == 'reg':
+      regs = ref.v
+      return [regs.strip()]
+    else:
+      raise ValueError("unknown type of reference: %s, %s", ref.t, ref.v)
+
+  @staticmethod
+  def search_backwards_on(regs, type_, op):
+    d = dict()
+    for o in reversed(op.method_.ops[:op.method_.ops.index(op)]):
+      print(o)
+      if o.t == 'id':
+        try:
+          affected = set(regs) & set(DataFlow.refered_registers_from(o))
+          if affected:
+            print(affected)
+        except ValueError:
+          pass
+
 class Class(Op):
   attrs = None
   methods = []
@@ -129,6 +166,7 @@ class P:
         if t.t == 'directive' and t.v == 'class':
           class_ = Class(t.p, [], [])
       else:
+        t.class_ = class_
         class_.ops.append(t)
         if method_ is None:
           if t.t == 'directive':
@@ -138,9 +176,11 @@ class P:
               class_.source = t.p[0]
             elif t.v == 'method':
               method_ = Method(t.p, [])
+              method_.class_ = class_
             else:
               pass
         else:
+          t.method_ = method_
           if isinstance(t, Annotation):
             method_.p.append(t)
           else:
