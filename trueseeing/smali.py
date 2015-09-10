@@ -72,39 +72,67 @@ class Op(Token):
 class DataFlow:
   @staticmethod
   def into(op):
-    refs = DataFlow.refered_registers_from(op)
-    print(DataFlow.search_backwards_on(refs, 'store', op))
+    o = dict()
+    regs = DataFlow.decode_registers_of(op.p[0])
+    for r in regs:
+      for d in [x for x in DataFlow.data_xrefs_from(op) if r in x.get('load', set())]:
+        if r not in o:
+          o[r] = d['on']
+    return o
 
   @staticmethod
-  def refered_registers_from(op):
-    ref = op.p[0]
+  def into_rec(o):
+    for k,v in DataFlow.into(o).items():
+      if 'invoke' in v.v:
+        for t in DataFlow.into_rec(v):
+          yield t
+      else:
+        yield v
+
+  @staticmethod
+  def decode_registers_of(ref):
     if ref.t == 'multireg':
       regs = ref.v
       if ' .. ' in regs:
         from_, to_ = reg.split(' .. ')
-        return ['%s%d' % (from_[0], c) for c in range(int(from_[1]), int(to_[1]) + 1)]
+        return set(['%s%d' % (from_[0], c) for c in range(int(from_[1]), int(to_[1]) + 1)])
       elif ',' in regs:
-        return [r.strip() for r in regs.split(',')]
+        return set([r.strip() for r in regs.split(',')])
       else:
-        return [regs.strip()]
+        return set([regs.strip()])
     elif ref.t == 'reg':
       regs = ref.v
-      return [regs.strip()]
+      return set([regs.strip()])
     else:
       raise ValueError("unknown type of reference: %s, %s", ref.t, ref.v)
 
   @staticmethod
-  def search_backwards_on(regs, type_, op):
-    d = dict()
+  def data_xrefs_from(op):
+    looked = set()
     for o in reversed(op.method_.ops[:op.method_.ops.index(op)]):
-      print(o)
-      if o.t == 'id':
-        try:
-          affected = set(regs) & set(DataFlow.refered_registers_from(o))
-          if affected:
-            print(affected)
-        except ValueError:
-          pass
+      if o not in looked:
+        looked.add(o)
+        if o.t == 'id':
+          if o.v.startswith('move-result'):
+            for r in reversed(op.method_.ops[:o.method_.ops.index(o)]):
+              if r.t == 'id' and r.v.startswith('invoke'):
+                looked.add(r)
+                yield dict(load=DataFlow.decode_registers_of(o.p[0]), access=DataFlow.decode_registers_of(r.p[0]), on=r)
+                break
+          else:
+            if o.v.startswith('const'):
+              yield dict(load=DataFlow.decode_registers_of(o.p[0]), on=o)
+            elif o.v.startswith('new-'):
+              yield dict(load=DataFlow.decode_registers_of(o.p[0]), on=o)
+            elif o.v == 'move-exception':
+              yield dict(load=DataFlow.decode_registers_of(o.p[0]), on=o)
+            elif o.v == 'move':
+              yield dict(load=DataFlow.decode_registers_of(o.p[0]), access=DataFlow.decode_registers_of(o.p[1]), on=o)
+            else:
+              try:
+                yield dict(access=DataFlow.decode_registers_of(o.p[0]), on=o)
+              except ValueError:
+                pass
 
 class Class(Op):
   attrs = None
