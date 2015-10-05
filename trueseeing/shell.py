@@ -22,6 +22,10 @@ class Context:
     else:
       raise ValueError('analyzed once')
 
+  def permissions_declared(self):
+    with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'r') as f:
+      yield from ET.parse(f).getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
+
   def __enter__(self):
     return self
 
@@ -32,9 +36,8 @@ def warning_on(name, row, col, desc, opt):
   return dict(name=name, row=row, col=col, severity='warning', desc=desc, opt=opt)
 
 def check_manifest_open_permission(context):
-  with open(os.path.join(context.wd, 'AndroidManifest.xml'), 'r') as f:
-    for p in ET.parse(f).getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      print(p)
+  for p in context.permissions_declared():
+    print(p)
   return [
     warning_on(name='AndroidManifest.xml', row=1, col=0, desc='open permissions: android.permission.READ_PHONE_STATE', opt='-Wmanifest-open-permission'),
     warning_on(name='AndroidManifest.xml', row=1, col=0, desc='open permissions: android.permission.READ_SMS', opt='-Wmanifest-open-permission')
