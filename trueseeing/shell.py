@@ -6,6 +6,9 @@ import tempfile
 import os
 import lxml.etree as ET
 import shutil
+import re
+import math
+import base64
 
 preferences = None
 
@@ -25,6 +28,10 @@ class Context:
   def parsed_manifest(self):
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'r') as f:
       return ET.parse(f)
+
+  def disassembled_classes(self):
+    for root, dirs, files in os.walk(os.path.join(self.wd, 'smali')):
+      yield from (os.path.join(root, f) for f in files if f.endswith('.smali'))
 
   def permissions_declared(self):
     yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
@@ -63,11 +70,30 @@ def check_manifest_manip_broadcastreceiver(context):
     context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
   ))]
 
+def entropy_of(string):
+  o = 0.0
+  m = dict()
+  for c in string:
+    m[c] = m.get(c, 0) + 1
+  for cnt in m.values():
+    freq = cnt / len(string)
+    o -= freq * (math.log(freq) / math.log(2))
+  return o
+
 def check_crypto_static_keys(context):
-  return [
-    warning_on(name='com/gmail/altakey/crypto/Tools.java', row=5, col=0, desc='insecure cryptography: static keys: XXXXXX: "XXXXXXXXXXXXXXXXXXXXXXXX"', opt='-Wcrypto-static-keys'),
-    warning_on(name='com/gmail/altakey/crypto/Tools.java', row=6, col=0, desc='insecure cryptography: static keys: XXXXXX: "XXXXXXXXXXXXXXXXXXXXXXXX"', opt='-Wcrypto-static-keys'),
-  ]
+  candids = []
+  for fn in context.disassembled_classes():
+    with open(fn, 'r') as f:
+      for l in (r for r in f if 'const' in r):
+        m = re.search(r'"([0-9A-Za-z+/=]{8,}=?)"', l)
+        if m:
+          try:
+            raw = base64.b64decode(m.group(1))
+            if len(raw) % 8 == 0:
+              candids.append(dict(name=os.path.relpath(fn, context.wd), row=1, col=0, target_key='<ref>', target_val=m.group(1)))
+          except ValueError:
+            pass
+  return [warning_on(name=c['name'], row=c['row'], col=c['col'], desc='insecure cryptography: static keys: %(target_key)s: "%(target_val)s"' % c, opt='-Wcrypto-static-keys') for c in candids]
 
 def check_security_arbitrary_webview_overwrite(context):
   return [
