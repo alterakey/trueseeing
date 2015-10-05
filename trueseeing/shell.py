@@ -22,9 +22,12 @@ class Context:
     else:
       raise ValueError('analyzed once')
 
-  def permissions_declared(self):
+  def parsed_manifest(self):
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'r') as f:
-      yield from ET.parse(f).getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
+      return ET.parse(f)
+
+  def permissions_declared(self):
+    yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
 
   def __enter__(self):
     return self
@@ -49,14 +52,16 @@ def check_manifest_missing_permission(context):
   ]
 
 def check_manifest_manip_activity(context):
-  return [
-    warning_on(name='AndroidManifest.xml', row=1, col=0, desc='manipulatable Activity: XXXXXXXActivity', opt='-Wmanifest-manip-activity'),
-  ]
+  return [warning_on(name='AndroidManifest.xml', row=1, col=0, desc='manipulatable Activity: %s' % name, opt='-Wmanifest-manip-activity') for name in set(itertools.chain(
+    context.parsed_manifest().getroot().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+    context.parsed_manifest().getroot().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+  ))]
 
 def check_manifest_manip_broadcastreceiver(context):
-  return [
-    warning_on(name='AndroidManifest.xml', row=1, col=0, desc='manipulatable BroadcastReceiver: XXXXXXXReceiver', opt='-Wmanifest-manip-broadcastreceiver'),
-  ]
+  return [warning_on(name='AndroidManifest.xml', row=1, col=0, desc='manipulatable BroadcastReceiver: %s' % name, opt='-Wmanifest-manip-broadcastreceiver') for name in set(itertools.chain(
+    context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+    context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+  ))]
 
 def check_crypto_static_keys(context):
   return [
