@@ -1,5 +1,6 @@
 import re
 import collections
+import itertools
 
 class Package:
   def __init__(self, apk):
@@ -59,6 +60,9 @@ class Token:
   def __repr__(self):
     return '<Token %s:%s>' % (self.t, self.v)
 
+class Program(collections.UserList):
+  pass
+
 class Op(Token):
   p = None
 
@@ -69,28 +73,46 @@ class Op(Token):
   def __repr__(self):
     return '<Op %s:%s:%s>' % (self.t, self.v, self.p)
 
-class DataFlow:
+class CodeFlows:
   @staticmethod
-  def into(op):
+  def callers_of(method):
+    try:
+      return (r for r in itertools.chain(*(c.ops for c in method.class_.global_.classes)) if r.t == 'id' and 'invoke' in r.v and method.matches(r.p[1]))
+    except:
+      return []
+
+  @staticmethod
+  def callstacks_of(method):
     o = dict()
-    regs = DataFlow.decode_registers_of(op.p[0])
-    for r in regs:
-      for d in [x for x in DataFlow.data_xrefs_from(op) if r in x.get('load', set())]:
+    for m in CodeFlows.callers_of(method):
+      o[m] = CodeFlows.callstacks_of(m)
+    return o
+
+  @staticmethod
+  def invocations_in(ops):
+    return (o for o in ops if o.t == 'id' and 'invoke' in o.v)
+
+class DataFlows:
+  @staticmethod
+  def _immediate_into(op):
+    o = dict()
+    for r in DataFlows.decoded_registers_of(op.p[0]):
+      for d in [x for x in DataFlows.transits_from(op) if r in x.get('load', set())]:
         if r not in o:
           o[r] = d['on']
     return o
 
   @staticmethod
-  def into_rec(o):
-    for k,v in DataFlow.into(o).items():
+  def into(o):
+    for k,v in DataFlows._immediate_into(o).items():
       if 'invoke' in v.v:
-        for t in DataFlow.into_rec(v):
+        for t in DataFlows.into(v):
           yield t
       else:
         yield v
 
   @staticmethod
-  def decode_registers_of(ref):
+  def decoded_registers_of(ref):
     if ref.t == 'multireg':
       regs = ref.v
       if ' .. ' in regs:
@@ -107,7 +129,7 @@ class DataFlow:
       raise ValueError("unknown type of reference: %s, %s", ref.t, ref.v)
 
   @staticmethod
-  def data_xrefs_from(op):
+  def transits_from(op):
     looked = set()
     for o in reversed(op.method_.ops[:op.method_.ops.index(op)]):
       if o not in looked:
@@ -117,20 +139,20 @@ class DataFlow:
             for r in reversed(op.method_.ops[:o.method_.ops.index(o)]):
               if r.t == 'id' and r.v.startswith('invoke'):
                 looked.add(r)
-                yield dict(load=DataFlow.decode_registers_of(o.p[0]), access=DataFlow.decode_registers_of(r.p[0]), on=r)
+                yield dict(load=DataFlows.decoded_registers_of(o.p[0]), access=DataFlows.decoded_registers_of(r.p[0]), on=r)
                 break
           else:
             if o.v.startswith('const'):
-              yield dict(load=DataFlow.decode_registers_of(o.p[0]), on=o)
+              yield dict(load=DataFlows.decoded_registers_of(o.p[0]), on=o)
             elif o.v.startswith('new-'):
-              yield dict(load=DataFlow.decode_registers_of(o.p[0]), on=o)
+              yield dict(load=DataFlows.decoded_registers_of(o.p[0]), on=o)
             elif o.v == 'move-exception':
-              yield dict(load=DataFlow.decode_registers_of(o.p[0]), on=o)
+              yield dict(load=DataFlows.decoded_registers_of(o.p[0]), on=o)
             elif o.v == 'move':
-              yield dict(load=DataFlow.decode_registers_of(o.p[0]), access=DataFlow.decode_registers_of(o.p[1]), on=o)
+              yield dict(load=DataFlows.decoded_registers_of(o.p[0]), access=DataFlows.decoded_registers_of(o.p[1]), on=o)
             else:
               try:
-                yield dict(access=DataFlow.decode_registers_of(o.p[0]), on=o)
+                yield dict(access=DataFlows.decoded_registers_of(o.p[0]), on=o)
               except ValueError:
                 pass
 
@@ -140,7 +162,8 @@ class Class(Op):
   fields = []
   super_ = None
   source = None
-  ops = []
+  global_ = None
+  ops = Program()
 
   def __init__(self, p, methods, fields):
     super().__init__('class', [t for t in p if t.t == 'reflike'][0], None)
@@ -152,6 +175,12 @@ class Class(Op):
 
   def __repr__(self):
     return '<Class %s:%s, attrs:%s, super:%s, source:%s, methods:[%d methods], fields:[%d fields], ops:[%d ops]>' % (self.t, self.v, self.attrs, self.super_, self.source, len(self.methods), len(self.fields), len(self.ops))
+
+  def qualified_name(self):
+    return self.v.v
+
+class App:
+  classes = []
 
 class Annotation(Op):
   name = None
@@ -166,7 +195,7 @@ class Annotation(Op):
 
 class Method(Op):
   attrs = None
-  ops = None
+  ops = Program()
 
   def __init__(self, p, ops):
     super().__init__('method', Token('prototype', ''.join((t.v for t in p[-2:]))), p)
@@ -175,6 +204,12 @@ class Method(Op):
 
   def __repr__(self):
     return '<Method %s:%s, attrs:%s, ops:[%d ops]>' % (self.t, self.v, self.attrs, len(self.ops))
+
+  def matches(self, reflike):
+    return self.qualified_name() in reflike.v
+
+  def qualified_name(self):
+    return '%s->%s' % (self.class_.qualified_name(), self.v.v)
 
 class P:
   @staticmethod
@@ -186,6 +221,7 @@ class P:
 
   @staticmethod
   def parsed(s):
+    app = App()
     class_ = None
     method_ = None
 
@@ -193,6 +229,8 @@ class P:
       if class_ is None:
         if t.t == 'directive' and t.v == 'class':
           class_ = Class(t.p, [], [])
+          class_.global_ = app
+          app.classes.append(class_)
       else:
         t.class_ = class_
         class_.ops.append(t)
