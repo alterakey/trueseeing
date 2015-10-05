@@ -90,7 +90,7 @@ def check_crypto_static_keys(context):
           try:
             raw = base64.b64decode(m.group(1))
             if len(raw) % 8 == 0:
-              candids.append(dict(name=os.path.relpath(fn, context.wd), row=1, col=0, target_key='<ref>', target_val=m.group(1)))
+              candids.append(dict(name=os.path.relpath(fn, os.path.join(context.wd, 'smali')), row=1, col=0, target_key='<ref>', target_val=m.group(1)))
           except ValueError:
             pass
   return [warning_on(name=c['name'], row=c['row'], col=c['col'], desc='insecure cryptography: static keys: %(target_key)s: "%(target_val)s"' % c, opt='-Wcrypto-static-keys') for c in candids]
