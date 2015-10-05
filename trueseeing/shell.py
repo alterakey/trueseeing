@@ -4,6 +4,8 @@ import itertools
 import configparser
 import tempfile
 import os
+import lxml.etree as ET
+import shutil
 
 preferences = None
 
@@ -20,10 +22,19 @@ class Context:
     else:
       raise ValueError('analyzed once')
 
+  def __enter__(self):
+    return self
+
+  def __exit__(self, *exc_details):
+    shutil.rmtree(self.wd)
+
 def warning_on(name, row, col, desc, opt):
   return dict(name=name, row=row, col=col, severity='warning', desc=desc, opt=opt)
 
 def check_manifest_open_permission(context):
+  with open(os.path.join(context.wd, 'AndroidManifest.xml'), 'r') as f:
+    for p in ET.parse(f).getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+      print(p)
   return [
     warning_on(name='AndroidManifest.xml', row=1, col=0, desc='open permissions: android.permission.READ_PHONE_STATE', opt='-Wmanifest-open-permission'),
     warning_on(name='AndroidManifest.xml', row=1, col=0, desc='open permissions: android.permission.READ_SMS', opt='-Wmanifest-open-permission')
@@ -69,24 +80,24 @@ def formatted(n):
   return '%(name)s:%(row)d:%(col)d:%(severity)s:%(desc)s [%(opt)s]' % n
 
 def processed(apkfilename):
-  context = Context()
-  context.analyze(apkfilename)
-  print("%s -> %s" % (apkfilename, context.wd))
+  with Context() as context:
+    context.analyze(apkfilename)
+    print("%s -> %s" % (apkfilename, context.wd))
 
-  checker_chain = [
-    check_manifest_open_permission,
-    check_manifest_missing_permission,
-    check_manifest_manip_activity,
-    check_manifest_manip_broadcastreceiver,
-    check_crypto_static_keys,
-    check_security_arbitrary_webview_overwrite,
-    check_security_dataflow_file,
-    check_security_dataflow_wire
-  ]
+    checker_chain = [
+      check_manifest_open_permission,
+      check_manifest_missing_permission,
+      check_manifest_manip_activity,
+      check_manifest_manip_broadcastreceiver,
+      check_crypto_static_keys,
+      check_security_arbitrary_webview_overwrite,
+      check_security_dataflow_file,
+      check_security_dataflow_wire
+    ]
 
-  for c in checker_chain:
-    for e in c(context):
-      yield formatted(e)
+    for c in checker_chain:
+      for e in c(context):
+        yield formatted(e)
 
 def shell(argv):
   try:
