@@ -1,9 +1,24 @@
 import sys
 import getopt
 import itertools
+import configparser
+import tempfile
+import os
+
+preferences = None
 
 class Context:
-  notes = []
+  def __init__(self):
+    self.notes = []
+    self.wd = None
+
+  def analyze(self, apk):
+    if self.wd is None:
+      self.wd = tempfile.mkdtemp()
+      # XXX insecure
+      os.system("java -jar apktool.jar d -fo %(wd)s %(apk)s" % dict(wd=self.wd, apk=apk))
+    else:
+      raise ValueError('analyzed once')
 
 def warning_on(name, row, col, desc, opt):
   return dict(name=name, row=row, col=col, severity='warning', desc=desc, opt=opt)
@@ -55,6 +70,9 @@ def formatted(n):
 
 def processed(apkfilename):
   context = Context()
+  context.analyze(apkfilename)
+  print("%s -> %s" % (apkfilename, context.wd))
+
   checker_chain = [
     check_manifest_open_permission,
     check_manifest_missing_permission,
@@ -75,6 +93,11 @@ def shell(argv):
     opts, files = getopt.getopt(sys.argv[1:], 'f', [])
     for o, a in opts:
       pass
+
+    global preferences
+    preferences = configparser.ConfigParser()
+    preferences.read('.trueseeingrc')
+
     error_found = False
     for f in files:
       for e in processed(f):
