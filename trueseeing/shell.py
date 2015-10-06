@@ -33,6 +33,9 @@ class Context:
     for root, dirs, files in os.walk(os.path.join(self.wd, 'smali')):
       yield from (os.path.join(root, f) for f in files if f.endswith('.smali'))
 
+  def source_name_of_disassembled_class(self, fn):
+    return os.path.relpath(fn, os.path.join(self.wd, 'smali'))
+
   def permissions_declared(self):
     yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
 
@@ -76,24 +79,27 @@ def entropy_of(string):
   for c in string:
     m[c] = m.get(c, 0) + 1
   for cnt in m.values():
-    freq = cnt / len(string)
+    freq = float(cnt) / len(string)
     o -= freq * (math.log(freq) / math.log(2))
   return o
 
+def assumed_randomness_of(string):
+  return entropy_of(string) / float(math.log(len(string)) / math.log(2))
+
 def check_crypto_static_keys(context):
-  candids = []
+  marks = []
   for fn in context.disassembled_classes():
     with open(fn, 'r') as f:
-      for l in (r for r in f if 'const' in r):
+      for l in (r for r in f if re.search('const[-/]', r)):
         m = re.search(r'"([0-9A-Za-z+/=]{8,}=?)"', l)
         if m:
           try:
             raw = base64.b64decode(m.group(1))
-            if len(raw) % 8 == 0:
-              candids.append(dict(name=os.path.relpath(fn, os.path.join(context.wd, 'smali')), row=1, col=0, target_key='<ref>', target_val=m.group(1)))
           except ValueError:
-            pass
-  return [warning_on(name=c['name'], row=c['row'], col=c['col'], desc='insecure cryptography: static keys: %(target_key)s: "%(target_val)s"' % c, opt='-Wcrypto-static-keys') for c in candids]
+            raw = None
+          if (assumed_randomness_of(m.group(1)) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
+            marks.append(dict(name=context.source_name_of_disassembled_class(fn), row=1, col=0, target_key='<ref>', target_val=m.group(1)))
+  return [warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: static keys: %(target_key)s: "%(target_val)s"' % m, opt='-Wcrypto-static-keys') for m in marks]
 
 def check_security_arbitrary_webview_overwrite(context):
   return [
