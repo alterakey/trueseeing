@@ -9,22 +9,23 @@ CHANGES = open(os.path.join(here, 'CHANGES.md')).read()
 
 requires = []
 
-setup(name='trueseeing',
-      version='2.0.0',
-      description='Trueseeing is Android vulnerability scanner and peneration test framework.',
-      long_description=README + '\n\n' + CHANGES,
-      classifiers=[
-        "Programming Language :: Python",
-        "Programming Language :: Java",
-        ],
-      author='Takahiro Yoshimura',
-      author_email='altakey@gmail.com',
-      url='https://github.com/taky/trueseeing',
-      keywords='android java security pentest hacking',
-      packages=find_packages(),
-      include_package_data=True,
-      zip_safe=False,
-      install_requires = requires,
-      entry_points = {'console_scripts':['trueseeing = trueseeing.shell:entry']}
-      )
-
+setup(
+  name='trueseeing',
+  version='2.0.0',
+  description='Trueseeing is Android vulnerability scanner and peneration test framework.',
+  long_description=README + '\n\n' + CHANGES,
+  classifiers=[
+    "Programming Language :: Python",
+    "Programming Language :: Java",
+  ],
+  author='Takahiro Yoshimura',
+  author_email='altakey@gmail.com',
+  url='https://github.com/taky/trueseeing',
+  keywords='android java security pentest hacking',
+  packages=find_packages(),
+  package_data={'trueseeing':['libs/*.jar']},
+  include_package_data=True,
+  zip_safe=False,
+  install_requires = requires,
+  entry_points = {'console_scripts':['trueseeing = trueseeing.shell:entry']}
+)

@@ -10,6 +10,8 @@ import re
 import math
 import base64
 
+import pkg_resources
+
 preferences = None
 
 class Context:
@@ -21,7 +23,7 @@ class Context:
     if self.wd is None:
       self.wd = tempfile.mkdtemp()
       # XXX insecure
-      os.system("java -jar apktool.jar d -fo %(wd)s %(apk)s" % dict(wd=self.wd, apk=apk))
+      os.system("java -jar %(apktool)s d -fo %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=apk))
     else:
       raise ValueError('analyzed once')
 
