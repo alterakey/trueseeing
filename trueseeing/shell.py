@@ -2,7 +2,7 @@ import sys
 import getopt
 import configparser
 
-from trueseeing import signatures
+from trueseeing import fingerprint, signatures
 from trueseeing.context import Context
 
 preferences = None

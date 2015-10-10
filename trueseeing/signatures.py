@@ -1,3 +1,4 @@
+# Vulnerabilities:
 # * Cryptography: Insecure cryptography: Static keys
 # * Cryptography: Insecure cryptography: ECB
 # * Cryptography: Insecure cryptography: CBC with fixed key/IV

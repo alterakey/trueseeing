@@ -7,13 +7,15 @@ import pkg_resources
 class Context:
   def __init__(self):
     self.notes = []
+    self.apk = None
     self.wd = None
 
   def analyze(self, apk):
     if self.wd is None:
+      self.apk = apk
       self.wd = tempfile.mkdtemp()
       # XXX insecure
-      os.system("java -jar %(apktool)s d -fo %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=apk))
+      os.system("java -jar %(apktool)s d -fo %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk))
     else:
       raise ValueError('analyzed once')
 
