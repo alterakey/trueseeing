@@ -48,8 +48,6 @@ def package_family_of(p):
 def detect_library(context):
   package = context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
-  print(package)
-
   packages = dict()
   for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
     family = package_family_of(package_name_of(fn))
