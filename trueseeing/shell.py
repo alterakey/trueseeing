@@ -17,6 +17,8 @@ def processed(apkfilename):
     print("%s -> %s" % (apkfilename, context.wd))
 
     checker_chain = [
+      fingerprint.detect_library,
+      fingerprint.detect_obfuscators,
       signatures.check_manifest_open_permission,
       signatures.check_manifest_missing_permission,
       signatures.check_manifest_manip_activity,
