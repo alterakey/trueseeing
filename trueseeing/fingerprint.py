@@ -67,7 +67,7 @@ def detect_obfuscators(context):
 
 def detect_obfuscator_proguard(context):
   for c in (class_name_of(context.source_name_of_disassembled_class(r)) for r in context.disassembled_classes()):
-    if re.search(r'(?:^|\.)[A-Za-z]\.[A-Za-z]\.[A-Za-z]', c):
+    if re.search('(?:^|\.)a$', c):
       return [warning_on(name=context.apk, row=1, col=0, desc='detected obfuscator: ProGuard', opt='-Wdetect-obfuscator')]
   else:
     return []
