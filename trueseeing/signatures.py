@@ -43,6 +43,7 @@
 # * Security: Root introspection
 # * Security: Low reverse-enginnering resistance (dex2jar+jad, androguard)
 
+import binascii
 import itertools
 import lxml.etree as ET
 import shutil
@@ -104,8 +105,15 @@ def check_crypto_static_keys(context):
             raw = None
           if (assumed_randomness_of(m.group(1)) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
             marks.append(dict(name=context.source_name_of_disassembled_class(fn), row=1, col=0, target_key='<ref>', target_val=m.group(1)))
-  return [warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: static keys: %(target_key)s: "%(target_val)s"' % m, opt='-Wcrypto-static-keys') for m in marks]
 
+  o = []
+  for m in marks:
+    try:
+      decoded = base64.b64decode(m['target_val'])
+      o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: static keys: %s: "%s" [%d] (base64; "%s" [%d])' % (m['target_key'], m['target_val'], len(m['target_val']), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys'))
+    except (ValueError, binascii.Error):
+      o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: static keys: %s: "%s" [%d]' % (m['target_key'], m['target_val'], len(m['target_val'])), opt='-Wcrypto-static-keys'))
+  return o
 
 def check_security_arbitrary_webview_overwrite(context):
   return [
