@@ -44,6 +44,7 @@
 # * Security: Low reverse-enginnering resistance (dex2jar+jad, androguard)
 
 import binascii
+import functools
 import itertools
 import lxml.etree as ET
 import shutil
@@ -116,9 +117,34 @@ def check_crypto_static_keys(context):
   return o
 
 def check_security_arbitrary_webview_overwrite(context):
-  return [
-    warning_on(name='com/gmail/altakey/ui/WebActivity.java', row=40, col=0, desc='arbitrary WebView content overwrite', opt='-Wsecurity-arbitrary-webview-overwrite'),
-  ]
+  marks = []
+
+  candidates = set()
+  seed = set(['L.*WebView;'])
+  more = True
+
+  while more:
+    more = False
+    for fn in context.disassembled_classes():
+      with open(fn, 'r') as f:
+        m = re.search(r'^\.super\s+(%s)$' % ('|'.join(candidates if candidates else seed)), ''.join((l for l, _ in zip(f, range(10)))), re.MULTILINE)
+        if m is not None:
+          type_ = context.dalvik_type_of_disassembled_class(fn)
+          if not any([re.match(x, type_) for x in candidates]):
+            candidates.add(m.group(1))
+            candidates.add(type_)
+            more = True
+
+  for fn in context.disassembled_resources():
+    with open(fn, 'r') as f:
+      r = ET.parse(f).getroot()
+      for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % context.class_name_of_dalvik_class_type(c)) for c in candidates)):
+        marks.append(dict(name=context.source_name_of_disassembled_resource(fn), row=1, col=0))
+
+  o = []
+  for m in marks:
+    o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='arbitrary WebView content overwrite', opt='-Wsecurity-arbitrary-webview-overwrite'))
+  return o
 
 def check_security_dataflow_file(context):
   return [

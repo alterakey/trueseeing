@@ -1,3 +1,4 @@
+import re
 import tempfile
 import os
 import lxml.etree as ET
@@ -27,8 +28,21 @@ class Context:
     for root, dirs, files in os.walk(os.path.join(self.wd, 'smali')):
       yield from (os.path.join(root, f) for f in files if f.endswith('.smali'))
 
+  def disassembled_resources(self):
+    for root, dirs, files in os.walk(os.path.join(self.wd, 'res')):
+      yield from (os.path.join(root, f) for f in files if f.endswith('.xml'))
+
   def source_name_of_disassembled_class(self, fn):
     return os.path.relpath(fn, os.path.join(self.wd, 'smali'))
+
+  def dalvik_type_of_disassembled_class(self, fn):
+    return 'L%s;' % (self.source_name_of_disassembled_class(fn).replace('.smali', ''))
+
+  def source_name_of_disassembled_resource(self, fn):
+    return os.path.relpath(fn, os.path.join(self.wd, 'res'))
+
+  def class_name_of_dalvik_class_type(self, dc):
+    return re.sub(r'^L|;$|android/webkit/', '', dc).replace('/', '.')
 
   def permissions_declared(self):
     yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
