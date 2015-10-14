@@ -116,6 +116,28 @@ def check_crypto_static_keys(context):
       o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: static keys: %s: "%s" [%d]' % (m['target_key'], m['target_val'], len(m['target_val'])), opt='-Wcrypto-static-keys'))
   return o
 
+def check_crypto_ecb(context):
+  marks = []
+  for fn in context.disassembled_classes():
+    with open(fn, 'r') as f:
+      for l in re.finditer(r'^.+$', f.read, re.MULTILINE):
+        m = re.search(r'invoke-static\s.+?Ljavax\.crypto\.Cipher;->getInstance\(Ljava/lang/String;.*?\)', l)
+        if m is not None:
+          pos = position_of_match(m)
+          marks.append(dict(name=context.source_name_of_disassembled_class(fn), row=pos['row'], col=pos['col']))
+
+  for m in marks:
+    try:
+      m['target_val'] = flows.solved_constant_data_in_function(position_of_mark(m), 0)
+    except (flows.NoSuchValueError):
+      m['target_val'] = None
+
+  o = []
+  for m in (r for r in marks if r.get('target_val') == 2):
+    o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: cipher operating in ECB mode', opt='-Wcrypto-ecb'))
+  return o
+
+
 def check_security_arbitrary_webview_overwrite(context):
   marks = []
 
