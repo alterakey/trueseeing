@@ -93,27 +93,39 @@ def entropy_of(string):
 def assumed_randomness_of(string):
   return entropy_of(string) / float(math.log(len(string)) / math.log(2))
 
+class SourceAddress:
+  def __init__(self, fn, linenr, remark):
+    self.fn = fn
+    self.linenr = linenr
+    self.remark = remark
+
+class Remark:
+  def __init__(self, key, val):
+    self.key = key
+    self.val = val
+
 def check_crypto_static_keys(context):
   marks = []
   for fn in context.disassembled_classes():
     with open(fn, 'r') as f:
-      for l in (r for r in f if re.search('const[-/]', r)):
-        m = re.search(r'"([0-9A-Za-z+/=]{8,}=?)"', l)
-        if m:
-          try:
-            raw = base64.b64decode(m.group(1))
-          except ValueError:
-            raw = None
-          if (assumed_randomness_of(m.group(1)) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
-            marks.append(dict(name=context.source_name_of_disassembled_class(fn), row=1, col=0, target_key='<ref>', target_val=m.group(1)))
+      for linenr, l in zip(itertools.count(1), f):
+        if re.search('const[-/]', l):
+          m = re.search(r'"([0-9A-Za-z+/=]{8,}=?)"', l)
+          if m:
+            try:
+              raw = base64.b64decode(m.group(1))
+            except ValueError:
+              raw = None
+            if (assumed_randomness_of(m.group(1)) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
+              marks.append(SourceAddress(fn, linenr, Remark(key='<ref>', val=m.group(1))))
 
   o = []
   for m in marks:
     try:
-      decoded = base64.b64decode(m['target_val'])
-      o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: static keys: %s: "%s" [%d] (base64; "%s" [%d])' % (m['target_key'], m['target_val'], len(m['target_val']), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys'))
+      decoded = base64.b64decode(m.remark.val)
+      o.append(warning_on(name=context.source_name_of_disassembled_class(m.fn), row=m.linenr, col=0, desc='insecure cryptography: static keys: %s: "%s" [%d] (base64; "%s" [%d])' % (m.remark.key, m.remark.val, len(m.remark.val), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys'))
     except (ValueError, binascii.Error):
-      o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: static keys: %s: "%s" [%d]' % (m['target_key'], m['target_val'], len(m['target_val'])), opt='-Wcrypto-static-keys'))
+      o.append(warning_on(name=context.source_name_of_disassembled_class(m.fn), row=m.linenr, col=0, desc='insecure cryptography: static keys: %s: "%s" [%d]' % (m.remark.key, m.remark.val, len(m.remark.val)), opt='-Wcrypto-static-keys'))
   return o
 
 def check_crypto_ecb(context):
