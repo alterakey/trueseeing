@@ -5,6 +5,8 @@ import lxml.etree as ET
 import shutil
 import pkg_resources
 
+import trueseeing.smali
+
 class Context:
   def __init__(self):
     self.notes = []
@@ -27,6 +29,9 @@ class Context:
   def disassembled_classes(self):
     for root, dirs, files in os.walk(os.path.join(self.wd, 'smali')):
       yield from (os.path.join(root, f) for f in files if f.endswith('.smali'))
+
+  def analyzed_classes(self):
+    return trueseeing.smali.P.parsed('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes())).global_.classes
 
   def disassembled_resources(self):
     for root, dirs, files in os.walk(os.path.join(self.wd, 'res')):
