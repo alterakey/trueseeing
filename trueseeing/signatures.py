@@ -106,15 +106,16 @@ class Remark:
 
 def check_crypto_static_keys(context):
   marks = []
+  re_const_val = re.compile(r'^[0-9A-Za-z+/=]{8,}=?$')
   for cl in context.analyzed_classes():
     for insn, val in ((r.v, r.p[1].v if len(r.p) > 1 else '') for r in cl.ops if r.t == 'id'):
-      if insn.startswith('const') and re.match(r'^[0-9A-Za-z+/=]{8,}=?$', val):
+      if insn.startswith('const') and re_const_val.match(val):
         try:
           raw = base64.b64decode(val)
         except ValueError:
           raw = None
         if (assumed_randomness_of(val) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
-          marks.append(SourceAddress(cl.v.v, 1, Remark(key='<ref>', val=val)))
+          marks.append(SourceAddress(cl.qualified_name(), 1, Remark(key='<ref>', val=val)))
 
   o = []
   for m in marks:

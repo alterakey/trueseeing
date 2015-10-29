@@ -157,21 +157,15 @@ class DataFlows:
                 pass
 
 class Class(Op):
-  attrs = None
-  methods = []
-  fields = []
-  super_ = None
-  source = None
-  global_ = None
-  ops = Program()
-
   def __init__(self, p, methods, fields):
     super().__init__('class', [t for t in p if t.t == 'reflike'][0], None)
     self.attrs = set([t for t in p if t.t == 'id'])
-    if methods:
-      self.methods = methods
-    if fields:
-      self.fields = fields
+    self.methods = methods if methods else []
+    self.fields = fields if fields else []
+    self.super_ = None
+    self.source = None
+    self.global_ = None
+    self.ops = Program()
 
   def __repr__(self):
     return '<Class %s:%s, attrs:%s, super:%s, source:%s, methods:[%d methods], fields:[%d fields], ops:[%d ops]>' % (self.t, self.v, self.attrs, self.super_, self.source, len(self.methods), len(self.fields), len(self.ops))
@@ -226,12 +220,12 @@ class P:
     method_ = None
 
     for t in (r for r in P.parsed_flat(s)):
-      if class_ is None:
-        if t.t == 'directive' and t.v == 'class':
-          class_ = Class(t.p, [], [])
-          class_.global_ = app
-          app.classes.append(class_)
+      if t.t == 'directive' and t.v == 'class':
+        class_ = Class(t.p, [], [])
+        class_.global_ = app
+        app.classes.append(class_)
       else:
+        assert class_ is not None
         t.class_ = class_
         class_.ops.append(t)
         if method_ is None:
