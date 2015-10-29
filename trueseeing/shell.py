@@ -38,7 +38,10 @@ def shell(argv):
     opts, files = getopt.getopt(sys.argv[1:], 'f', [])
     for o, a in opts:
       pass
-
+  except IndexError:
+    print("%s: no input files" % argv[0])
+    return 2
+  else:
     global preferences
     preferences = configparser.ConfigParser()
     preferences.read('.trueseeingrc')
@@ -52,9 +55,6 @@ def shell(argv):
       return 0
     else:
       return 1
-  except IndexError:
-    print("%s: no input files" % argv[0])
-    return 2
 
 def entry():
   import sys
