@@ -53,6 +53,7 @@ import math
 import base64
 
 from trueseeing.context import warning_on
+from trueseeing.smali import DataFlows
 
 def check_manifest_open_permission(context):
   for p in context.permissions_declared():
@@ -106,16 +107,25 @@ class Remark:
 
 def check_crypto_static_keys(context):
   marks = []
+  marked = []
   re_const_val = re.compile(r'^[0-9A-Za-z+/=]{8,}=?$')
   for cl in context.analyzed_classes():
-    for insn, val in ((r.v, r.p[1].v if len(r.p) > 1 else '') for r in cl.ops if r.t == 'id'):
-      if insn.startswith('const') and re_const_val.match(val):
+    for op in cl.ops:
+      if op.t == 'id':
         try:
-          raw = base64.b64decode(val)
-        except ValueError:
-          raw = None
-        if (assumed_randomness_of(val) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
-          marks.append(SourceAddress(cl.qualified_name(), 1, Remark(key='<ref>', val=val)))
+          insn, val = op.v, op.p[1].v
+          if insn.startswith('invoke-') and val.startswith('Ljavax/crypto'):
+            marked.append(op)
+        except IndexError:
+          pass
+  print({k:[c for c in DataFlows.into(k)] for k in marked})
+      #if insn.startswith('const') and re_const_val.match(val):
+      #  try:
+      #    raw = base64.b64decode(val)
+      #  except ValueError:
+      #    raw = None
+      #  if (assumed_randomness_of(val) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
+      #    marks.append(SourceAddress(cl.qualified_name(), 1, Remark(key='<ref>', val=val)))
 
   o = []
   for m in marks:
