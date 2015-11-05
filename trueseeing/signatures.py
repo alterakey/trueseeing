@@ -118,7 +118,9 @@ def check_crypto_static_keys(context):
             marked.append(op)
         except IndexError:
           pass
-  print({k:[c for c in DataFlows.into(k)] for k in marked})
+  for k in marked:
+    for c in DataFlows.into(k):
+      pass
       #if insn.startswith('const') and re_const_val.match(val):
       #  try:
       #    raw = base64.b64decode(val)
