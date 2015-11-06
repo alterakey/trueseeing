@@ -2,6 +2,9 @@ import re
 import collections
 import itertools
 
+import pprint
+import traceback
+
 class Package:
   def __init__(self, apk):
     self.apk = apk
@@ -153,13 +156,26 @@ class DataFlows:
         except KeyError:
           return dict(on=o, load=DataFlows.decoded_registers_of(from_.p[0]))          
 
+        
+  # XXX: assuming that a) the subject lifecycle could conclude in the function, and b) the subject register holds during the function.
   @staticmethod
   def analyze_subject(from_, subject):
+    reg = []
     for o in reversed(from_.method_.ops[:from_.method_.ops.index(from_)]):
       if o.t == 'id':
         access = DataFlows.decoded_registers_of(o.p[0], type_=list)
         if subject == access[0]:
-          print(access, DataFlows.analyze_load(o, set(access) - {subject}))
+          if o.v.startswith('invoke'):
+            reg.append(o)#DataFlows.analyze_load(o, set(access) - {subject}))
+          elif any(o.v.startswith(x) for x in ['const', 'new-', 'move']):
+            reg.append(o)
+            break
+    if reg:
+      print("subject (" + subject + ") analysis, from: " + repr(from_) + ":")
+      for o in reg:
+        print(o)
+        pprint.pprint(DataFlows.analyze_load(o, DataFlows.decoded_registers_of(o.p[0]) - {subject}))
+      print("")
     return subject
 
   @staticmethod

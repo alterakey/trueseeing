@@ -105,6 +105,8 @@ class Remark:
     self.key = key
     self.val = val
 
+import pprint
+
 def check_crypto_static_keys(context):
   marks = []
   marked = []
@@ -120,7 +122,7 @@ def check_crypto_static_keys(context):
           pass
   for k in marked:
     for c in DataFlows.into(k):
-      pass
+      pprint.pprint(c)
       #if insn.startswith('const') and re_const_val.match(val):
       #  try:
       #    raw = base64.b64decode(val)
