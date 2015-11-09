@@ -134,17 +134,17 @@ class DataFlows:
         return tuple(v)[0]
     
     def flattened(d):
-      regs = {}
       try:
+        regs = {}
         for regset in (v.get('load') for v in d['access']):
           r = just(regset)
           assert r not in regs
           regs[r] = [flattened(v) for v in d['access'] if r in v.get('load', frozenset())]
+        if regs:
+          return {d['on']:regs}
+        else:
+          return d['on']
       except (KeyError, AttributeError):
-        regs = {}
-      if regs:
-        return {d['on']:regs}
-      else:
         return d['on']
     
     graphs = [flattened(DataFlows.analyze_op(o))]
