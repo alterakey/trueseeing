@@ -92,17 +92,64 @@ class CodeFlows:
     return o
 
   @staticmethod
+  def method_of(op, ops):
+    for o in reversed(ops):
+      pass
+
+  @staticmethod
   def invocations_in(ops):
     return (o for o in ops if o.t == 'id' and 'invoke' in o.v)
 
+class InvocationPattern:
+  def __init__(self, insn, value, i=None):
+    self.insn = insn
+    self.value = value
+    self.i = i
+
+class OpMatcher:
+  def __init__(self, ops, *pats):
+    self.ops = ops
+    self.pats = pats
+
+  def matching(self):
+    table = [(re.compile(p.insn), (re.compile(p.value) if p.value is not None else None)) for p in self.pats]
+    for o in (o for o in self.ops if o.t == 'id'):
+      try:
+        if any(ipat.match(o.v) and (vpat is None or vpat.match(o.p[1].v)) for ipat, vpat in table):
+          yield o
+      except (IndexError, AttributeError):
+        pass
+      
 class DataFlows:
   class RegisterDecodeError(Exception):
     pass
   
   @staticmethod
   def into(o):
-    return [DataFlows.analyze_op(o)]
+    def just(v):
+      assert len(v) == 1, 'checkpoint: %r' % v
+      if isinstance(v, list):
+        return v[0]
+      else:
+        return tuple(v)[0]
     
+    def flattened(d):
+      regs = {}
+      try:
+        for regset in (v.get('load') for v in d['access']):
+          r = just(regset)
+          assert r not in regs
+          regs[r] = [flattened(v) for v in d['access'] if r in v.get('load', frozenset())]
+      except (KeyError, AttributeError):
+        regs = {}
+      if regs:
+        return {d['on']:regs}
+      else:
+        return d['on']
+    
+    graphs = [flattened(DataFlows.analyze_op(o))]
+    return graphs
+
   @staticmethod
   def decoded_registers_of(ref, type_=set):
     if ref.t == 'multireg':
@@ -123,9 +170,7 @@ class DataFlows:
   @staticmethod
   def analyze_op(op):
     if op.t == 'id':
-      if op.v.startswith('const'):
-        return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]))
-      elif op.v.startswith('new-'):
+      if any(op.v.startswith(x) for x in ['const','new-']):
         return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]))
       elif op.v == 'move-exception':
         return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]))
@@ -166,17 +211,10 @@ class DataFlows:
         access = DataFlows.decoded_registers_of(o.p[0], type_=list)
         if subject == access[0]:
           if o.v.startswith('invoke'):
-            reg.append(o)#DataFlows.analyze_load(o, set(access) - {subject}))
-          elif any(o.v.startswith(x) for x in ['const', 'new-', 'move']):
             reg.append(o)
+          elif any(o.v.startswith(x) for x in ['const', 'new-', 'move']):
             break
-    if reg:
-      print("subject (" + subject + ") analysis, from: " + repr(from_) + ":")
-      for o in reg:
-        print(o)
-        pprint.pprint(DataFlows.analyze_load(o, DataFlows.decoded_registers_of(o.p[0]) - {subject}))
-      print("")
-    return subject
+    return [DataFlows.analyze_op(o) for o in reg]
 
   @staticmethod
   def analyze_load(from_, regs):

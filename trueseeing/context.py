@@ -7,7 +7,7 @@ import pkg_resources
 
 import trueseeing.smali
 
-class Context:
+class NaiveContext:
   def __init__(self):
     self.notes = []
     self.apk = None
@@ -58,5 +58,19 @@ class Context:
   def __exit__(self, *exc_details):
     shutil.rmtree(self.wd)
 
+class TestContext(NaiveContext):
+  def analyze(self, apk):
+    if self.wd is None:
+      self.apk = apk
+      self.wd = '/var/folders/zx/4htjs7cn75dfd5r6kcqlvmhh0000gp/T/tmp2p3r0q_r'
+    else:
+      return super().analyze(apk)
+
+  def __exit__(self, *exc_details):
+    pass
+
+Context = TestContext
+  
 def warning_on(name, row, col, desc, opt):
   return dict(name=name, row=row, col=col, severity='warning', desc=desc, opt=opt)
+

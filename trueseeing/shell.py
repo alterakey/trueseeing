@@ -30,8 +30,7 @@ def processed(apkfilename):
     ]
 
     for c in checker_chain:
-      for e in c(context):
-        yield formatted(e)
+      yield from (formatted(e) for e in c(context))
 
 def shell(argv):
   try:
