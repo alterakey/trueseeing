@@ -168,12 +168,32 @@ class DataFlows:
       raise DataFlows.RegisterDecodeError("unknown type of reference: %s, %s", ref.t, ref.v)
 
   @staticmethod
+  def looking_behind_from(op, ops):
+    focus = None
+    for o in reversed(ops[:ops.index(op)]):
+      if focus is None:
+        if o.t != 'label':
+          yield o
+        else:
+          focus = o.v
+      else:
+        if o.t != 'id' or not any(p.v == focus for p in o.p):
+          continue
+        else:
+          focus = None          
+    
+  @staticmethod
   def analyze_op(op):
     if op.t == 'id':
-      if any(op.v.startswith(x) for x in ['const','new-']):
+      if any(op.v.startswith(x) for x in ['const','new-','sget-']):
         return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]))
-      elif op.v == 'move-exception':
+      elif op.v in ['move-exception', 'array-length']:
         return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]))
+      elif op.v.startswith('aget-'):
+        try:
+          return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]), access=DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))
+        except IndexError:
+          assert False
       elif op.v == 'move':
         return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]), access=DataFlows.decoded_registers_of(op.p[1]))
       elif op.v.startswith('invoke'):
@@ -194,7 +214,7 @@ class DataFlows:
 
   @staticmethod
   def analyze_ret(from_):
-    for o in reversed(from_.method_.ops[:from_.method_.ops.index(from_)]):
+    for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
       if o.t == 'id' and o.v.startswith('invoke'):
         try:
           return dict(on=o, load=DataFlows.decoded_registers_of(from_.p[0]), access=DataFlows.analyze_op(o)['access'])
@@ -206,13 +226,13 @@ class DataFlows:
   @staticmethod
   def analyze_subject(from_, subject):
     reg = []
-    for o in reversed(from_.method_.ops[:from_.method_.ops.index(from_)]):
+    for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
       if o.t == 'id':
         access = DataFlows.decoded_registers_of(o.p[0], type_=list)
         if subject == access[0]:
           if o.v.startswith('invoke'):
             reg.append(o)
-          elif any(o.v.startswith(x) for x in ['const', 'new-', 'move']):
+          elif any(o.v.startswith(x) for x in ['const', 'new-', 'move', 'aget-','sget-']):
             break
     return [DataFlows.analyze_op(o) for o in reg]
 
@@ -220,7 +240,7 @@ class DataFlows:
   def analyze_load(from_, regs):
     ret = []
     unsolved = set(regs)
-    for o in reversed(from_.method_.ops[:from_.method_.ops.index(from_)]):
+    for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
       if unsolved:
         d = DataFlows.analyze_op(o)
         if d is not None:
