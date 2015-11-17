@@ -157,7 +157,8 @@ class DataFlows:
         if o.t != 'label':
           yield o
         else:
-          focus = o.v
+          if not o.v.startswith("try_"):
+            focus = o.v
       else:
         if o.t != 'id' or not any(p.v == focus for p in o.p):
           continue
