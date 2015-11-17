@@ -175,8 +175,8 @@ class DataFlows:
       elif any(op.v.startswith(x) for x in ['aget-']):
         assert len(op.p) == 3
         return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
-      elif any(op.v.startswith(x) for x in ['sget-']):
-        print("TBD: static trace of %s (%s)" % (op.p[1], op.p[2]))
+      elif any(op.v.startswith(x) for x in ['sget-', 'iget-']):
+        print("TBD: static/instansic trace of %s (%s)" % (op.p[1], op.p[2]))
         return op
       elif op.v.startswith('move-result'):
         return DataFlows.analyze(DataFlows.analyze_recent_invocation(op))
@@ -189,7 +189,7 @@ class DataFlows:
   @staticmethod
   def analyze_load(op):
     if op.t == 'id':
-      if any(op.v.startswith(x) for x in ['const','new-','move','array-length','aget-','sget-']):
+      if any(op.v.startswith(x) for x in ['const','new-','move','array-length','aget-','sget-','iget-']):
         return DataFlows.decoded_registers_of(op.p[0])
       elif any(op.v.startswith(x) for x in ['invoke-direct', 'invoke-virtual', 'invoke-interface']):
         # Imply modification of "this"
