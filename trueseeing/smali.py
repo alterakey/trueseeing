@@ -169,7 +169,7 @@ class DataFlows:
     if op is not None and op.t == 'id':
       if any(op.v.startswith(x) for x in ['const','new-','move-exception']):
         return op
-      elif op.v == 'array-length':
+      elif op.v in ['move', 'array-length']:
         return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[1])}}
       elif any(op.v.startswith(x) for x in ['aget-']):
         assert len(op.p) == 3
@@ -177,10 +177,6 @@ class DataFlows:
       elif any(op.v.startswith(x) for x in ['sget-']):
         print("TBD: static trace of %s (%s)" % (op.p[1], op.p[2]))
         return op
-      elif op.v == 'move':
-        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[1])}}
-      elif op.v.startswith('invoke'):
-        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[0])}}
       elif op.v.startswith('move-result'):
         return DataFlows.analyze(DataFlows.analyze_recent_invocation(op))
       else:
