@@ -133,7 +133,7 @@ class DataFlows:
     return DataFlows.analyze(o)
 
   @staticmethod
-  def decoded_registers_of(ref, type_=set):
+  def decoded_registers_of(ref, type_=frozenset):
     if ref.t == 'multireg':
       regs = ref.v
       if ' .. ' in regs:
