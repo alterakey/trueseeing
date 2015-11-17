@@ -123,32 +123,14 @@ class OpMatcher:
 class DataFlows:
   class RegisterDecodeError(Exception):
     pass
+
+  @staticmethod
+  def likely_calling_in(ops):
+    pass
   
   @staticmethod
   def into(o):
-    def just(v):
-      assert len(v) == 1, 'checkpoint: %r' % v
-      if isinstance(v, list):
-        return v[0]
-      else:
-        return tuple(v)[0]
-    
-    def flattened(d):
-      try:
-        regs = {}
-        for regset in (v.get('load') for v in d['access']):
-          r = just(regset)
-          assert r not in regs
-          regs[r] = [flattened(v) for v in d['access'] if r in v.get('load', frozenset())]
-        if regs:
-          return {d['on']:regs}
-        else:
-          return d['on']
-      except (KeyError, AttributeError):
-        return d['on']
-    
-    graphs = [flattened(DataFlows.analyze_op(o))]
-    return graphs
+    return DataFlows.analyze(o)
 
   @staticmethod
   def decoded_registers_of(ref, type_=set):
@@ -165,7 +147,7 @@ class DataFlows:
       regs = ref.v
       return type_([regs.strip()])
     else:
-      raise DataFlows.RegisterDecodeError("unknown type of reference: %s, %s", ref.t, ref.v)
+      raise DataFlows.RegisterDecodeError("unknown type of reference: %s, %s" % (ref.t, ref.v))
 
   @staticmethod
   def looking_behind_from(op, ops):
@@ -181,76 +163,55 @@ class DataFlows:
           continue
         else:
           focus = None          
-    
+
   @staticmethod
-  def analyze_op(op):
-    if op.t == 'id':
-      if any(op.v.startswith(x) for x in ['const','new-','sget-']):
-        return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]))
-      elif op.v in ['move-exception', 'array-length']:
-        return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]))
-      elif op.v.startswith('aget-'):
-        try:
-          return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]), access=DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))
-        except IndexError:
-          assert False
+  def analyze(op):
+    if op is not None and op.t == 'id':
+      if any(op.v.startswith(x) for x in ['const','new-','move-exception']):
+        return op
+      elif op.v == 'array-length':
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[1])}}
+      elif any(op.v.startswith(x) for x in ['aget-']):
+        assert len(op.p) == 3
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
+      elif any(op.v.startswith(x) for x in ['sget-']):
+        print("TBD: static trace of %s (%s)" % (op.p[1], op.p[2]))
+        return op
       elif op.v == 'move':
-        return dict(on=op, load=DataFlows.decoded_registers_of(op.p[0]), access=DataFlows.decoded_registers_of(op.p[1]))
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[1])}}
       elif op.v.startswith('invoke'):
-        try:
-          d = dict(on=op, access=DataFlows.analyze_load(op, DataFlows.decoded_registers_of(op.p[0])))
-          if op.v.endswith('-virtual') or op.v.endswith('-direct'):
-            d.update(dict(subject=DataFlows.analyze_subject(op, DataFlows.decoded_registers_of(op.p[0], type_=list)[0])))
-          return d
-        except DataFlows.RegisterDecodeError:
-          return dict()
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[0])}}
       elif op.v.startswith('move-result'):
-        return DataFlows.analyze_ret(op)
+        return DataFlows.analyze(DataFlows.analyze_recent_invocation(op))
       else:
         try:
-          return dict(on=op, access=DataFlows.decoded_registers_of(op.p[0]))
+          return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[0])}}
         except DataFlows.RegisterDecodeError:
-          return dict()
+          return None
 
   @staticmethod
-  def analyze_ret(from_):
-    for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
-      if o.t == 'id' and o.v.startswith('invoke'):
-        try:
-          return dict(on=o, load=DataFlows.decoded_registers_of(from_.p[0]), access=DataFlows.analyze_op(o)['access'])
-        except KeyError:
-          return dict(on=o, load=DataFlows.decoded_registers_of(from_.p[0]))          
+  def analyze_load(op):
+    if op.t == 'id':
+      if any(op.v.startswith(x) for x in ['const','new-','move','array-length','aget-','sget-']):
+        return DataFlows.decoded_registers_of(op.p[0])
+      elif any(op.v.startswith(x) for x in ['invoke-direct', 'invoke-virtual', 'invoke-interface']):
+        # Imply modification of "this"
+        return frozenset(DataFlows.decoded_registers_of(op.p[0], type_=list)[0])
+      else:
+        return frozenset()
 
-        
-  # XXX: assuming that a) the subject lifecycle could conclude in the function, and b) the subject register holds during the function.
   @staticmethod
-  def analyze_subject(from_, subject):
-    reg = []
+  def analyze_recent_load_of(from_, reg):
     for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
       if o.t == 'id':
-        access = DataFlows.decoded_registers_of(o.p[0], type_=list)
-        if subject == access[0]:
-          if o.v.startswith('invoke'):
-            reg.append(o)
-          elif any(o.v.startswith(x) for x in ['const', 'new-', 'move', 'aget-','sget-']):
-            break
-    return [DataFlows.analyze_op(o) for o in reg]
+        if reg in DataFlows.analyze_load(o):
+          return o
 
   @staticmethod
-  def analyze_load(from_, regs):
-    ret = []
-    unsolved = set(regs)
+  def analyze_recent_invocation(from_):
     for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
-      if unsolved:
-        d = DataFlows.analyze_op(o)
-        if d is not None:
-          try:
-            if d['load'] & unsolved:
-              ret.append(d)
-              unsolved = unsolved - d['load']
-          except KeyError:
-            pass
-    return ret
+      if o.t == 'id' and o.v.startswith('invoke'):
+        return o
 
 class Class(Op):
   def __init__(self, p, methods, fields):

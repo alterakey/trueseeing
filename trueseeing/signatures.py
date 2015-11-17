@@ -113,8 +113,7 @@ def check_crypto_static_keys(context):
   re_const_val = re.compile(r'^[0-9A-Za-z+/=]{8,}=?$')
   for cl in context.analyzed_classes():
     for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax/crypto')).matching():
-      for c in DataFlows.into(k):
-        pprint.pprint(c)
+      pprint.pprint(DataFlows.into(k))
         #if insn.startswith('const') and re_const_val.match(val):
         #  try:
         #    raw = base64.b64decode(val)
