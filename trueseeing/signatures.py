@@ -133,25 +133,20 @@ def check_crypto_static_keys(context):
 
 def check_crypto_ecb(context):
   marks = []
-  for fn in context.disassembled_classes():
-    with open(fn, 'r') as f:
-      for l in re.finditer(r'^.+$', f.read, re.MULTILINE):
-        m = re.search(r'invoke-static\s.+?Ljavax\.crypto\.Cipher;->getInstance\(Ljava/lang/String;.*?\)', l)
-        if m is not None:
-          pos = position_of_match(m)
-          marks.append(dict(name=context.source_name_of_disassembled_class(fn), row=pos['row'], col=pos['col']))
+  for cl in context.analyzed_classes():
+    for k in OpMatcher(cl.ops, InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')).matching():
+      marks.append(dict(name=context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k))
 
   for m in marks:
     try:
-      m['target_val'] = flows.solved_constant_data_in_function(position_of_mark(m), 0)
-    except (flows.NoSuchValueError):
-      m['target_val'] = None
+      m['target_val'] = DataFlows.solved_constant_data_in_invocation(m['op'], 0)
+    except (DataFlows.NoSuchValueError):
+      pass
 
   o = []
-  for m in (r for r in marks if r.get('target_val') == 2):
-    o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='insecure cryptography: cipher operating in ECB mode', opt='-Wcrypto-ecb'))
+  for m in (r for r in marks if 'target_val' in r and ('ECB' in r['target_val'] or '/' not in r['target_val'])):
+    o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
   return o
-
 
 def check_security_arbitrary_webview_overwrite(context):
   marks = []

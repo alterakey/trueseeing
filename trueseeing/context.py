@@ -47,7 +47,7 @@ class NaiveContext:
     return os.path.relpath(fn, os.path.join(self.wd, 'res'))
 
   def class_name_of_dalvik_class_type(self, dc):
-    return re.sub(r'^L|;$|android/webkit/', '', dc).replace('/', '.')
+    return re.sub(r'^L|;$', '', dc).replace('/', '.')
 
   def permissions_declared(self):
     yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
