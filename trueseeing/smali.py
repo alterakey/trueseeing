@@ -5,53 +5,6 @@ import itertools
 import pprint
 import traceback
 
-class Package:
-  def __init__(self, apk):
-    self.apk = apk
-
-  def disassembled(self):
-    return PackageAnalysis(PackageContent(self.apk).unpacked()).analyzed()
-
-class PackageAnalysis:
-  res = None
-  smali = None
-  unknown = None
-  lib = None
-
-  def __init__(self, path):
-    self.path = path
-
-  def analyzed(self):
-    self.res = []
-    self.smali = []
-    self.unknown = []
-    self.lib = []
-
-class PackageContent:
-  def __init__(self, apk):
-    self.apk = apk
-
-  def unpacked(self):
-    return '/tmp/package/unpacked'
-
-class Directory:
-  def __init__(self, path):
-    self.path = path
-
-  def remove(self):
-    os.path.rmtree(self.path)
-
-  def __enter__(self):
-    return self
-
-  def __exit__(self, exc_code, exc_value, traceback):
-    self.remove()
-
-class Smali:
-  @staticmethod
-  def parsed(source_code_in_smali):
-    return P.parsed(source_code_in_smali)
-
 class Token:
   t = None
   v = None
@@ -299,7 +252,7 @@ class P:
     class_ = None
     method_ = None
 
-    for t in (r for r in P.parsed_flat(s)):
+    for t in P.parsed_flat(s):
       if t.t == 'directive' and t.v == 'class':
         class_ = Class(t.p, [], [])
         class_.global_ = app
@@ -346,7 +299,7 @@ class P:
 
   @staticmethod
   def parsed_as_op(l):
-    x, xs = P.head_and_tail([t for t in P.lexed_as_smali(l)])
+    x, xs = P.head_and_tail(list(P.lexed_as_smali(l)))
     return Op(x.t, x.v, xs)
 
   @staticmethod
@@ -365,6 +318,3 @@ class P:
       key = m.lastgroup
       value = m.group(key)
       yield Token(key, value)
-
-if __name__ == '__main__':
-    Package(apk).disassembled().of('filename.smali')
