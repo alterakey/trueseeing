@@ -12,6 +12,7 @@ class NaiveContext:
     self.notes = []
     self.apk = None
     self.wd = None
+    self.state = {}
 
   def analyze(self, apk):
     if self.wd is None:
@@ -27,15 +28,29 @@ class NaiveContext:
       return ET.parse(f)
 
   def disassembled_classes(self):
-    for root, dirs, files in os.walk(os.path.join(self.wd, 'smali')):
-      yield from (os.path.join(root, f) for f in files if f.endswith('.smali'))
+    try:
+      return self.state['ts2.context.disassembled_classes']
+    except KeyError:
+      self.state['ts2.context.disassembled_classes'] = []
+      for root, dirs, files in os.walk(os.path.join(self.wd, 'smali')):
+        self.state['ts2.context.disassembled_classes'].extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
+      return self.disassembled_classes()
 
   def analyzed_classes(self):
-    return trueseeing.smali.P.parsed('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes())).global_.classes
+    try:
+      return self.state['ts2.context.analyzed_classes']
+    except KeyError:
+      self.state['ts2.context.analyzed_classes'] = trueseeing.smali.P.parsed('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes())).global_.classes
+      return self.analyzed_classes()
 
   def disassembled_resources(self):
-    for root, dirs, files in os.walk(os.path.join(self.wd, 'res')):
-      yield from (os.path.join(root, f) for f in files if f.endswith('.xml'))
+    try:
+      return self.state['ts2.context.disassembled_resources']
+    except KeyError:
+      self.state['ts2.context.disassembled_resources'] = []
+      for root, dirs, files in os.walk(os.path.join(self.wd, 'res')):
+        self.state['ts2.context.disassembled_resources'].extend(os.path.join(root, f) for f in files if f.endswith('.xml'))
+      return self.disassembled_resources()
 
   def source_name_of_disassembled_class(self, fn):
     return os.path.relpath(fn, os.path.join(self.wd, 'smali'))
@@ -62,12 +77,14 @@ class TestContext(NaiveContext):
   def analyze(self, apk):
     if self.wd is None:
       self.apk = apk
-      self.wd = '/var/folders/zx/4htjs7cn75dfd5r6kcqlvmhh0000gp/T/tmp2p3r0q_r'
+      self.wd = '/var/folders/zx/4htjs7cn75dfd5r6kcqlvmhh0000gp/T/tmpec0f0i2o'
     else:
       return super().analyze(apk)
 
   def __exit__(self, *exc_details):
-    pass
+    import pickle
+    with open('ts2-state', 'wb') as f:
+      pickle.dump(self.state, f)
 
 Context = TestContext
   
