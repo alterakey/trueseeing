@@ -148,6 +148,24 @@ def check_crypto_ecb(context):
     o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
   return o
 
+def check_security_file_permission(context):
+  marks = []
+  for cl in context.analyzed_classes():
+    for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')).matching():
+      marks.append(dict(name=context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k))
+
+  for m in marks:
+    try:
+      m['target_val'] = int(DataFlows.solved_constant_data_in_invocation(m['op'], 1))
+    except (DataFlows.NoSuchValueError):
+      pass
+
+  o = []
+  for m in (r for r in marks if 'target_val' in r and (r['target_val'] & 3)):
+    o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[m['target_val']], opt='-Wsecurity-file-permission'))
+  return o
+
+
 def check_security_arbitrary_webview_overwrite(context):
   marks = []
 

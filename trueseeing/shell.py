@@ -25,6 +25,7 @@ def processed(apkfilename):
       signatures.check_manifest_manip_broadcastreceiver,
       signatures.check_crypto_static_keys,
       signatures.check_crypto_ecb,
+      signatures.check_security_file_permission,
       signatures.check_security_arbitrary_webview_overwrite,
       signatures.check_security_dataflow_file,
       signatures.check_security_dataflow_wire
