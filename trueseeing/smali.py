@@ -79,10 +79,13 @@ class Op(Token):
 class CodeFlows:
   @staticmethod
   def callers_of(method):
-    try:
-      return (r for r in itertools.chain(*(c.ops for c in method.class_.global_.classes)) if r.t == 'id' and 'invoke' in r.v and method.matches(r.p[1]))
-    except:
-      return []
+    for r in filter(lambda x: x.t == 'id' and 'invoke' in x.v, itertools.chain(*(c.ops for c in method.class_.global_.classes))):
+      try:
+        ref = r.p[1].v
+      except IndexError:
+        ref = r.p[0].v
+      if method.qualified_name() in ref:
+        yield r
 
   @staticmethod
   def callstacks_of(method):
@@ -216,6 +219,12 @@ class DataFlows:
 
   @staticmethod
   def analyze_recent_load_of(from_, reg):
+    if reg.startswith('p'):
+      index = int(reg.replace('p', ''))
+      for caller in CodeFlows.callers_of(from_.method_):
+        caller_reg = DataFlows.decoded_registers_of(caller.p[0], type_=list)[index]
+        print("analyze_recent_load_of: %s -> %s -> %r (in %r)" % (reg, caller_reg, caller, caller.method_))
+      return None
     for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
       if o.t == 'id':
         if reg in DataFlows.analyze_load(o):
