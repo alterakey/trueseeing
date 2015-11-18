@@ -175,8 +175,11 @@ class DataFlows:
       elif any(op.v.startswith(x) for x in ['aget-']):
         assert len(op.p) == 3
         return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
-      elif any(op.v.startswith(x) for x in ['sget-', 'iget-']):
-        print("TBD: static/instansic trace of %s (%s)" % (op.p[1], op.p[2]))
+      elif any(op.v.startswith(x) for x in ['sget-']):
+        print("TBD: static trace of %s" % (op.p[1]))
+        return op
+      elif any(op.v.startswith(x) for x in ['iget-']):
+        print("TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
         return op
       elif op.v.startswith('move-result'):
         return DataFlows.analyze(DataFlows.analyze_recent_invocation(op))
@@ -335,7 +338,7 @@ class P:
 
   @staticmethod
   def lexed_as_smali(l):
-    for m in re.finditer(r':(?P<label>[a-z0-9_-]+)|{\s*(?P<multilabel>(?::[a-z0-9_-]+(?: .. )*)+\s*)}|\.(?P<directive>[a-z0-9_-]+)|"(?P<string>.*)"|(?P<reg>[vp][0-9]+)|{(?P<multireg>[vp0-9,. ]+)}|(?P<id>[a-z0-9/-]+)|(?P<reflike>[A-Za-z_0-9/;$()<>-]+)|#(?P<comment>.*)', l):
+    for m in re.finditer(r':(?P<label>[a-z0-9_-]+)|{\s*(?P<multilabel>(?::[a-z0-9_-]+(?: .. )*)+\s*)}|\.(?P<directive>[a-z0-9_-]+)|"(?P<string>.*)"|(?P<reg>[vp][0-9]+)|{(?P<multireg>[vp0-9,. ]+)}|(?P<id>[a-z0-9/-]+)|(?P<reflike>[A-Za-z_0-9/;$()<>-]+(?::[A-Za-z_0-9/;$()<>-]+)?)|#(?P<comment>.*)', l):
       key = m.lastgroup
       value = m.group(key)
       yield Token(key, value)
