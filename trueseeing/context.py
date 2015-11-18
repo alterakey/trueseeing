@@ -82,9 +82,10 @@ class TestContext(NaiveContext):
       return super().analyze(apk)
 
   def __exit__(self, *exc_details):
-    import pickle
-    with open('ts2-state', 'wb') as f:
-      pickle.dump(self.state, f)
+    pass
+    #import pickle
+    #with open('ts2-state', 'wb') as f:
+    #  pickle.dump(self.state, f)
 
 Context = TestContext
   
