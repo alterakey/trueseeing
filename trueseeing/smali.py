@@ -32,7 +32,7 @@ class Op(Token):
 class CodeFlows:
   @staticmethod
   def callers_of(method):
-    for r in filter(lambda x: x.t == 'id' and 'invoke' in x.v, itertools.chain(*(c.ops for c in method.class_.global_.classes))):
+    for r in (x for x in itertools.chain(*(c.ops for c in method.class_.global_.classes)) if x.t == 'id' and 'invoke' in x.v):
       try:
         ref = r.p[1].v
       except IndexError:
