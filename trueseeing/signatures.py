@@ -156,7 +156,7 @@ def check_security_file_permission(context):
 
   for m in marks:
     try:
-      m['target_val'] = int(DataFlows.solved_constant_data_in_invocation(m['op'], 1))
+      m['target_val'] = int(DataFlows.solved_constant_data_in_invocation(m['op'], 1), 16)
     except (DataFlows.NoSuchValueError):
       pass
 
