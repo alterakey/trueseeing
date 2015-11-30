@@ -139,13 +139,13 @@ def check_crypto_ecb(context):
 
   for m in marks:
     try:
-      m['target_val'] = DataFlows.solved_constant_data_in_invocation(m['op'], 0)
+      m['target_val'] = DataFlows.solved_possible_constant_data_in_invocation(m['op'], 0)
     except (DataFlows.NoSuchValueError):
       pass
 
   o = []
-  for m in (r for r in marks if 'target_val' in r and ('ECB' in r['target_val'] or '/' not in r['target_val'])):
-    o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
+  for m in (r for r in marks if 'target_val' in r and filter(lambda x: 'ECB' in x or '/' not in x, r['target_val'])):
+    o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher might be operate in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
   return o
 
 def check_security_file_permission(context):
