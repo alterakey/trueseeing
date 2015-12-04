@@ -159,10 +159,10 @@ class DataFlows:
         return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[1])}}
       elif any(op.v.startswith(x) for x in ['aget-']):
         assert len(op.p) == 3
-        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_array_load_of(op, k)) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
       elif any(op.v.startswith(x) for x in ['sget-']):
-        print("TBD: static trace of %s" % (op.p[1]))
-        return op
+        assert len(op.p) == 2
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_static_load_of(op))}}
       elif any(op.v.startswith(x) for x in ['iget-']):
         print("TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
         return op
@@ -173,6 +173,12 @@ class DataFlows:
           return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_load_of(op, k)) for k in DataFlows.decoded_registers_of(op.p[0])}}
         except DataFlows.RegisterDecodeError:
           return None
+
+  @staticmethod
+  def analyze_recent_static_load_of(op):
+    assert op.t == 'id' and any(op.v.startswith(x) for x in ['sget-'])
+    target = op.p[1]
+    raise Exception('static trace; target = %r' % target)
 
   @staticmethod
   def analyze_load(op):
@@ -197,6 +203,10 @@ class DataFlows:
       if o.t == 'id':
         if reg in DataFlows.analyze_load(o):
           return o
+
+  @staticmethod
+  def analyze_recent_array_load_of(from_, reg):
+    return DataFlows.analyze_recent_load_of(from_, reg)
 
   @staticmethod
   def analyze_recent_invocation(from_):
