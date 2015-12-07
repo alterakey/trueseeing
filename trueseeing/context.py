@@ -4,22 +4,34 @@ import os
 import lxml.etree as ET
 import shutil
 import pkg_resources
+import hashlib
 
 import trueseeing.smali
 
-class NaiveContext:
+class Context:
   def __init__(self):
     self.notes = []
     self.apk = None
     self.wd = None
     self.state = {}
 
+  def workdir_of(self, apk):
+    with open(apk, 'rb') as f:
+      hashed = hashlib.sha256(f.read()).hexdigest()
+      dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
+      return dirname
+    
   def analyze(self, apk):
     if self.wd is None:
-      self.apk = apk
-      self.wd = tempfile.mkdtemp()
-      # XXX insecure
-      os.system("java -jar %(apktool)s d -fo %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk))
+      self.apk = apk      
+      self.wd = self.workdir_of(apk)
+      try:
+        os.makedirs(self.wd, mode=0o700)
+      except OSError:
+        pass
+      else:
+        # XXX insecure
+        os.system("java -jar %(apktool)s d -fo %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk))
     else:
       raise ValueError('analyzed once')
 
@@ -71,23 +83,7 @@ class NaiveContext:
     return self
 
   def __exit__(self, *exc_details):
-    shutil.rmtree(self.wd)
-
-class TestContext(NaiveContext):
-  def analyze(self, apk):
-    if self.wd is None:
-      self.apk = apk
-      self.wd = '/var/folders/zx/4htjs7cn75dfd5r6kcqlvmhh0000gp/T/tmpec0f0i2o'
-    else:
-      return super().analyze(apk)
-
-  def __exit__(self, *exc_details):
     pass
-    #import pickle
-    #with open('ts2-state', 'wb') as f:
-    #  pickle.dump(self.state, f)
-
-Context = TestContext
   
 def warning_on(name, row, col, desc, opt):
   return dict(name=name, row=row, col=col, severity='warning', desc=desc, opt=opt)
