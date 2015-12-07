@@ -162,10 +162,10 @@ class DataFlows:
         return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_array_load_of(op, k)) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
       elif any(op.v.startswith(x) for x in ['sget-']):
         assert len(op.p) == 2
-        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_static_load_of(op))}}
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_static_load_of(op)) for k in DataFlows.decoded_registers_of(op.p[0])}}
       elif any(op.v.startswith(x) for x in ['iget-']):
-        print("TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
-        return op
+        assert len(op.p) == 3
+        return {op:{k:DataFlows.analyze(DataFlows.analyze_recent_instance_load_of(op)) for k in DataFlows.decoded_registers_of(op.p[0])}}
       elif op.v.startswith('move-result'):
         return DataFlows.analyze(DataFlows.analyze_recent_invocation(op))
       else:
@@ -177,8 +177,12 @@ class DataFlows:
   @staticmethod
   def analyze_recent_static_load_of(op):
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['sget-'])
-    target = op.p[1]
-    raise Exception('static trace; target = %r' % target)
+    target = op.p[1].v
+    for o in itertools.chain(DataFlows.looking_behind_from(op, op.method_.ops), itertools.chain(*(c.ops for c in op.method_.class_.global_.classes))):
+      if o.t == 'id' and o.v.startswith('sput-'):
+        if o.p[1].v == target:
+          return o
+    raise Exception('failed static trace of: %r' % op)
 
   @staticmethod
   def analyze_load(op):
@@ -187,7 +191,7 @@ class DataFlows:
         return DataFlows.decoded_registers_of(op.p[0])
       elif any(op.v.startswith(x) for x in ['invoke-direct', 'invoke-virtual', 'invoke-interface']):
         # Imply modification of "this"
-        return frozenset(DataFlows.decoded_registers_of(op.p[0], type_=list)[0])
+        return frozenset(DataFlows.decoded_registers_of(op.p[0], type_=list)[:1])
       else:
         return frozenset()
 
@@ -207,6 +211,12 @@ class DataFlows:
   @staticmethod
   def analyze_recent_array_load_of(from_, reg):
     return DataFlows.analyze_recent_load_of(from_, reg)
+
+  @staticmethod
+  def analyze_recent_instance_load_of(op):
+    assert len(op.p) == 3
+    print("TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
+    return None
 
   @staticmethod
   def analyze_recent_invocation(from_):
