@@ -165,6 +165,8 @@ def check_security_file_permission(context):
     o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[m['target_val']], opt='-Wsecurity-file-permission'))
   return o
 
+def check_security_tls_interception(context):
+  return []
 
 def check_security_arbitrary_webview_overwrite(context):
   marks = []
