@@ -6,6 +6,7 @@ import itertools
 import os
 import re
 from trueseeing.context import warning_on
+from trueseeing.smali import OpMatcher, InvocationPattern
 
 def package_name_of(path):
   return os.path.dirname(path).replace('/', '.')
@@ -71,3 +72,18 @@ def detect_obfuscator_proguard(context):
       return [warning_on(name=context.apk, row=1, col=0, desc='detected obfuscator: ProGuard', opt='-Wdetect-obfuscator')]
   else:
     return []
+
+def detect_url(context):
+  marks = []
+  for cl in context.analyzed_classes():
+    # XXX too dumb
+    for k in OpMatcher(cl.ops, InvocationPattern('const-string', '.*https?://.*$')).matching():
+      marks.append(dict(name=context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k))
+      
+  for m in marks:
+    try:
+      m['target_val'] = m['op'].p[1].v
+    except (DataFlows.NoSuchValueError):
+      pass
+
+  return [warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='detected URL: %s' % m['target_val'], opt='-Wdetect-url')]
