@@ -79,6 +79,20 @@ class Context:
   def permissions_declared(self):
     yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
 
+  def string_resource_files(self):
+    try:
+      return self.state['ts2.context.string_resource_files']
+    except KeyError:
+      self.state['ts2.context.string_resource_files'] = []
+      for root, dirs, files in os.walk(os.path.join(self.wd, 'res', 'values')):
+        self.state['ts2.context.string_resource_files'].extend(os.path.join(root, f) for f in files if 'strings' in f)
+      return self.string_resource_files()
+
+  def string_resources(self):
+    for fn in self.string_resource_files():
+      with open(fn, 'r') as f:
+        yield from ((c.attrib['name'], c.text) for c in ET.parse(f).getroot().xpath('//resources/string') if c.text)
+      
   def __enter__(self):
     return self
 

@@ -6,7 +6,7 @@ import itertools
 import os
 import re
 from trueseeing.context import warning_on
-from trueseeing.smali import OpMatcher, InvocationPattern
+from trueseeing.smali import OpMatcher, InvocationPattern, DataFlows
 
 def package_name_of(path):
   return os.path.dirname(path).replace('/', '.')
@@ -74,11 +74,19 @@ def detect_obfuscator_proguard(context):
     return []
 
 def detect_url(context):
+  class FakeToken:
+    def __init__(self, v, p):
+      self.v = v
+      self.p = p
+  
   marks = []
   for cl in context.analyzed_classes():
     # XXX too dumb
-    for k in OpMatcher(cl.ops, InvocationPattern('const-string', '.*https?://.*$')).matching():
+    for k in OpMatcher(cl.ops, InvocationPattern('const-string', '.*https?://.+$')).matching():
       marks.append(dict(name=context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k))
+  for name, val in context.string_resources():
+    if re.match('https?://.+', val) or re.match('^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$', val) or re.match('^/[a-zA-Z0-9_-]+(/[a-zA-Z0-9_-]+)+', val):
+      marks.append(dict(name='resource', method=FakeToken(FakeToken('R.string.%s' % name, []), []), op=FakeToken(None, [None, FakeToken(val, [])])))
       
   for m in marks:
     try:
@@ -86,4 +94,4 @@ def detect_url(context):
     except (DataFlows.NoSuchValueError):
       pass
 
-  return [warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='detected URL: %s' % m['target_val'], opt='-Wdetect-url')]
+  return [warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='detected URL: %s' % m['target_val'], opt='-Wdetect-url') for m in marks]
