@@ -56,17 +56,12 @@ from trueseeing.context import warning_on
 from trueseeing.smali import DataFlows, OpMatcher, InvocationPattern
 
 def check_manifest_open_permission(context):
-  for p in context.permissions_declared():
-    print(p)
-  return [
-    warning_on(name='AndroidManifest.xml', row=1, col=0, desc='open permissions: android.permission.READ_PHONE_STATE', opt='-Wmanifest-open-permission'),
-    warning_on(name='AndroidManifest.xml', row=1, col=0, desc='open permissions: android.permission.READ_SMS', opt='-Wmanifest-open-permission')
-  ]
+  # TBD: compare with actual permission needs
+  return [warning_on(name='AndroidManifest.xml', row=1, col=0, desc='open permissions: %s' % p, opt='-Wmanifest-open-permission') for p in context.permissions_declared()]
 
 def check_manifest_missing_permission(context):
-  return [
-    warning_on(name='AndroidManifest.xml', row=1, col=0, desc='missing permissions: android.permission.READ_CONTACTS', opt='-Wmanifest-open-permission'),
-  ]
+  # TBD: compare with actual permission needs
+  return []
 
 def check_manifest_manip_activity(context):
   return [warning_on(name='AndroidManifest.xml', row=1, col=0, desc='manipulatable Activity: %s' % name, opt='-Wmanifest-manip-activity') for name in set(itertools.chain(
