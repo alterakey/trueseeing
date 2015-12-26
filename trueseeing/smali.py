@@ -148,7 +148,7 @@ class DataFlows:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(invokation_op)
     reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if invokation_op.v.endswith('-static') else 1)]
-    return {x.p[1].v for x in DataFlows.walk_dict_values(graph[invokation_op][reg]) if x.t == 'id' and x.v.startswith('const')}
+    return {x.p[1].v for x in DataFlows.walk_dict_values(graph[invokation_op][reg]) if x is not None and x.t == 'id' and x.v.startswith('const')}
     
   @staticmethod
   def analyze(op):

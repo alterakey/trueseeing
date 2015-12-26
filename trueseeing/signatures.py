@@ -92,7 +92,10 @@ def entropy_of(string):
   return o
 
 def assumed_randomness_of(string):
-  return entropy_of(string) / float(math.log(len(string)) / math.log(2))
+  try:
+    return entropy_of(string) / float(math.log(len(string)) / math.log(2))
+  except ValueError:
+    return 0
 
 class SourceAddress:
   def __init__(self, fn, linenr, remark):
