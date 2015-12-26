@@ -201,7 +201,7 @@ class DataFlows:
       index = int(reg.replace('p', ''))
       for caller in CodeFlows.callers_of(from_.method_):
         caller_reg = DataFlows.decoded_registers_of(caller.p[0], type_=list)[index]
-        print("analyze_recent_load_of: %s -> %s -> %r (in %r)" % (reg, caller_reg, caller, caller.method_))
+        print("analyze_recent_load_of: TBD: retrace: %s -> %s -> %r (in %r)" % (reg, caller_reg, caller, caller.method_))
       return None
     for o in DataFlows.looking_behind_from(from_, from_.method_.ops):
       if o.t == 'id':
@@ -215,7 +215,7 @@ class DataFlows:
   @staticmethod
   def analyze_recent_instance_load_of(op):
     assert len(op.p) == 3
-    print("TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
+    print("analyze_recent_instance_load_of: TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
     return None
 
   @staticmethod
