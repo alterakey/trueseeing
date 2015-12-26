@@ -113,25 +113,35 @@ import pprint
 def check_crypto_static_keys(context):
   marks = []
   marked = []
-  re_const_val = re.compile(r'^[0-9A-Za-z+/=]{8,}=?$')
-  for cl in context.analyzed_classes():
-    for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax/crypto')).matching():
-      pprint.pprint(DataFlows.into(k))
-        #if insn.startswith('const') and re_const_val.match(val):
-        #  try:
-        #    raw = base64.b64decode(val)
-        #  except ValueError:
-        #    raw = None
-        #  if (assumed_randomness_of(val) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
-        #    marks.append(SourceAddress(cl.qualified_name(), 1, Remark(key='<ref>', val=val)))
 
+  consts = set()
+  for cl in context.analyzed_classes():
+    for k in OpMatcher(cl.ops, InvocationPattern('const-string', r'^[0-9A-Za-z+/=]{8,}=?$')).matching():
+      val = k.p[1].v
+      try:
+        raw = base64.b64decode(val)
+      except ValueError:
+        raw = None
+      if (assumed_randomness_of(val) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and assumed_randomness_of(raw) > 0.5)):
+        consts.add(val)
+
+  for cl in context.analyzed_classes():
+    for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax/crypto|Ljava/security')).matching():
+      try:
+        #pprint.pprint(DataFlows.into(k))
+        for found in consts & DataFlows.solved_possible_constant_data_in_invocation(k, 0):
+          marks.append(dict(name=context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k, target_val=found))
+      except IndexError:
+        pass
+      
   o = []
   for m in marks:
     try:
-      decoded = base64.b64decode(m.remark.val)
-      o.append(warning_on(name=context.source_name_of_disassembled_class(m.fn), row=m.linenr, col=0, desc='insecure cryptography: static keys: %s: "%s" [%d] (base64; "%s" [%d])' % (m.remark.key, m.remark.val, len(m.remark.val), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys'))
+      decoded = base64.b64decode(m['target_val'])
+      o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d] (base64; "%s" [%d])' % (m['target_val'], len(m['target_val']), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys'))
     except (ValueError, binascii.Error):
-      o.append(warning_on(name=context.source_name_of_disassembled_class(m.fn), row=m.linenr, col=0, desc='insecure cryptography: static keys: %s: "%s" [%d]' % (m.remark.key, m.remark.val, len(m.remark.val)), opt='-Wcrypto-static-keys'))
+      o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d]' % (m['target_val'], len(m['target_val'])), opt='-Wcrypto-static-keys'))
+      
   return o
 
 def check_crypto_ecb(context):
