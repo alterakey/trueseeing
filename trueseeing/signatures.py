@@ -153,8 +153,9 @@ def check_crypto_ecb(context):
       pass
 
   o = []
-  for m in (r for r in marks if 'target_val' in r and filter(lambda x: 'ECB' in x or '/' not in x, r['target_val'])):
-    o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher might be operate in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
+  for m in (r for r in marks if any(('ECB' in x or '/' not in x) for x in r.get('target_val', []))):
+    o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher might be operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
+
   return o
 
 def check_security_file_permission(context):
