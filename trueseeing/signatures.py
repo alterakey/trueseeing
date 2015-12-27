@@ -124,8 +124,9 @@ def check_crypto_static_keys(context):
     for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax/crypto|Ljava/security')).matching():
       try:
         #pprint.pprint(DataFlows.into(k))
-        for found in consts & DataFlows.solved_possible_constant_data_in_invocation(k, 0):
-          marks.append(dict(name=context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k, target_val=found))
+        for nr in range(len(DataFlows.decoded_registers_of(k.p[0]))):
+          for found in consts & DataFlows.solved_possible_constant_data_in_invocation(k, nr):
+            marks.append(dict(name=context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k, target_val=found))
       except IndexError:
         pass
       
