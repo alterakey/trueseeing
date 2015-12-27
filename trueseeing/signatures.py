@@ -171,7 +171,7 @@ def check_security_file_permission(context):
       pass
 
   o = []
-  for m in (r for r in marks if 'target_val' in r and (r['target_val'] & 3)):
+  for m in (r for r in marks if r.get('target_val', 0) & 3):
     o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[m['target_val']], opt='-Wsecurity-file-permission'))
   return o
 
