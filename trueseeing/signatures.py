@@ -51,6 +51,7 @@ import shutil
 import re
 import math
 import base64
+import os
 
 from trueseeing.context import warning_on
 from trueseeing.smali import DataFlows, OpMatcher, InvocationPattern
@@ -201,33 +202,69 @@ def check_security_tls_interception(context):
   return o
 
 def check_security_arbitrary_webview_overwrite(context):
-  marks = []
+  xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
-  candidates = set()
-  seed = set(['L.*WebView;'])
+  def dps_from_modifiers(mods):
+    table = {'small':(320.0, 426.0), 'normal':(320.0, 470.0), 'large':(480.0, 640.0), 'xlarge':(720.0, 960.0)}
+    try:
+      x, y = table[list(mods & table.keys())[0]]
+    except (IndexError, KeyError):
+      x, y = table['large']
+    if 'land' in mods:
+      return (y, x)
+    else:
+      return (x, y)
+  
+  def guessed_size(t, dps):
+    def width_of(e):
+      return e.attrib['{0}layout_width'.format(xmlns_android)]
+    def height_of(e):
+      return e.attrib['{0}layout_height'.format(xmlns_android)]
+    def is_bound(x):
+      return x not in ('fill_parent', 'match_parent', 'wrap_content')
+    def guessed_dp(x, dp):
+      if is_bound(x):
+        try:
+          return int(re.sub(r'di?p$', '', x)) / float(dp)
+        except ValueError:
+          print("check_security_arbitrary_webview_overwrite: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
+          return int(re.sub(r'[^0-9-]', '', x)) / float(dp)
+      else:
+        return dp
+    def contains(e):
+      yield e
+      e = e.getparent()
+      if e is not None:
+        contains(e)
+
+    for e in contains(t):
+      if any(is_bound(x) for x in (width_of(e), height_of(e))):
+        return guessed_dp(width_of(e), dps[0]) * guessed_dp(height_of(e), dps[1])
+    else:
+      return 1.0  
+  
+  o = []
+
+  targets = {'WebView','XWalkView','GeckoView'}
+  seed = '|'.join(targets)
+
   more = True
-
   while more:
     more = False
-    for fn in context.disassembled_classes():
-      with open(fn, 'r') as f:
-        m = re.search(r'^\.super\s+(%s)$' % ('|'.join(candidates if candidates else seed)), ''.join((l for l, _ in zip(f, range(10)))), re.MULTILINE)
-        if m is not None:
-          type_ = context.dalvik_type_of_disassembled_class(fn)
-          if not any([re.match(x, type_) for x in candidates]):
-            candidates.add(m.group(1))
-            candidates.add(type_)
-            more = True
-
-  for fn in context.disassembled_resources():
+    for cl in (c for c in context.analyzed_classes() if (c.super_.v in targets) or (re.search(seed, c.super_.v))):
+      name = context.class_name_of_dalvik_class_type(cl.qualified_name())
+      if name not in targets:
+        targets.add(context.class_name_of_dalvik_class_type(cl.qualified_name()))
+        more = True
+          
+  for fn in (n for n in context.disassembled_resources() if 'layout' in n):
     with open(fn, 'r') as f:
       r = ET.parse(f).getroot()
-      for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % context.class_name_of_dalvik_class_type(c)) for c in candidates)):
-        marks.append(dict(name=context.source_name_of_disassembled_resource(fn), row=1, col=0))
+      for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % c.replace('$', '_')) for c in targets)):
+        size = guessed_size(t, dps_from_modifiers([set(c.split('-')) for c in fn.split(os.sep) if 'layout' in c][0]))
+        if size > 0.5:
+          o.append(warning_on(name=context.source_name_of_disassembled_resource(fn), row=0, col=0, desc='arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(xmlns_android)], size), opt='-Wsecurity-arbitrary-webview-overwrite'))
 
-  o = []
-  for m in marks:
-    o.append(warning_on(name=m['name'], row=m['row'], col=m['col'], desc='arbitrary WebView content overwrite', opt='-Wsecurity-arbitrary-webview-overwrite'))
   return o
 
 def check_security_dataflow_file(context):
