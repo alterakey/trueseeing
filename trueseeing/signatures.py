@@ -176,7 +176,29 @@ def check_security_file_permission(context):
   return o
 
 def check_security_tls_interception(context):
-  return []
+  o = []
+  marks = []
+
+  pins = set()
+  for cl in context.analyzed_classes():
+    # XXX crude detection
+    for m in (m for m in cl.methods if re.match('checkServerTrusted', m.qualified_name())):
+      for k in OpMatcher(m.ops, InvocationPattern('invoke-virtual', 'Ljava/security/MessageDigest->digest')).matching():
+        pins.add(cl)
+          
+  if not pins:
+    o.append(warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception'))
+  else:
+    for cl in context.analyzed_classes():
+      # XXX crude detection
+      for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')).matching():
+        if not DataFlows.solved_typeset_in_invocation(k, 2) & pins:
+          o.append(warning_on(name='%s#%s' % (context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception'))
+      else:
+        o.append(warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception'))
+          
+
+  return o
 
 def check_security_arbitrary_webview_overwrite(context):
   marks = []
