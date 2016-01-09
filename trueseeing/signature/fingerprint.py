@@ -1,3 +1,4 @@
+# Vulnerabilities:
 # * Fingerprinting libraries
 # * Fingerprinting obfuscators
 
@@ -6,7 +7,8 @@ import itertools
 import os
 import re
 from trueseeing.context import warning_on
-from trueseeing.smali import OpMatcher, InvocationPattern, DataFlows
+from trueseeing.flow.code import OpMatcher, InvocationPattern
+from trueseeing.flow.data import DataFlows
 
 import pkg_resources
 
@@ -104,7 +106,7 @@ class UrlLikeDetector(Detector):
         yield dict(type_='possible FQDN', value=[hostlike])
         
   def detect(self):
-    with open(pkg_resources.resource_filename(__name__, os.path.join('libs', 'tlds.txt')), 'r') as f:
+    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r') as f:
       self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
 
     marks = []

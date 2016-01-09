@@ -6,7 +6,7 @@ import shutil
 import pkg_resources
 import hashlib
 
-import trueseeing.smali
+import trueseeing.code.parse
 
 class Context:
   def __init__(self):
@@ -52,7 +52,7 @@ class Context:
     try:
       return self.state['ts2.context.analyzed_classes']
     except KeyError:
-      self.state['ts2.context.analyzed_classes'] = trueseeing.smali.P.parsed('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes())).global_.classes
+      self.state['ts2.context.analyzed_classes'] = trueseeing.code.parse.P.parsed('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes())).global_.classes
       return self.analyzed_classes()
 
   def disassembled_resources(self):

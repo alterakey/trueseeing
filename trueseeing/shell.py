@@ -2,7 +2,12 @@ import sys
 import getopt
 import configparser
 
-from trueseeing import fingerprint, signatures
+from trueseeing.signature.fingerprint import detect_library, detect_obfuscators, detect_obfuscator_proguard, detect_urllike
+from trueseeing.signature.crypto import check_crypto_static_keys, check_crypto_ecb
+from trueseeing.signature.manifest import check_manifest_open_permission, check_manifest_missing_permission, check_manifest_manip_activity, check_manifest_manip_broadcastreceiver
+from trueseeing.signature.privacy import check_security_dataflow_file, check_security_dataflow_wire
+from trueseeing.signature.security import check_security_file_permission, check_security_tls_interception, check_security_arbitrary_webview_overwrite
+
 from trueseeing.context import Context
 
 preferences = None
@@ -17,20 +22,20 @@ def processed(apkfilename):
     print("%s -> %s" % (apkfilename, context.wd))
 
     checker_chain = [
-      fingerprint.detect_library,
-      fingerprint.detect_obfuscators,
-      fingerprint.detect_urllike,
-      signatures.check_manifest_open_permission,
-      signatures.check_manifest_missing_permission,
-      signatures.check_manifest_manip_activity,
-      signatures.check_manifest_manip_broadcastreceiver,
-      signatures.check_crypto_static_keys,
-      signatures.check_crypto_ecb,
-      signatures.check_security_file_permission,
-      signatures.check_security_tls_interception,
-      signatures.check_security_arbitrary_webview_overwrite,
-      signatures.check_security_dataflow_file,
-      signatures.check_security_dataflow_wire
+      detect_library,
+      detect_obfuscators,
+      detect_urllike,
+      check_manifest_open_permission,
+      check_manifest_missing_permission,
+      check_manifest_manip_activity,
+      check_manifest_manip_broadcastreceiver,
+      check_crypto_static_keys,
+      check_crypto_ecb,
+      check_security_file_permission,
+      check_security_tls_interception,
+      check_security_arbitrary_webview_overwrite,
+      check_security_dataflow_file,
+      check_security_dataflow_wire
     ]
 
     for c in checker_chain:
