@@ -9,14 +9,9 @@ import re
 from trueseeing.context import warning_on
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
+from trueseeing.signature.base import Detector
 
 import pkg_resources
-
-class Detector:
-  def __init__(self, context):
-    self.context = context
-  def detect(self):
-    pass
 
 class LibraryDetector(Detector):
   def package_name_of(self, path):
