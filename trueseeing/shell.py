@@ -1,6 +1,7 @@
 import sys
 import getopt
 import configparser
+import logging
 
 from trueseeing.signature.fingerprint import detect_library, detect_obfuscators, detect_obfuscator_proguard, detect_urllike
 from trueseeing.signature.crypto import check_crypto_static_keys, check_crypto_ecb
@@ -10,8 +11,9 @@ from trueseeing.signature.security import check_security_file_permission, check_
 
 from trueseeing.context import Context
 
-preferences = None
+log = logging.getLogger(__name__)
 
+preferences = None
 
 def formatted(n):
   return '%(name)s:%(row)d:%(col)d:%(severity)s:%(desc)s [%(opt)s]' % n
@@ -42,9 +44,12 @@ def processed(apkfilename):
       yield from (formatted(e) for e in c(context))
 
 def shell(argv):
+  log_level = logging.INFO
+  
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'f', [])
+    opts, files = getopt.getopt(sys.argv[1:], 'd', [])
     for o, a in opts:
+      if o in ['-d']: log_level = logging.DEBUG
       pass
   except IndexError:
     print("%s: no input files" % argv[0])
@@ -53,6 +58,8 @@ def shell(argv):
     global preferences
     preferences = configparser.ConfigParser()
     preferences.read('.trueseeingrc')
+
+    logging.basicConfig(level=log_level, format="%(msg)s")
 
     error_found = False
     for f in files:

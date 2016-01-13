@@ -1,5 +1,8 @@
 import itertools
 import re
+import logging
+
+log = logging.getLogger(__name__)
 
 class InvocationPattern:
   def __init__(self, insn, value, i=None):

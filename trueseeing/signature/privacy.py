@@ -6,7 +6,11 @@
 # * Privacy: Tainted data en clair: preferences
 # * Privacy: Transmitting tainted data to questionable entity (country)
 
+import logging
+
 from trueseeing.context import warning_on
+
+log = logging.getLogger(__name__)
 
 def check_security_dataflow_file(context):
   return [

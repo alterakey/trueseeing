@@ -16,11 +16,14 @@ import re
 import math
 import base64
 import os
+import logging
 
 from trueseeing.context import warning_on
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector
+
+log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
   def entropy_of(self, string):

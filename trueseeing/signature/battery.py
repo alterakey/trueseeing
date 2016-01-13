@@ -5,3 +5,7 @@
 # * Battery: Persistent wakelocks
 # * Battery: Persistent disk operations
 # * Battery: Heavy overdrawing
+
+import logging
+
+log = logging.getLogger(__name__)

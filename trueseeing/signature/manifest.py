@@ -8,8 +8,11 @@
 # * Manifest: Manipulatable backups
 
 import itertools
+import logging
 
 from trueseeing.context import warning_on
+
+log = logging.getLogger(__name__)
 
 def check_manifest_open_permission(context):
   # TBD: compare with actual permission needs

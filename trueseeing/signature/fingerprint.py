@@ -6,12 +6,15 @@ import collections
 import itertools
 import os
 import re
+import logging
 from trueseeing.context import warning_on
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 
 import pkg_resources
+
+log = logging.getLogger(__name__)
 
 class LibraryDetector(Detector):
   def package_name_of(self, path):
