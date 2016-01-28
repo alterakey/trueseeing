@@ -23,7 +23,6 @@ import base64
 import os
 import logging
 
-from trueseeing.context import warning_on
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector
@@ -49,7 +48,7 @@ def assumed_randomness_of(string):
 class SecurityFilePermissionDetector(Detector):
   option = 'security-file-permission'
   
-  def detect(self):
+  def do_detect(self):
     marks = []
     for cl in self.context.analyzed_classes():
       for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/content/Self.Context;->openFileOutput\(Ljava/lang/String;I\)')).matching():
@@ -61,16 +60,13 @@ class SecurityFilePermissionDetector(Detector):
       except (DataFlows.NoSuchValueError):
         pass
 
-    o = []
     for m in (r for r in marks if r.get('target_val', 0) & 3):
-      o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[m['target_val']], opt='-Wsecurity-file-permission'))
-    return o
+      yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[m['target_val']], opt='-Wsecurity-file-permission')
 
 class SecurityTlsInterceptionDetector(Detector):
   option = 'security-tls-interception'
   
-  def detect(self):
-    o = []
+  def do_detect(self):
     marks = []
 
     pins = set()
@@ -81,17 +77,15 @@ class SecurityTlsInterceptionDetector(Detector):
           pins.add(cl)
 
     if not pins:
-      o.append(warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception'))
+      yield self.warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception')
     else:
       for cl in self.context.analyzed_classes():
         # XXX crude detection
         for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLSelf.Context->init')).matching():
           if not DataFlows.solved_typeset_in_invocation(k, 2) & pins:
-            o.append(warning_on(name='%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception'))
+            yield self.warning_on(name='%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception')
         else:
-          o.append(warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception'))
-
-    return o
+          yield self.warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception')
 
 
 class LayoutSizeGuesser:
@@ -149,9 +143,7 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
   
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
   
-  def detect(self):
-    o = []
-
+  def do_detect(self):
     targets = {'WebView','XWalkView','GeckoView'}
     seed = '|'.join(targets)
 
@@ -170,6 +162,4 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
         for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % c.replace('$', '_')) for c in targets)):
           size = LayoutSizeGuesser().guessed_size(t, fn)
           if size > 0.5:
-            o.append(warning_on(name=self.context.source_name_of_disassembled_resource(fn), row=0, col=0, desc='arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size), opt='-Wsecurity-arbitrary-webview-overwrite'))
-
-    return o
+            yield self.warning_on(name=self.context.source_name_of_disassembled_resource(fn), row=0, col=0, desc='arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size), opt='-Wsecurity-arbitrary-webview-overwrite')

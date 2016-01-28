@@ -7,7 +7,6 @@ import itertools
 import os
 import re
 import logging
-from trueseeing.context import warning_on
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector
@@ -54,7 +53,7 @@ class LibraryDetector(Detector):
   def is_kind_of(self, c1, c2):
     return True if self.shared_package_of(c1, c2) else False
 
-  def detect(self):
+  def do_detect(self):
     package = self.context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
     packages = dict()
@@ -69,7 +68,7 @@ class LibraryDetector(Detector):
           pass
     packages = {k:v for k,v in packages.items() if not self.is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
-    return [warning_on(name=self.context.apk, row=1, col=0, desc='detected library: %s (score: %d)' % (p, len(packages[p])), opt='-Wdetect-library') for p in sorted(packages.keys())]
+    yield from [self.warning_on(name=self.context.apk, row=1, col=0, desc='detected library: %s (score: %d)' % (p, len(packages[p])), opt='-Wdetect-library') for p in sorted(packages.keys())]
   
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
@@ -80,9 +79,8 @@ class ProGuardDetector(Detector):
   def detect(self):
     for c in (self.class_name_of(self.context.source_name_of_disassembled_class(r)) for r in self.context.disassembled_classes()):
       if re.search('(?:^|\.)a$', c):
-        return [warning_on(name=self.context.apk, row=1, col=0, desc='detected obfuscator: ProGuard', opt='-Wdetect-obfuscator')]
-    else:
-      return []
+        yield self.warning_on(name=self.context.apk, row=1, col=0, desc='detected obfuscator: ProGuard', opt='-Wdetect-obfuscator')
+        break
 
 class FakeToken:
   def __init__(self, v, p):
@@ -109,7 +107,7 @@ class UrlLikeDetector(Detector):
       elif self.re_tlds.search(components[-1]):
         yield dict(type_='possible FQDN', value=[hostlike])
         
-  def detect(self):
+  def do_detect(self):
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r') as f:
       self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
 
@@ -124,4 +122,4 @@ class UrlLikeDetector(Detector):
         for v in match['value']:
           marks.append(dict(name='resource', method=FakeToken(FakeToken('R.string.%s' % name, []), []), target_val=v, target_type=match['type_']))
 
-    return [warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='detected %s: %s' % (m['target_type'], m['target_val']), opt='-Wdetect-url') for m in marks]
+    yield from [self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='detected %s: %s' % (m['target_type'], m['target_val']), opt='-Wdetect-url') for m in marks]

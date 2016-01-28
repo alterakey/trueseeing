@@ -15,7 +15,17 @@ class Detector:
     return (cls.option, cls)
     
   def detect(self):
+    res = self.do_detect()
+    if res is not None:
+      yield from res
+    else:
+      yield from []
+
+  def do_detect(self):
     pass
+
+  def warning_on(self, name, row, col, desc, opt):
+    return dict(name=name, row=row, col=col, severity='warning', desc=desc, opt=opt)
 
 class SignatureDiscoverer:
   PRIORITY = ['fingerprint', 'manifest', 'security']

@@ -98,7 +98,4 @@ class Context:
 
   def __exit__(self, *exc_details):
     pass
-  
-def warning_on(name, row, col, desc, opt):
-  return dict(name=name, row=row, col=col, severity='warning', desc=desc, opt=opt)
 

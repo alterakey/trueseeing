@@ -18,7 +18,6 @@ import base64
 import os
 import logging
 
-from trueseeing.context import warning_on
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector
@@ -44,7 +43,7 @@ class CryptoStaticKeyDetector(Detector):
     except ValueError:
       return 0
 
-  def detect(self):
+  def do_detect(self):
     marks = []
     marked = []
 
@@ -69,20 +68,17 @@ class CryptoStaticKeyDetector(Detector):
         except IndexError:
           pass
 
-    o = []
     for m in marks:
       try:
         decoded = base64.b64decode(m['target_val'])
-        o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d] (base64; "%s" [%d])' % (m['target_val'], len(m['target_val']), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys'))
+        yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d] (base64; "%s" [%d])' % (m['target_val'], len(m['target_val']), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys')
       except (ValueError, binascii.Error):
-        o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d]' % (m['target_val'], len(m['target_val'])), opt='-Wcrypto-static-keys'))
-
-    return o
+        yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d]' % (m['target_val'], len(m['target_val'])), opt='-Wcrypto-static-keys')
 
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
   
-  def detect(self):
+  def do_detect(self):
     marks = []
     for cl in self.context.analyzed_classes():
       for k in OpMatcher(cl.ops, InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')).matching():
@@ -94,8 +90,5 @@ class CryptoEcbDetector(Detector):
       except (DataFlows.NoSuchValueError):
         pass
 
-    o = []
     for m in (r for r in marks if any(('ECB' in x or '/' not in x) for x in r.get('target_val', []))):
-      o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher might be operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
-
-    return o
+      yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher might be operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb')
