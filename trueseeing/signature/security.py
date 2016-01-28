@@ -51,7 +51,7 @@ class SecurityFilePermissionDetector(Detector):
   def do_detect(self):
     marks = []
     for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/content/Self.Context;->openFileOutput\(Ljava/lang/String;I\)')).matching():
+      for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')).matching():
         marks.append(dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k))
 
     for m in marks:
@@ -81,7 +81,7 @@ class SecurityTlsInterceptionDetector(Detector):
     else:
       for cl in self.context.analyzed_classes():
         # XXX crude detection
-        for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLSelf.Context->init')).matching():
+        for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')).matching():
           if not DataFlows.solved_typeset_in_invocation(k, 2) & pins:
             yield self.warning_on(name='%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception')
         else:
