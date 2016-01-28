@@ -26,6 +26,8 @@ from trueseeing.signature.base import Detector
 log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
+  option = 'crypto-static-keys'
+  
   def entropy_of(self, string):
     o = 0.0
     m = dict()
@@ -78,6 +80,8 @@ class CryptoStaticKeyDetector(Detector):
     return o
 
 class CryptoEcbDetector(Detector):
+  option = 'crypto-ecb'
+  
   def detect(self):
     marks = []
     for cl in self.context.analyzed_classes():
@@ -95,9 +99,3 @@ class CryptoEcbDetector(Detector):
       o.append(warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher might be operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb'))
 
     return o
-  
-def check_crypto_static_keys(context):
-  return CryptoStaticKeyDetector(context).detect()
-
-def check_crypto_ecb(context):
-  return CryptoEcbDetector(context).detect()

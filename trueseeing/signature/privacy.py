@@ -9,15 +9,22 @@
 import logging
 
 from trueseeing.context import warning_on
+from trueseeing.signature.base import Detector
 
 log = logging.getLogger(__name__)
 
-def check_security_dataflow_file(context):
-  return [
-    warning_on(name='com/gmail/altakey/model/DeviceInfo.java', row=24, col=0, desc='insecure data flow into file: IMEI/IMSI', opt='-Wsecurity-dataflow-file'),
-  ]
+class PrivacySensitiveDataFlowFileDetector(Detector):
+  options = 'security-dataflow-file'
 
-def check_security_dataflow_wire(context):
-  return [
-    warning_on(name='com/gmail/altakey/api/ApiClient.java', row=48, col=0, desc='insecure data flow on wire: IMEI/IMSI', opt='-Wsecurity-dataflow-wire'),
-  ]
+  def detect(self):
+    return [
+      warning_on(name='com/gmail/altakey/model/DeviceInfo.java', row=24, col=0, desc='insecure data flow into file: IMEI/IMSI', opt='-Wsecurity-dataflow-file'),
+    ]
+
+class PrivacySensitiveDataFlowWireDetector(Detector):
+  options = 'security-dataflow-wire'
+
+  def detect(self):
+    return [
+      warning_on(name='com/gmail/altakey/api/ApiClient.java', row=48, col=0, desc='insecure data flow on wire: IMEI/IMSI', opt='-Wsecurity-dataflow-wire'),
+    ]

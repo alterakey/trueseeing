@@ -47,6 +47,8 @@ def assumed_randomness_of(string):
     return 0
 
 class SecurityFilePermissionDetector(Detector):
+  option = 'security-file-permission'
+  
   def detect(self):
     marks = []
     for cl in self.context.analyzed_classes():
@@ -65,6 +67,8 @@ class SecurityFilePermissionDetector(Detector):
     return o
 
 class SecurityTlsInterceptionDetector(Detector):
+  option = 'security-tls-interception'
+  
   def detect(self):
     o = []
     marks = []
@@ -141,6 +145,8 @@ class LayoutSizeGuesser:
       return 1.0
 
 class SecurityArbitraryWebViewOverwriteDetector(Detector):
+  option = 'security-arbitrary-webview-overwrite'
+  
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
   
   def detect(self):
@@ -167,13 +173,3 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
             o.append(warning_on(name=self.context.source_name_of_disassembled_resource(fn), row=0, col=0, desc='arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size), opt='-Wsecurity-arbitrary-webview-overwrite'))
 
     return o
-  
-  
-def check_security_file_permission(context):
-  return SecurityFilePermissionDetector(context).detect()
-
-def check_security_tls_interception(context):
-  return SecurityTlsInterceptionDetector(context).detect()
-
-def check_security_arbitrary_webview_overwrite(context):
-  return SecurityArbitraryWebViewOverwriteDetector(context).detect()

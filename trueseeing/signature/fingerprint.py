@@ -17,6 +17,8 @@ import pkg_resources
 log = logging.getLogger(__name__)
 
 class LibraryDetector(Detector):
+  option = 'detect-library'
+  
   def package_name_of(self, path):
     return os.path.dirname(path).replace('/', '.')
 
@@ -70,6 +72,8 @@ class LibraryDetector(Detector):
     return [warning_on(name=self.context.apk, row=1, col=0, desc='detected library: %s (score: %d)' % (p, len(packages[p])), opt='-Wdetect-library') for p in sorted(packages.keys())]
   
 class ProGuardDetector(Detector):
+  option = 'detect-obfuscator'
+
   def class_name_of(self, path):
     return path.replace('.smali', '').replace('/', '.')
 
@@ -86,6 +90,8 @@ class FakeToken:
     self.p = p
 
 class UrlLikeDetector(Detector):
+  option = 'detect-url'
+
   def __init__(self, context):
     super().__init__(context)
     self.re_tlds = None
@@ -119,15 +125,3 @@ class UrlLikeDetector(Detector):
           marks.append(dict(name='resource', method=FakeToken(FakeToken('R.string.%s' % name, []), []), target_val=v, target_type=match['type_']))
 
     return [warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='detected %s: %s' % (m['target_type'], m['target_val']), opt='-Wdetect-url') for m in marks]
-  
-def detect_library(context):
-  return LibraryDetector(context).detect()
-
-def detect_obfuscators(context):
-  return detect_obfuscator_proguard(context)
-
-def detect_obfuscator_proguard(context):
-  return ProGuardDetector(context).detect()
-  
-def detect_urllike(context):
-  return UrlLikeDetector(context).detect()

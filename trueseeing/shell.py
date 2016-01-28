@@ -4,33 +4,14 @@ import configparser
 import logging
 import collections
 
-from trueseeing.signature.fingerprint import detect_library, detect_obfuscators, detect_obfuscator_proguard, detect_urllike
-from trueseeing.signature.crypto import check_crypto_static_keys, check_crypto_ecb
-from trueseeing.signature.manifest import check_manifest_open_permission, check_manifest_missing_permission, check_manifest_manip_activity, check_manifest_manip_broadcastreceiver
-from trueseeing.signature.privacy import check_security_dataflow_file, check_security_dataflow_wire
-from trueseeing.signature.security import check_security_file_permission, check_security_tls_interception, check_security_arbitrary_webview_overwrite
+import trueseeing.signature.base
 
 from trueseeing.context import Context
 
 log = logging.getLogger(__name__)
 
 preferences = None
-signatures = collections.OrderedDict([
-  ('detect-library', detect_library),
-  ('detect-obfuscator', detect_obfuscators),
-  ('detect-url', detect_urllike),
-  ('manifest-open-permission', check_manifest_open_permission),
-  ('manifest-missing-permission', check_manifest_missing_permission),
-  ('manifest-manip-activity', check_manifest_manip_activity),
-  ('manifest-manip-broadcastreceiver', check_manifest_manip_broadcastreceiver),
-  ('crypto-static-keys', check_crypto_static_keys),
-  ('crypto-ecb', check_crypto_ecb),
-  ('security-file-permission', check_security_file_permission),
-  ('security-tls-interception', check_security_tls_interception),
-  ('security-arbitrary-webview-overwrite', check_security_arbitrary_webview_overwrite),
-  ('security-dataflow-file', check_security_dataflow_file),
-  ('security-dataflow-wire', check_security_dataflow_wire),
-])
+signatures = collections.OrderedDict([cl.as_signature() for cl in trueseeing.signature.base.SignatureClasses().extracted()])
 
 signatures_all = set(signatures.keys())
 signatures_default = signatures_all.copy()
@@ -44,7 +25,7 @@ def processed(apkfilename, chain):
     log.info("%s -> %s" % (apkfilename, context.wd))
 
     for c in chain:
-      yield from (formatted(e) for e in c(context))
+      yield from (formatted(e) for e in c(context).detect())
 
 def shell(argv):
   log_level = logging.INFO
