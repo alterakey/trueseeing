@@ -29,22 +29,6 @@ from trueseeing.signature.base import Detector
 
 log = logging.getLogger(__name__)
 
-def entropy_of(string):
-  o = 0.0
-  m = dict()
-  for c in string:
-    m[c] = m.get(c, 0) + 1
-  for cnt in m.values():
-    freq = float(cnt) / len(string)
-    o -= freq * (math.log(freq) / math.log(2))
-  return o
-
-def assumed_randomness_of(string):
-  try:
-    return entropy_of(string) / float(math.log(len(string)) / math.log(2))
-  except ValueError:
-    return 0
-
 class SecurityFilePermissionDetector(Detector):
   option = 'security-file-permission'
   
