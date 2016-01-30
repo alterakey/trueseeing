@@ -44,9 +44,6 @@ class CryptoStaticKeyDetector(Detector):
       return 0
 
   def do_detect(self):
-    marks = []
-    marked = []
-
     consts = set()
     for cl in self.context.analyzed_classes():
       for k in OpMatcher(cl.ops, InvocationPattern('const-string', r'^[0-9A-Za-z+/=]{8,}=?$')).matching():
@@ -64,31 +61,23 @@ class CryptoStaticKeyDetector(Detector):
           #pprint.pprint(DataFlows.into(k))
           for nr in range(len(DataFlows.decoded_registers_of(k.p[0]))):
             for found in consts & DataFlows.solved_possible_constant_data_in_invocation(k, nr):
-              marks.append(dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k, target_val=found))
+              try:
+                decoded = base64.b64decode(found)
+                yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)), opt='-Wcrypto-static-keys')
+              except (ValueError, binascii.Error):
+                yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)), opt='-Wcrypto-static-keys')
         except IndexError:
           pass
-
-    for m in marks:
-      try:
-        decoded = base64.b64decode(m['target_val'])
-        yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d] (base64; "%s" [%d])' % (m['target_val'], len(m['target_val']), binascii.hexlify(decoded).decode('ascii'), len(decoded)), opt='-Wcrypto-static-keys')
-      except (ValueError, binascii.Error):
-        yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: static keys: "%s" [%d]' % (m['target_val'], len(m['target_val'])), opt='-Wcrypto-static-keys')
 
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
   
   def do_detect(self):
-    marks = []
     for cl in self.context.analyzed_classes():
       for k in OpMatcher(cl.ops, InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')).matching():
-        marks.append(dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k))
-
-    for m in marks:
-      try:
-        m['target_val'] = DataFlows.solved_possible_constant_data_in_invocation(m['op'], 0)
-      except (DataFlows.NoSuchValueError):
-        pass
-
-    for m in (r for r in marks if any(('ECB' in x or '/' not in x) for x in r.get('target_val', []))):
-      yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure cryptography: cipher might be operating in ECB mode: %s' % m['target_val'], opt='-Wcrypto-ecb')
+        try:
+          target_val = DataFlows.solved_possible_constant_data_in_invocation(k, 0)
+          if any(('ECB' in x or '/' not in x) for x in target_val):
+            yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure cryptography: cipher might be operating in ECB mode: %s' % target_val, opt='-Wcrypto-ecb')
+        except (DataFlows.NoSuchValueError):
+          pass

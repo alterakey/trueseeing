@@ -49,19 +49,14 @@ class SecurityFilePermissionDetector(Detector):
   option = 'security-file-permission'
   
   def do_detect(self):
-    marks = []
     for cl in self.context.analyzed_classes():
       for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')).matching():
-        marks.append(dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_, op=k))
-
-    for m in marks:
-      try:
-        m['target_val'] = int(DataFlows.solved_constant_data_in_invocation(m['op'], 1), 16)
-      except (DataFlows.NoSuchValueError):
-        pass
-
-    for m in (r for r in marks if r.get('target_val', 0) & 3):
-      yield self.warning_on(name=m['name'] + '#' + m['method'].v.v, row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[m['target_val']], opt='-Wsecurity-file-permission')
+        try:
+          target_val = int(DataFlows.solved_constant_data_in_invocation(k, 1), 16)
+          if target_val & 3:
+            yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val], opt='-Wsecurity-file-permission')
+        except (DataFlows.NoSuchValueError):
+          pass
 
 class SecurityTlsInterceptionDetector(Detector):
   option = 'security-tls-interception'
