@@ -6,6 +6,7 @@
 # * Manifest: Manipulatable Activity (API < 17)
 # * Manifest: Manipulatable BroadcastReceiver
 # * Manifest: Manipulatable backups
+# * Manifest: Debuggable apps
 
 import itertools
 import logging
@@ -45,4 +46,18 @@ class ManifestManipBroadcastReceiver(Detector):
       self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
       self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
     )))
+
+class ManifestManipBackup(Detector):
+  option = 'manifest-manip-backup'
   
+  def do_detect(self):
+    if self.context.parsed_manifest().getroot().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+      yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, 'AndroidManifest.xml', 'manipulatable backups')
+  
+class ManifestDebuggable(Detector):
+  option = 'manifest-debuggable'
+  
+  def do_detect(self):
+    if self.context.parsed_manifest().getroot().xpath('//application[@android:isDebuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+      yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, 'AndroidManifest.xml', 'app is debuggable')
+
