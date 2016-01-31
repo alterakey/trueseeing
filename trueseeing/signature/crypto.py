@@ -20,7 +20,7 @@ import logging
 
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
-from trueseeing.signature.base import Detector
+from trueseeing.signature.base import Detector, IssueConfidence, IssueSeverity
 
 log = logging.getLogger(__name__)
 
@@ -63,9 +63,9 @@ class CryptoStaticKeyDetector(Detector):
             for found in consts & DataFlows.solved_possible_constant_data_in_invocation(k, nr):
               try:
                 decoded = base64.b64decode(found)
-                yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)), opt='-Wcrypto-static-keys')
+                yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
               except (ValueError, binascii.Error):
-                yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)), opt='-Wcrypto-static-keys')
+                yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
         except IndexError:
           pass
 
@@ -78,6 +78,6 @@ class CryptoEcbDetector(Detector):
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(k, 0)
           if any(('ECB' in x or '/' not in x) for x in target_val):
-            yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure cryptography: cipher might be operating in ECB mode: %s' % target_val, opt='-Wcrypto-ecb')
+            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: cipher might be operating in ECB mode: %s' % target_val)
         except (DataFlows.NoSuchValueError):
           pass

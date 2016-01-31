@@ -9,7 +9,7 @@ import re
 import logging
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
-from trueseeing.signature.base import Detector
+from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
 
 import pkg_resources
 
@@ -68,7 +68,8 @@ class LibraryDetector(Detector):
           pass
     packages = {k:v for k,v in packages.items() if not self.is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
-    yield from (self.warning_on(name=self.context.apk, row=1, col=0, desc='detected library: %s (score: %d)' % (p, len(packages[p])), opt='-Wdetect-library') for p in sorted(packages.keys()))
+    yield from (self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, '(global)', 'detected library: %s (score: %d)' % (p, len(packages[p]))) for p in sorted(packages.keys()))
+    
   
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
@@ -79,7 +80,7 @@ class ProGuardDetector(Detector):
   def detect(self):
     for c in (self.class_name_of(self.context.source_name_of_disassembled_class(r)) for r in self.context.disassembled_classes()):
       if re.search('(?:^|\.)a$', c):
-        yield self.warning_on(name=self.context.apk, row=1, col=0, desc='detected obfuscator: ProGuard', opt='-Wdetect-obfuscator')
+        yield self.issue(IssueSeverity.INFO, IssueConfidence.CERTAIN, '(global)', 'detected obfuscator: ProGuard')
         break
 
 class FakeToken:
@@ -115,8 +116,8 @@ class UrlLikeDetector(Detector):
       for k in OpMatcher(cl.ops, InvocationPattern('const-string', '.')).matching():
         for match in self.analyzed(k.p[1].v):
           for v in match['value']:
-            yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v), opt='-Wdetect-url')
+            yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))
     for name, val in self.context.string_resources():
       for match in self.analyzed(val):
         for v in match['value']:
-          yield self.warning_on(name='%(name)s#%(method)s' % dict(name='resource', method='R.string.%s' % name), row=0, col=0, desc='detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v), opt='-Wdetect-url')
+          yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, 'R.string.%s' % name, 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))

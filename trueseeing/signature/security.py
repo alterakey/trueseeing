@@ -25,7 +25,7 @@ import logging
 
 from trueseeing.flow.code import OpMatcher, InvocationPattern
 from trueseeing.flow.data import DataFlows
-from trueseeing.signature.base import Detector
+from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class SecurityFilePermissionDetector(Detector):
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(k, 1), 16)
           if target_val & 3:
-            yield self.warning_on(name='%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), row=0, col=0, desc='insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val], opt='-Wsecurity-file-permission')
+            yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val])
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -56,15 +56,15 @@ class SecurityTlsInterceptionDetector(Detector):
           pins.add(cl)
 
     if not pins:
-      yield self.warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception')
+      yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, '(global)', 'insecure TLS connection')
     else:
       for cl in self.context.analyzed_classes():
         # XXX crude detection
         for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')).matching():
           if not DataFlows.solved_typeset_in_invocation(k, 2) & pins:
-            yield self.warning_on(name='%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception')
+            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), 'insecure TLS connection')
         else:
-          yield self.warning_on(name='(global)', row=0, col=0, desc='insecure TLS connection', opt='-Wsecurity-tls-interception')
+          yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '(global)', 'insecure TLS connection')
 
 
 class LayoutSizeGuesser:
@@ -141,4 +141,4 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
         for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % c.replace('$', '_')) for c in targets)):
           size = LayoutSizeGuesser().guessed_size(t, fn)
           if size > 0.5:
-            yield self.warning_on(name=self.context.source_name_of_disassembled_resource(fn), row=0, col=0, desc='arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size), opt='-Wsecurity-arbitrary-webview-overwrite')
+            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.TENTATIVE, self.context.source_name_of_disassembled_resource(fn), 'arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size))

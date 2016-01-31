@@ -16,8 +16,11 @@ signatures = collections.OrderedDict([cl.as_signature() for cl in trueseeing.sig
 signatures_all = set(signatures.keys())
 signatures_default = signatures_all.copy()
 
-def formatted(n):
-  return '%(name)s:%(row)d:%(col)d:%(severity)s:%(desc)s [%(opt)s]' % n
+def formatted(issue):
+  if not (issue.row is None or issue.col is None):
+    return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
+  else:
+    return '%(source)s:0:0:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__    
 
 def processed(apkfilename, chain):
   with Context() as context:
