@@ -142,3 +142,41 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
           size = LayoutSizeGuesser().guessed_size(t, fn)
           if size > 0.5:
             yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.TENTATIVE, self.context.source_name_of_disassembled_resource(fn), 'arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size))
+
+class SecurityInsecureWebViewDetector(Detector):
+  option = 'security-insecure-webview'
+
+  xmlns_android = '{http://schemas.android.com/apk/res/android}'
+
+  @staticmethod
+  def first(xs, default=None):
+    try:
+      return list(itertools.islice(xs, 1))[0]
+    except IndexError:
+      return default
+
+  def do_detect(self):
+    targets = {'WebView','XWalkView','GeckoView'}
+    seed = '|'.join(targets)
+
+    more = True
+    while more:
+      more = False
+      for cl in (c for c in self.context.analyzed_classes() if (c.super_.v in targets) or (re.search(seed, c.super_.v))):
+        name = self.context.class_name_of_dalvik_class_type(cl.qualified_name())
+        if name not in targets:
+          targets.add(self.context.class_name_of_dalvik_class_type(cl.qualified_name()))
+          more = True
+
+    # XXX: Crude detection
+    for cl in self.context.analyzed_classes():
+      p = self.first(OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')).matching())
+      if p and DataFlows.solved_constant_data_in_invocation(p, 0):
+        for target in targets:
+          q = self.first(OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'L(%s);->addJavascriptInterface' % target)).matching())
+          if q:
+            try:
+              if DataFlows.solved_constant_data_in_invocation(q, 0):
+                yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), q.method_.v.v), 'insecure Javascript interface')
+            except (DataFlows.NoSuchValueError):
+              yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), q.method_.v.v), 'insecure Javascript interface')

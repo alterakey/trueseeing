@@ -59,9 +59,12 @@ class DataFlows:
     graph = DataFlows.analyze(invokation_op)
     reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if invokation_op.v.endswith('-static') else 1)]
     arg = graph[invokation_op][reg]
-    if arg.t == 'id' and arg.v.startswith('const'):
-      return arg.p[1].v
-    else:
+    try:
+      if arg.t == 'id' and arg.v.startswith('const'):
+        return arg.p[1].v
+      else:
+        raise DataFlows.NoSuchValueError('not a compile-time constant: %r' % arg)
+    except AttributeError:
       raise DataFlows.NoSuchValueError('not a compile-time constant: %r' % arg)
 
   @staticmethod
