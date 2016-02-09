@@ -97,3 +97,16 @@ class CryptoEcbDetector(Detector):
             yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: cipher might be operating in ECB mode: %s' % target_val)
         except (DataFlows.NoSuchValueError):
           pass
+
+class CryptoNonRandomXorDetector(Detector):
+  option = 'crypto-xor'
+
+  def do_detect(self):
+    for cl in self.context.analyzed_classes():
+      for k in OpMatcher(cl.ops, InvocationPattern('xor-int/lit8', None)).matching():
+        try:
+          target_val = int(k.p[2].v, 16)
+          if (k.p[0].v == k.p[1].v) and target_val > 1:
+            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: non-random XOR cipher: 0x%02x' % target_val)
+        except (DataFlows.NoSuchValueError):
+          pass
