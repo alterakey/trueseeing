@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'
-  
+
   def entropy_of(self, string):
     o = 0.0
     m = dict()
@@ -43,35 +43,37 @@ class CryptoStaticKeyDetector(Detector):
     except ValueError:
       return 0
 
+  def important_args_on_invocation(self, k):
+    method_name = k.p[1].v
+    if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>', method_name):
+      yield 0
+    else:
+      yield from range(len(DataFlows.decoded_registers_of(k.p[0])))
+
   def do_detect(self):
-    consts = set()
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('const-string', r'^[0-9A-Za-z+/=]{8,}=?$')).matching():
-        val = k.p[1].v
-        try:
-          raw = base64.b64decode(val)
-        except ValueError:
-          raw = None
-        if (self.assumed_randomness_of(val) > 0.7) or (raw is not None and (len(raw) % 8 == 0 and self.assumed_randomness_of(raw) > 0.5)):
-          consts.add(val)
+    yield from itertools.chain(self.do_detect_case1())
+
+  def do_detect_case1(self):
+    def looks_like_real_key(k):
+      return len(k) >= 8 and 'Padding' not in k
 
     for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax/crypto|Ljava/security')).matching():
+      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec')).matching():
         try:
-          #pprint.pprint(DataFlows.into(k))
-          for nr in range(len(DataFlows.decoded_registers_of(k.p[0]))):
-            for found in consts & DataFlows.solved_possible_constant_data_in_invocation(k, nr):
+          for nr in self.important_args_on_invocation(k):
+            for found in DataFlows.solved_possible_constant_data_in_invocation(k, nr):
               try:
                 decoded = base64.b64decode(found)
-                yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
+                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
               except (ValueError, binascii.Error):
-                yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
+                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
         except IndexError:
           pass
 
+
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
-  
+
   def do_detect(self):
     for cl in self.context.analyzed_classes():
       for k in OpMatcher(cl.ops, InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')).matching():
