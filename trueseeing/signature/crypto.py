@@ -45,7 +45,7 @@ class CryptoStaticKeyDetector(Detector):
 
   def important_args_on_invocation(self, k):
     method_name = k.p[1].v
-    if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>', method_name):
+    if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>|L.*/MessageDigest;->update', method_name):
       yield 0
     else:
       yield from range(len(DataFlows.decoded_registers_of(k.p[0])))
@@ -58,7 +58,7 @@ class CryptoStaticKeyDetector(Detector):
       return len(k) >= 8 and 'Padding' not in k
 
     for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec')).matching():
+      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|Ljavax?.*/MessageDigest;->(update|digest)')).matching():
         try:
           for nr in self.important_args_on_invocation(k):
             for found in DataFlows.solved_possible_constant_data_in_invocation(k, nr):
