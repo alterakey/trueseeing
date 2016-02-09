@@ -51,7 +51,7 @@ class CryptoStaticKeyDetector(Detector):
       yield from range(len(DataFlows.decoded_registers_of(k.p[0])))
 
   def do_detect(self):
-    yield from itertools.chain(self.do_detect_case1())
+    yield from itertools.chain(self.do_detect_case1(), self.do_detect_case2())
 
   def do_detect_case1(self):
     def looks_like_real_key(k):
@@ -69,6 +69,16 @@ class CryptoStaticKeyDetector(Detector):
                 yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
         except IndexError:
           pass
+
+  def do_detect_case2(self):
+    pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
+    for cl in self.context.analyzed_classes():
+      for k in OpMatcher(cl.ops, InvocationPattern('const-string', pat)).matching():
+        val = k.p[1].v
+        yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509)' % dict(target_val=val, target_val_len=len(val)))
+    for name, val in self.context.string_resources():
+      if re.match(pat, val):
+        yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, 'R.string.%s' % name, 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509)' % dict(target_val=val, target_val_len=len(val)))
 
 
 class CryptoEcbDetector(Detector):
