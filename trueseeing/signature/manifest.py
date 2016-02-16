@@ -58,6 +58,5 @@ class ManifestDebuggable(Detector):
   option = 'manifest-debuggable'
   
   def do_detect(self):
-    if self.context.parsed_manifest().getroot().xpath('//application[@android:isDebuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+    if self.context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, 'AndroidManifest.xml', 'app is debuggable')
-
