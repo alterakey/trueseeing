@@ -25,7 +25,7 @@ class DataFlows:
     if ref.t == 'multireg':
       regs = ref.v
       if ' .. ' in regs:
-        from_, to_ = reg.split(' .. ')
+        from_, to_ = regs.split(' .. ')
         return type_(['%s%d' % (from_[0], c) for c in range(int(from_[1]), int(to_[1]) + 1)])
       elif ',' in regs:
         return type_([r.strip() for r in regs.split(',')])

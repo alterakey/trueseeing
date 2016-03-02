@@ -171,12 +171,15 @@ class SecurityInsecureWebViewDetector(Detector):
     # XXX: Crude detection
     for cl in self.context.analyzed_classes():
       p = self.first(OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')).matching())
-      if p and DataFlows.solved_constant_data_in_invocation(p, 0):
-        for target in targets:
-          q = self.first(OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'L(%s);->addJavascriptInterface' % target)).matching())
-          if q:
-            try:
-              if DataFlows.solved_constant_data_in_invocation(q, 0):
-                yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), q.method_.v.v), 'insecure Javascript interface')
-            except (DataFlows.NoSuchValueError):
-              yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), q.method_.v.v), 'insecure Javascript interface')
+      try:
+        if p and DataFlows.solved_constant_data_in_invocation(p, 0):
+          for target in targets:
+            q = self.first(OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'L(%s);->addJavascriptInterface' % target)).matching())
+            if q:
+              try:
+                if DataFlows.solved_constant_data_in_invocation(q, 0):
+                  yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), q.method_.v.v), 'insecure Javascript interface')
+              except (DataFlows.NoSuchValueError):
+                yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), q.method_.v.v), 'insecure Javascript interface')
+      except (DataFlows.NoSuchValueError):
+        pass
