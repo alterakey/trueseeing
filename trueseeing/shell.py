@@ -1,3 +1,4 @@
+import os
 import sys
 import getopt
 import configparser
@@ -5,6 +6,7 @@ import logging
 import collections
 
 import trueseeing.signature.base
+import trueseeing.exploit
 
 from trueseeing.context import Context
 
@@ -20,7 +22,7 @@ def formatted(issue):
   if not (issue.row is None or issue.col is None):
     return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
   else:
-    return '%(source)s:0:0:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__    
+    return '%(source)s:0:0:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
 
 def processed(apkfilename, chain):
   with Context() as context:
@@ -33,9 +35,10 @@ def processed(apkfilename, chain):
 def shell(argv):
   log_level = logging.INFO
   signature_selected = signatures_default.copy()
-  
+  exploitation_mode = ''
+
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', [])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign'])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -55,6 +58,10 @@ def shell(argv):
             signature_selected.add(target)
           else:
             signature_selected.update(signatures_all)
+      if o in ['--exploit-resign']:
+        exploitation_mode = 'resign'
+      if o in ['--exploit-unsign']:
+        exploitation_mode = 'unsign'
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -65,15 +72,24 @@ def shell(argv):
 
     logging.basicConfig(level=log_level, format="%(msg)s")
 
-    error_found = False
-    for f in files:
-      for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
-        error_found = True
-        print(e)
-    if not error_found:
+    if not exploitation_mode:
+      error_found = False
+      for f in files:
+        for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
+          error_found = True
+          print(e)
+      if not error_found:
+        return 0
+      else:
+        return 1
+    elif exploitation_mode == 'resign':
+      for f in files:
+        trueseeing.exploit.ExploitResign(f, os.path.basename(f).replace('.apk', '-resigned.apk')).exploit()
       return 0
-    else:
-      return 1
+    elif exploitation_mode == 'unsign':
+      for f in files:
+        trueseeing.exploit.ExploitUnsign(f, os.path.basename(f).replace('.apk', '-unsigned.apk')).exploit()
+      return 0
 
 def entry():
   import sys
