@@ -38,7 +38,7 @@ def shell(argv):
   exploitation_mode = ''
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign'])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup'])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -62,6 +62,10 @@ def shell(argv):
         exploitation_mode = 'resign'
       if o in ['--exploit-unsign']:
         exploitation_mode = 'unsign'
+      if o in ['--exploit-enable-debug']:
+        exploitation_mode = 'enable-debug'
+      if o in ['--exploit-enable-backup']:
+        exploitation_mode = 'enable-backup'
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -89,6 +93,14 @@ def shell(argv):
     elif exploitation_mode == 'unsign':
       for f in files:
         trueseeing.exploit.ExploitUnsign(f, os.path.basename(f).replace('.apk', '-unsigned.apk')).exploit()
+      return 0
+    elif exploitation_mode == 'enable-debug':
+      for f in files:
+        trueseeing.exploit.ExploitEnableDebug(f, os.path.basename(f).replace('.apk', '-debuggable.apk')).exploit()
+      return 0
+    elif exploitation_mode == 'enable-backup':
+      for f in files:
+        trueseeing.exploit.ExploitEnableBackup(f, os.path.basename(f).replace('.apk', '-backupable.apk')).exploit()
       return 0
 
 def entry():
