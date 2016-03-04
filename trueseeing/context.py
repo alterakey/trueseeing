@@ -20,10 +20,10 @@ class Context:
       hashed = hashlib.sha256(f.read()).hexdigest()
       dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
       return dirname
-    
-  def analyze(self, apk):
+
+  def analyze(self, apk, skip_resources=False):
     if self.wd is None:
-      self.apk = apk      
+      self.apk = apk
       self.wd = self.workdir_of(apk)
       try:
         os.makedirs(self.wd, mode=0o700)
@@ -31,7 +31,7 @@ class Context:
         pass
       else:
         # XXX insecure
-        os.system("java -jar %(apktool)s d -fo %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk))
+        os.system("java -jar %(apktool)s d -f%(skipresflag)so %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('r' if skip_resources else '')))
     else:
       raise ValueError('analyzed once')
 
