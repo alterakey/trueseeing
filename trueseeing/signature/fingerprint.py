@@ -106,7 +106,8 @@ class UrlLikeDetector(Detector):
       if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components):
         yield dict(type_='possible IPv4 address', value=[hostlike])
       elif self.re_tlds.search(components[-1]):
-        yield dict(type_='possible FQDN', value=[hostlike])
+        if not re.search(r'^android\.(intent|media)\.', hostlike):
+          yield dict(type_='possible FQDN', value=[hostlike])
         
   def do_detect(self):
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r') as f:
