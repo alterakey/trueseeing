@@ -5,6 +5,7 @@ import lxml.etree as ET
 import shutil
 import pkg_resources
 import hashlib
+import zipfile
 
 import trueseeing.code.parse
 
@@ -16,11 +17,17 @@ class Context:
     self.state = {}
 
   def workdir_of(self, apk):
-    with open(apk, 'rb') as f:
-      hashed = hashlib.sha256(f.read()).hexdigest()
-      dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
-      return dirname
+    hashed = self.fingerprint_of(apk)
+    dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
+    return dirname
 
+  def fingerprint(self):
+    return fingerprint_of(self.apk)
+  
+  def fingerprint_of(self, apk):
+    with zipfile.ZipFile(apk, 'r') as f:
+      return hashlib.sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
+    
   def analyze(self, apk, skip_resources=False):
     if self.wd is None:
       self.apk = apk
