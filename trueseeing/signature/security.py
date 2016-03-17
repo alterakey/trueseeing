@@ -183,3 +183,19 @@ class SecurityInsecureWebViewDetector(Detector):
                 yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), q.method_.v.v), 'insecure Javascript interface')
       except (DataFlows.NoSuchValueError):
         pass
+
+class FormatStringDetector(Detector):
+  option = 'security-format-string'
+
+  def analyzed(self, x):
+    if re.search(r'%s', x):
+      yield dict(severity=IssueSeverity.INFO, confidence=IssueConfidence.TENTATIVE, value=x)
+
+  def do_detect(self):
+    for cl in self.context.analyzed_classes():
+      for k in OpMatcher(cl.ops, InvocationPattern('const-string', '.')).matching():
+        for t in self.analyzed(k.p[1].v):
+          yield self.issue(t['severity'], t['confidence'], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected format string: %(target_val)s' % dict(target_val=t['value']))
+    for name, val in self.context.string_resources():
+      for t in self.analyzed(val):
+        yield self.issue(t['severity'], t['confidence'], 'R.string.%s' % name, 'detected format string: %(target_val)s' % dict(target_val=t['value']))
