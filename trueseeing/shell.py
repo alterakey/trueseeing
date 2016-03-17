@@ -35,7 +35,7 @@ def processed(apkfilename, chain):
 def selected_signatures_on(switch):
   if switch != 'all':
     if not switch.endswith('-all'):
-      return set(switch)
+      return set([switch])
     else:
       return {v for v in signatures_all if v.startswith(switch.replace('-all', ''))}
   else:
