@@ -36,9 +36,10 @@ def shell(argv):
   log_level = logging.INFO
   signature_selected = signatures_default.copy()
   exploitation_mode = ''
+  fingerprint_mode = False
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup'])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint'])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -66,6 +67,8 @@ def shell(argv):
         exploitation_mode = 'enable-debug'
       if o in ['--exploit-enable-backup']:
         exploitation_mode = 'enable-backup'
+      if o in ['--fingerprint']:
+        fingerprint_mode = True
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -77,15 +80,19 @@ def shell(argv):
     logging.basicConfig(level=log_level, format="%(msg)s")
 
     if not exploitation_mode:
-      error_found = False
-      for f in files:
-        for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
-          error_found = True
-          print(e)
-      if not error_found:
-        return 0
+      if not fingerprint_mode:
+        error_found = False
+        for f in files:
+          for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
+            error_found = True
+            print(e)
+        if not error_found:
+          return 0
+        else:
+          return 1
       else:
-        return 1
+        for f in files:
+          print('%s: %s' % (f, Context().fingerprint_of(f)))
     elif exploitation_mode == 'resign':
       for f in files:
         trueseeing.exploit.ExploitResign(f, os.path.basename(f).replace('.apk', '-resigned.apk')).exploit()
