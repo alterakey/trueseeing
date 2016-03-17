@@ -32,6 +32,15 @@ def processed(apkfilename, chain):
     for c in chain:
       yield from (formatted(e) for e in c(context).detect())
 
+def selected_signatures_on(switch):
+  if switch != 'all':
+    if not switch.endswith('-all'):
+      return set(switch)
+    else:
+      return {v for v in signatures_all if v.startswith(switch.replace('-all', ''))}
+  else:
+    return signatures_all
+
 def shell(argv):
   log_level = logging.INFO
   signature_selected = signatures_default.copy()
@@ -45,20 +54,10 @@ def shell(argv):
         log_level = logging.DEBUG
       if o in ['-W']:
         if a.startswith('no-'):
-          target = a[3:]
-          if target != 'all':
-            try:
-              signature_selected.remove(a[3:])
-            except KeyError:
-              pass
-          else:
-            signature_selected.clear()
+          signature_selected.difference_update(selected_signatures_on(a[3:]))
         else:
-          target = a
-          if target != 'all':
-            signature_selected.add(target)
-          else:
-            signature_selected.update(signatures_all)
+          signature_selected.update(selected_signatures_on(a))
+
       if o in ['--exploit-resign']:
         exploitation_mode = 'resign'
       if o in ['--exploit-unsign']:
