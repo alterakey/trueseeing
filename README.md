@@ -1,9 +1,7 @@
 <!-- mode: markdown; indent-tabs-mode: nil -->
 # README #
 
-[![wercker status](https://app.wercker.com/status/23b019ddf920edff35f141143cfb2223/m "wercker status")](https://app.wercker.com/project/bykey/23b019ddf920edff35f141143cfb2223)
-
-Copyright (C) 2015 Takahiro Yoshimura <altakey@gmail.com>
+Copyright (C) 2015 Takahiro Yoshimura <altakey@gmail.com>  All rights reserved.
 
 Trueseeing is a vulnerability scanner and penetration test framework for Android.
 
