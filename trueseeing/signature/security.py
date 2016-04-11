@@ -189,7 +189,8 @@ class FormatStringDetector(Detector):
 
   def analyzed(self, x):
     if re.search(r'%s', x):
-      yield dict(severity=IssueSeverity.INFO, confidence=IssueConfidence.TENTATIVE, value=x)
+      if re.search(r'(://|[<>/&?])', x):
+        yield dict(severity=IssueSeverity.INFO, confidence=IssueConfidence.FIRM, value=x)
 
   def do_detect(self):
     for cl in self.context.analyzed_classes():
