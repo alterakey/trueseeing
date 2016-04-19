@@ -1,0 +1,8 @@
+box: python:3.5
+
+build:
+  steps:
+    - pip-install
+    - script:
+      name: tests
+      code: nosetests
