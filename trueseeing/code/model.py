@@ -72,4 +72,3 @@ class Method(Op):
 
   def qualified_name(self):
     return '%s->%s' % (self.class_.qualified_name(), self.v.v)
-
