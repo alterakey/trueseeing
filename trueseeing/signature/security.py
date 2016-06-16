@@ -206,8 +206,16 @@ class LogDetector(Detector):
 
   def do_detect(self):
     for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);')).matching():
-        try:
-          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=k.p[1].v, val=DataFlows.solved_constant_data_in_invocation(k, 1)))
-        except (DataFlows.NoSuchValueError):
+      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')).matching():
+        if 'print' not in k.p[1].v:
+          try:
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=k.p[1].v, val=DataFlows.solved_constant_data_in_invocation(k, 1)))
+          except (DataFlows.NoSuchValueError):
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s' % dict(target_val=k.p[1].v))
+        elif 'Exception;->' not in k.p[1].v:
+          try:
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=k.p[1].v, val=DataFlows.solved_constant_data_in_invocation(k, 0)))
+          except (DataFlows.NoSuchValueError):
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s' % dict(target_val=k.p[1].v))
+        else:
           yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s' % dict(target_val=k.p[1].v))
