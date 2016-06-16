@@ -47,10 +47,10 @@ def shell(argv):
   signature_selected = signatures_default.copy()
   exploitation_mode = ''
   fingerprint_mode = False
-  grab_mode = True
+  grab_mode = False
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint'])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab'])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -102,7 +102,7 @@ def shell(argv):
           for pkg in files:
             if trueseeing.grab.Grab(pkg).exploit():
               print('%s: package saved: %s.apk' % (sys.argv[0], pkg))
-              return -
+              return 0
             else:
               print('%s: package not found' % sys.argv[0])
               return 1
