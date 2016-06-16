@@ -7,6 +7,7 @@ import collections
 
 import trueseeing.signature.base
 import trueseeing.exploit
+import trueseeing.grab
 
 from trueseeing.context import Context
 
@@ -46,6 +47,7 @@ def shell(argv):
   signature_selected = signatures_default.copy()
   exploitation_mode = ''
   fingerprint_mode = False
+  grab_mode = True
 
   try:
     opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint'])
@@ -66,6 +68,8 @@ def shell(argv):
         exploitation_mode = 'enable-debug'
       if o in ['--exploit-enable-backup']:
         exploitation_mode = 'enable-backup'
+      if o in ['--grab']:
+        grab_mode = True
       if o in ['--fingerprint']:
         fingerprint_mode = True
   except IndexError:
@@ -79,19 +83,34 @@ def shell(argv):
     logging.basicConfig(level=log_level, format="%(msg)s")
 
     if not exploitation_mode:
-      if not fingerprint_mode:
-        error_found = False
-        for f in files:
-          for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
-            error_found = True
-            print(e)
-        if not error_found:
-          return 0
+      if not grab_mode:
+        if not fingerprint_mode:
+          error_found = False
+          for f in files:
+            for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
+              error_found = True
+              print(e)
+          if not error_found:
+            return 0
+          else:
+            return 1
         else:
-          return 1
+          for f in files:
+            print('%s: %s' % (f, Context().fingerprint_of(f)))
       else:
-        for f in files:
-          print('%s: %s' % (f, Context().fingerprint_of(f)))
+        if files:
+          for pkg in files:
+            if trueseeing.grab.Grab(pkg).exploit():
+              print('%s: package saved: %s.apk' % (sys.argv[0], pkg))
+              return -
+            else:
+              print('%s: package not found' % sys.argv[0])
+              return 1
+        else:
+          print('%s: listing packages' % sys.argv[0])
+          for p in sorted(trueseeing.grab.Grab(None).list_()):
+            print(p)
+          return 0
     elif exploitation_mode == 'resign':
       for f in files:
         trueseeing.exploit.ExploitResign(f, os.path.basename(f).replace('.apk', '-resigned.apk')).exploit()
