@@ -82,6 +82,8 @@ class ProGuardDetector(Detector):
       if re.search('(?:^|\.)a$', c):
         yield self.issue(IssueSeverity.INFO, IssueConfidence.CERTAIN, '(global)', 'detected obfuscator: ProGuard')
         break
+    else:
+      yield self.issue(IssueSeverity.MINOR, IssueConfidence.FIRM, '(global)', 'lack of obfuscation')
 
 class FakeToken:
   def __init__(self, v, p):
