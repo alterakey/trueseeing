@@ -123,7 +123,12 @@ class DataFlows:
       if o.t == 'id' and o.v.startswith('sput-'):
         if o.p[1].v == target:
           return o
-    raise Exception('failed static trace of: %r' % op)
+    else:
+      if op.p[1].v.startswith('Ljava/lang/'):
+        return None
+      else:
+        raise Exception('failed static trace of: %r' % op)
+
 
   @staticmethod
   def analyze_load(op):
