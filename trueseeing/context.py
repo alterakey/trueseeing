@@ -6,6 +6,8 @@ import shutil
 import pkg_resources
 import hashlib
 import zipfile
+import itertools
+import glob
 
 import trueseeing.code.parse
 
@@ -51,7 +53,7 @@ class Context:
       return self.state['ts2.context.disassembled_classes']
     except KeyError:
       self.state['ts2.context.disassembled_classes'] = []
-      for root, dirs, files in os.walk(os.path.join(self.wd, 'smali')):
+      for root, dirs, files in itertools.chain(*(os.walk(p) for p in glob.glob(os.path.join(self.wd, 'smali*/')))):
         self.state['ts2.context.disassembled_classes'].extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
       return self.disassembled_classes()
 
@@ -72,7 +74,7 @@ class Context:
       return self.disassembled_resources()
 
   def source_name_of_disassembled_class(self, fn):
-    return os.path.relpath(fn, os.path.join(self.wd, 'smali'))
+    return os.path.join(*os.path.relpath(fn, self.wd).split(os.sep)[1:])
 
   def dalvik_type_of_disassembled_class(self, fn):
     return 'L%s;' % (self.source_name_of_disassembled_class(fn).replace('.smali', ''))
