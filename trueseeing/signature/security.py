@@ -87,17 +87,17 @@ class LayoutSizeGuesser:
 
     def height_of(e):
       return e.attrib['{0}layout_height'.format(self.xmlns_android)]
-    
+
     def is_bound(x):
       return x not in ('fill_parent', 'match_parent', 'wrap_content')
 
     def guessed_dp(x, dp):
       if is_bound(x):
         try:
-          return int(re.sub(r'di?p$', '', x)) / float(dp)
+          return float(re.sub(r'di?p$', '', x)) / float(dp)
         except ValueError:
           print("check_security_arbitrary_webview_overwrite: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
-          return int(re.sub(r'[^0-9-]', '', x)) / float(dp)
+          return float(re.sub(r'[^0-9-]', '', x)) / float(dp)
       else:
         return dp
 
