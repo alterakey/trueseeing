@@ -124,7 +124,7 @@ class DataFlows:
         if o.p[1].v == target:
           return o
     else:
-      if op.p[1].v.startswith('Ljava/lang/'):
+      if op.p[1].v.startswith('Ljava/'):
         return None
       else:
         raise Exception('failed static trace of: %r' % op)
