@@ -14,6 +14,12 @@ class Token:
 class Program(collections.UserList):
   pass
 
+class MethodList(collections.UserList):
+  pass
+
+class FieldList(collections.UserList):
+  pass
+
 class Op(Token):
   p = None
 
@@ -25,11 +31,11 @@ class Op(Token):
     return '<Op %s:%s:%s>' % (self.t, self.v, self.p)
 
 class Class(Op):
-  def __init__(self, p, methods, fields):
+  def __init__(self, p):
     super().__init__('class', [t for t in p if t.t == 'reflike'][0], None)
     self.attrs = set([t for t in p if t.t == 'id'])
-    self.methods = methods if methods else []
-    self.fields = fields if fields else []
+    self.methods = MethodList()
+    self.fields = FieldList()
     self.super_ = None
     self.source = None
     self.global_ = None
@@ -59,10 +65,10 @@ class Method(Op):
   attrs = None
   ops = Program()
 
-  def __init__(self, p, ops):
+  def __init__(self, p):
     super().__init__('method', Token('prototype', ''.join((t.v for t in p[-2:]))), p)
     self.attrs = set(p[:-2])
-    self.ops = ops
+    self.ops = Program()
 
   def __repr__(self):
     return '<Method %s:%s, attrs:%s, ops:[%d ops]>' % (self.t, self.v, self.attrs, len(self.ops))
@@ -72,4 +78,3 @@ class Method(Op):
 
   def qualified_name(self):
     return '%s->%s' % (self.class_.qualified_name(), self.v.v)
-

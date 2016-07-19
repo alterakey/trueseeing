@@ -5,7 +5,7 @@ import itertools
 import pprint
 import traceback
 from .model import *
-      
+
 class P:
   @staticmethod
   def head_and_tail(xs):
@@ -22,7 +22,7 @@ class P:
 
     for t in P.parsed_flat(s):
       if t.t == 'directive' and t.v == 'class':
-        class_ = Class(t.p, [], [])
+        class_ = Class(t.p)
         class_.global_ = app
         app.classes.append(class_)
       else:
@@ -36,7 +36,7 @@ class P:
             elif t.v == 'source':
               class_.source = t.p[0]
             elif t.v == 'method':
-              method_ = Method(t.p, [])
+              method_ = Method(t.p)
               method_.class_ = class_
             else:
               pass
@@ -72,7 +72,7 @@ class P:
 
   @staticmethod
   def parsed_as_annotation_content(q):
-    content = []
+    content = Program()
     try:
       while '.end annotation' not in q[0]:
         content.append(q.popleft())
