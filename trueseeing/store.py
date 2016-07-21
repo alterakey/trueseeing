@@ -10,11 +10,23 @@ class SQLite3Store:
   def token_bucket(self, name):
     return SQLite3TokenBucket(self.db, name)
 
-class SQLite3TokenBucket:
-  def __init__(self, db, prefix):
+class SQLite3Attachable:
+  def __init__(self, db):
     self.db = db
+
+  def __enter__(self):
+    self.db.__enter__()
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    self.db.__exit__(exc_type, exc_value, traceback)
+
+class SQLite3TokenBucket(SQLite3Attachable):
+  def __init__(self, db, prefix):
+    super().__init__(db)
     self.prefix = prefix.decode('ascii')
-    self.db.execute('create table if not exists %(prefix)s (id integer primary key, t string, v string)' % dict(prefix=self.prefix))
+    for s in ['create table if not exists %(prefix)s (id integer primary key, t string, v string)']:
+      self.db.execute(s % dict(prefix=self.prefix))
 
   def get(self, k):
     for t,v in self.db.execute('select t,v from %(prefix)s where id=?' % dict(prefix=self.prefix), (k)):
@@ -28,13 +40,6 @@ class SQLite3TokenBucket:
 
   def delete(self, k):
     self.db.execute('delete from %(prefix)s where id=?' % dict(prefix=self.prefix), (k))
-
-  def __enter__(self):
-    self.db.__enter__()
-    return self
-
-  def __exit__(self, exc_type, exc_value, traceback):
-    self.db.__exit__(exc_type, exc_value, traceback)
 
 Store = SQLite3Store
 TokenBucket = SQLite3TokenBucket
