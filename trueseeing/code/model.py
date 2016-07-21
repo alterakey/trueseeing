@@ -14,6 +14,9 @@ class Token:
 class Program(collections.UserList):
   pass
 
+class ClassList(collections.UserList):
+  pass
+
 class MethodList(collections.UserList):
   pass
 
@@ -48,7 +51,10 @@ class Class(Op):
     return self.v.v
 
 class App:
-  classes = []
+  classes = None
+
+  def __init__(self):
+    self.classes = ClassList()
 
 class Annotation(Op):
   name = None

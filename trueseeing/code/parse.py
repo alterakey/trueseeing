@@ -5,6 +5,7 @@ import itertools
 import pprint
 import traceback
 from .model import *
+from trueseeing.store import Store, TokenBucket
 
 class P:
   @staticmethod
@@ -20,38 +21,40 @@ class P:
     class_ = None
     method_ = None
 
-    for t in P.parsed_flat(s):
-      if t.t == 'directive' and t.v == 'class':
-        class_ = Class(t.p)
-        class_.global_ = app
-        app.classes.append(class_)
-      else:
-        assert class_ is not None
-        t.class_ = class_
-        class_.ops.append(t)
-        if method_ is None:
-          if t.t == 'directive':
-            if t.v == 'super':
-              class_.super_ = t.p[0]
-            elif t.v == 'source':
-              class_.source = t.p[0]
-            elif t.v == 'method':
-              method_ = Method(t.p)
-              method_.class_ = class_
-            else:
-              pass
+    with Store('.').token_bucket(b'ops') as b:
+      for t in P.parsed_flat(s):
+        b.append(t)
+        if t.t == 'directive' and t.v == 'class':
+          class_ = Class(t.p)
+          class_.global_ = app
+          app.classes.append(class_)
         else:
-          t.method_ = method_
-          if isinstance(t, Annotation):
-            method_.p.append(t)
+          assert class_ is not None
+          t.class_ = class_
+          class_.ops.append(t)
+          if method_ is None:
+            if t.t == 'directive':
+              if t.v == 'super':
+                class_.super_ = t.p[0]
+              elif t.v == 'source':
+                class_.source = t.p[0]
+              elif t.v == 'method':
+                method_ = Method(t.p)
+                method_.class_ = class_
+              else:
+                pass
           else:
-            if t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
-              class_.methods.append(method_)
-              method_ = None
+            t.method_ = method_
+            if isinstance(t, Annotation):
+              method_.p.append(t)
             else:
-              method_.ops.append(t)
+              if t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
+                class_.methods.append(method_)
+                method_ = None
+              else:
+                method_.ops.append(t)
 
-    return class_
+      return class_
 
   @staticmethod
   def parsed_flat(s):

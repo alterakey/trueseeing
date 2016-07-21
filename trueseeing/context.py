@@ -10,6 +10,7 @@ import itertools
 import glob
 
 import trueseeing.code.parse
+import trueseeing.store
 
 class Context:
   def __init__(self):
@@ -23,13 +24,21 @@ class Context:
     dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
     return dirname
 
+  def store(self):
+    assert self.wd is not None
+    try:
+      return self.state['ts2.store']
+    except KeyError:
+      self.state['ts2.store'] = trueseeing.store.Store(os.path.join(self.wd, 'store'))
+      return self.store()
+
   def fingerprint(self):
     return fingerprint_of(self.apk)
-  
+
   def fingerprint_of(self, apk):
     with zipfile.ZipFile(apk, 'r') as f:
       return hashlib.sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
-    
+
   def analyze(self, apk, skip_resources=False):
     if self.wd is None:
       self.apk = apk
@@ -101,10 +110,9 @@ class Context:
     for fn in self.string_resource_files():
       with open(fn, 'r') as f:
         yield from ((c.attrib['name'], c.text) for c in ET.parse(f).getroot().xpath('//resources/string') if c.text)
-      
+
   def __enter__(self):
     return self
 
   def __exit__(self, *exc_details):
     pass
-

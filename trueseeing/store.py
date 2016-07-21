@@ -1,33 +1,88 @@
 import random
 import hashlib
+import os.path
 
-class Store:
-  def __init__(self, f):
-    self.f = dict()
+import plyvel
 
-  def bucket(self, name):
-    return Bucket(self.f, name)
+class LevelDBStore:
+  def __init__(self, path):
+    self.path = os.path.join(path, 'store')
+    self.db = plyvel.DB(self.path, create_if_missing=True)
 
-class Bucket:
-  def __init__(self, f, name):
-    self.f = f
-    self.name = bytes(name)
-    if self.name not in self.f:
-      self.f[self.name] = dict()
-    self.b = self.f[name]
+  def token_bucket(self, name):
+    return LevelDBTokenBucket(self.db, name)
+
+class LevelDBTokenBucket:
+  def __init__(self, db, prefix):
+    self.db = db
+    self.prefix = prefix + b'.'
+    self.prefix_types = self.prefix + b'types.'
+    self.prefix_values = self.prefix + b'values.'
+    self.prefix_refs = self.prefix + b'refs.'
 
   def get(self, k):
-    return self.f[k]
+    return Token(self.db.get(self.prefix_types + k), self.db.get(self.prefix_values + k))
 
-  def put(self, k, v):
-    if k is None:
-      k = self.key()
-    self.f[k] = bytes(v)
-    return k
+  def put(self, k, token):
+    k = int(k)
+    key = ('%d' % k).encode('ascii')
+    with self.db.write_batch() as b:
+      b.put(self.prefix_types + key, token.t.encode('ascii'))
+      b.put(self.prefix_values + key, token.v.encode('ascii'))
+
+  def append(self, token):
+    k = int(self.db.get(self.prefix + b'KEY', b'0'))
+    key = ('%d' % k).encode('ascii')
+    new_key = ('%d' % (k + 1)).encode('ascii')
+    with self.db.write_batch() as b:
+      b.put(self.prefix + b'KEY', new_key)
+      b.put(self.prefix_types + key, token.t.encode('ascii'))
+      b.put(self.prefix_values + key, token.v.encode('ascii'))
 
   def delete(self, k):
-    del self.f[k]
+    self.types.delete(k)
+    self.values.delete(k)
 
-  @staticmethod
-  def key(self):
-    return bytes(hashlib.sha1(random.getrandbits(256)).hexdigest())
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    pass
+
+import sqlite3
+
+class SQLite3Store:
+  def __init__(self, path):
+    self.db = sqlite3.connect(os.path.join(path, 'store.db'))
+
+  def token_bucket(self, name):
+    return SQLite3TokenBucket(self.db, name)
+
+class SQLite3TokenBucket:
+  def __init__(self, db, prefix):
+    self.db = db
+    self.prefix = prefix.decode('ascii')
+    self.db.execute('create table if not exists %(prefix)s (id integer primary key, t string, v string)' % dict(prefix=self.prefix))
+
+  def get(self, k):
+    for t,v in self.db.execute('select t,v from %(prefix)s where id=?' % dict(prefix=self.prefix), (k)):
+      return Token(t, v)
+
+  def put(self, k, token):
+    self.db.execute('replace into %(prefix)s(id,t,v) values (?,?,?)' % dict(prefix=self.prefix), (k, token.t.encode('ascii'), token.v.encode('ascii')))
+
+  def append(self, token):
+    self.db.execute('insert into %(prefix)s(t,v) values (?,?)' % dict(prefix=self.prefix), (token.t.encode('ascii'), token.v.encode('ascii')))
+
+  def delete(self, k):
+    self.db.execute('delete from %(prefix)s where id=?' % dict(prefix=self.prefix), (k))
+
+  def __enter__(self):
+    self.db.__enter__()
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    self.db.__exit__(exc_type, exc_value, traceback)
+
+Store = SQLite3Store
+TokenBucket = SQLite3TokenBucket
