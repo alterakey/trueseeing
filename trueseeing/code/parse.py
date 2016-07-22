@@ -7,6 +7,11 @@ import traceback
 from .model import *
 from trueseeing.store import Store, TokenBucket
 
+import logging
+import time
+
+log = logging.getLogger(__name__)
+
 class P:
   @staticmethod
   def head_and_tail(xs):
@@ -21,13 +26,19 @@ class P:
     class_ = None
     method_ = None
 
-    with Store('.').token_bucket(b'ops') as b:
+    analyzed_ops = 0
+    started = time.time()
+
+    with Store('.').op_bucket(b'ops') as b:
       for t in P.parsed_flat(s):
         b.append(t)
+        analyzed_ops = analyzed_ops + 1
         if t.t == 'directive' and t.v == 'class':
           class_ = Class(t.p)
           class_.global_ = app
           app.classes.append(class_)
+          if len(app.classes) % 100 == 0:
+            log.info("analyzed: %d ops, %d classes (%.02f ops/s)" % (analyzed_ops, len(app.classes), analyzed_ops / (time.time() - started)))
         else:
           assert class_ is not None
           t.class_ = class_
