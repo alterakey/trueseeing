@@ -4,16 +4,19 @@ import os.path
 import sqlite3
 import itertools
 
-class SQLite3Store:
+class Store:
   def __init__(self, path):
     self.db = sqlite3.connect(os.path.join(path, 'store.db'))
-
-  def token_bucket(self, name):
-    return SQLite3TokenBucket(self.db, name)
-
-class SQLite3Attachable:
-  def __init__(self, db):
-    self.db = db
+    for s in [
+        'create table if not exists ops (op integer primary key, t string not null, v string not null)',
+        'create table if not exists ops_p (op integer not null, idx integer not null, p integer not null)',
+        'create table if not exists ops_method (op integer not null, method integer not null)',
+        'create table if not exists ops_class (op integer not null, class integer not null)',
+        'create index ops_method_method on ops_method (method)',
+        'create index ops_class_class on ops_class (class)',
+        'create index ops_p_op on ops_p (op)',
+    ]:
+      self.db.execute(s)
 
   def __enter__(self):
     self.db.__enter__()
@@ -22,36 +25,22 @@ class SQLite3Attachable:
   def __exit__(self, exc_type, exc_value, traceback):
     self.db.__exit__(exc_type, exc_value, traceback)
 
-class SQLite3TokenBucket(SQLite3Attachable):
-  def __init__(self, db, prefix):
-    super().__init__(db)
-    self.prefix = prefix.decode('ascii')
-    for s in [
-        'create table if not exists %(prefix)s (id integer primary key, t string not null, v string not null)',
-        'create table if not exists %(prefix)s_p (id integer not null, idx integer not null, p integer not null)'
-    ]:
-      self.db.execute(s % dict(prefix=self.prefix))
-
-  def get(self, k):
-    for t,v in self.db.execute('select t,v from %(prefix)s where id=?' % dict(prefix=self.prefix), (k)):
+  def op_get(self, k):
+    for t,v in self.db.execute('select t,v from ops where id=?', (k)):
       return Token(t, v)
 
-  def put(self, k, token):
-    self.db.execute('replace into %(prefix)s(id,t,v) values (?,?,?)' % dict(prefix=self.prefix), (k, token.t.encode('ascii'), token.v.encode('ascii')))
-    self.db.execute('delete from %(prefix)s_p where id=?' % dict(prefix=self.prefix), (k))
-    self.db.executemany('insert into %(prefix)s_p(id, idx, p) values (?,?,?)' % dict(prefix=self.prefix), ((k,i,token.p[i]) for i in range(len(token.p))))
-
-  def append(self, token):
+  def op_append(self, op):
     ids = []
-    for t in itertools.chain([token], token.p):
-      self.db.execute('insert into %(prefix)s(t,v) values (?,?)' % dict(prefix=self.prefix), (t.t.encode('ascii'), t.v.encode('ascii')))
-      for r in self.db.execute('select id from %(prefix)s where rowid=last_insert_rowid() limit 1' % dict(prefix=self.prefix)):
+    for t in itertools.chain([op], op.p):
+      self.db.execute('insert into ops(t,v) values (?,?)', (t.t.encode('ascii'), t.v.encode('ascii')))
+      for r in self.db.execute('select op from ops where rowid=last_insert_rowid() limit 1'):
         ids.append(r[0])
-    self.db.executemany('insert into %(prefix)s_p(id, idx, p) values (?,?,?)' % dict(prefix=self.prefix), ((ids[0], i, ids[i + 1]) for i in range(len(token.p))))
+    self.db.executemany('insert into ops_p(op, idx, p) values (?,?,?)', ((ids[0], i, ids[i + 1]) for i in range(len(op.p))))
+    for t, id_ in zip(itertools.chain([op], op.p), ids):
+      t._id = id_
 
-  def delete(self, k):
-    self.db.execute('delete from %(prefix)s where id=?' % dict(prefix=self.prefix), (k))
-    self.db.execute('delete from %(prefix)s_p where id=? or p=?' % dict(prefix=self.prefix), (k, k))
+  def op_mark_method(self, ops, method):
+    self.db.executemany('insert into ops_method(op,method) values (?,?)', ((str(o._id), str(method._id)) for o in ops))
 
-Store = SQLite3Store
-TokenBucket = SQLite3TokenBucket
+  def op_mark_class(self, ops, class_):
+    self.db.executemany('insert into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
