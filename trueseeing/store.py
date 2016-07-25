@@ -8,7 +8,7 @@ class Store:
   def __init__(self, path):
     self.db = sqlite3.connect(os.path.join(path, 'store.db'))
     for s in [
-        'create table if not exists ops (op integer primary key, t string not null, v string not null)',
+        'create table if not exists ops (op integer primary key, t varchar not null, v varchar not null)',
         'create table if not exists ops_p (op integer not null, idx integer not null, p integer not null)',
         'create table if not exists ops_method (op integer not null, method integer not null)',
         'create table if not exists ops_class (op integer not null, class integer not null)',
@@ -32,7 +32,7 @@ class Store:
   def op_append(self, op):
     ids = []
     for t in itertools.chain([op], op.p):
-      self.db.execute('insert into ops(t,v) values (?,?)', (t.t.encode('ascii'), t.v.encode('ascii')))
+      self.db.execute('insert into ops(t,v) values (?,?)', (t.t, t.v))
       for r in self.db.execute('select op from ops where rowid=last_insert_rowid() limit 1'):
         ids.append(r[0])
     self.db.executemany('insert into ops_p(op, idx, p) values (?,?,?)', ((ids[0], i, ids[i + 1]) for i in range(len(op.p))))
