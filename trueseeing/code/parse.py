@@ -27,6 +27,7 @@ class P:
     method_ = None
 
     analyzed_ops = 0
+    analyzed_methods = 0
     analyzed_classes = 0
     started = time.time()
 
@@ -37,37 +38,33 @@ class P:
       for t in P.parsed_flat(s):
         b.op_append(t)
         analyzed_ops = analyzed_ops + 1
+        if analyzed_ops & 0xffff == 0:
+          log.info("analyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
         if t.t == 'directive' and t.v == 'class':
+          if reg1:
+            analyzed_classes = analyzed_classes + 1
           reg1 = [t]
-          analyzed_classes = analyzed_classes + 1
-          if analyzed_classes % 100 == 0:
-            log.info("analyzed: %d ops, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_classes, analyzed_ops / (time.time() - started)))
         else:
           assert reg1
           if not reg2:
             reg1.append(t)
-            if t.t == 'directive':
-              if t.v == 'super':
-                log.debug("super: %s" % t.p[0])
-              elif t.v == 'source':
-                log.debug("source: %s" % t.p[0])
-              elif t.v == 'method':
-                reg2 = [t]
-              else:
-                pass
+            if t.t == 'directive' and t.v == 'method':
+              reg2 = [t]
           else:
             reg2.append(t)
             if isinstance(t, Annotation):
-              reg2[0].p.append(t)
+              b.op_param_append(reg2[0], t)
             else:
               if t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
                 b.op_mark_method(reg2[1:], reg2[0])
                 b.op_mark_class(reg2, reg1[0])
                 reg2 = []
+                analyzed_methods = analyzed_methods + 1
       else:
         if reg1:
           b.op_mark_class(reg1[1:], reg1[0], ignore_dupes=True)
 
+      log.info("analyzed: %d ops, %d methods, %d classes, done (%.02f sec)" % (analyzed_ops, analyzed_methods, analyzed_classes, (time.time() - started)))
       return None
 
   @staticmethod

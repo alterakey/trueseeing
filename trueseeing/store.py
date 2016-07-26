@@ -81,6 +81,14 @@ create view op_vecs as
     self.db.executemany('insert into ops(op,t,v) values (?,?,?)', ((t._id, t.t, t.v) for t in vec))
     self.db.executemany('insert into ops_p(op, idx, p) values (?,?,?)', ((op._id, t._idx, t._id) for t in vec[1:]))
 
+  def op_param_append(self, op, p):
+    for r in self.db.execute('select max(idx) from ops_p where op=?', (op._id,)):
+      if r[0] is not None:
+        p._idx = r[0] + 1
+      else:
+        p._idx = 1
+    self.db.execute('insert into ops_p(op, idx, p) values (?,?,?)', (op._id, p._idx, p._id))
+
   def op_mark_method(self, ops, method):
     self.db.executemany('insert into ops_method(op,method) values (?,?)', ((str(o._id), str(method._id)) for o in ops))
 
