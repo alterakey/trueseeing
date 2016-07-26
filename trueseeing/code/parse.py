@@ -64,7 +64,10 @@ class P:
         if reg1:
           b.op_mark_class(reg1[1:], reg1[0], ignore_dupes=True)
 
-      log.info("analyzed: %d ops, %d methods, %d classes, done (%.02f sec)" % (analyzed_ops, analyzed_methods, analyzed_classes, (time.time() - started)))
+      log.info("analyzed: %d ops, %d methods, %d classes" % (analyzed_ops, analyzed_methods, analyzed_classes))
+      log.info("analyzed: finalizing")
+      b.op_finalize()
+      log.info("analyzed: done (%.02f sec)" % (time.time() - started))
       return None
 
   @staticmethod

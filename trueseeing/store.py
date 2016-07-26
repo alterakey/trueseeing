@@ -63,6 +63,9 @@ create view op_vecs as
   def __exit__(self, exc_type, exc_value, traceback):
     self.db.__exit__(exc_type, exc_value, traceback)
 
+  def op_finalize(self):
+    self.db.execute('vacuum analyze')
+
   def op_get(self, k):
     for t,v in self.db.execute('select t,v from ops where id=?', (k)):
       return Token(t, v)
