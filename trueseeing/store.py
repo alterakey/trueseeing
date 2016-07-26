@@ -8,6 +8,7 @@ class Store:
   def __init__(self, path):
     self.db = sqlite3.connect(os.path.join(path, 'store.db'))
     for s in [
+        'pragma journal_mode=WAL',
         'create table if not exists ops (op integer primary key, t varchar not null, v varchar not null)',
         'create table if not exists ops_p (op integer not null, idx integer not null, p integer not null)',
         'create table if not exists ops_method (op integer primary key, method integer not null)',
