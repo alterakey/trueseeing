@@ -62,11 +62,11 @@ class P:
             else:
               if t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
                 b.op_mark_method(reg2[1:], reg2[0])
-                b.op_mark_class(reg2 + reg1[1:], reg1[0])
+                b.op_mark_class(reg2, reg1[0])
                 reg2 = []
       else:
         if reg1:
-          b.op_mark_class(reg1[1:], reg1[0])
+          b.op_mark_class(reg1[1:], reg1[0], ignore_dupes=True)
 
       return None
 
