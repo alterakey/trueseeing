@@ -10,7 +10,7 @@ class Store:
     for s in [
         'pragma journal_mode=WAL',
         'create table if not exists ops (op integer primary key, t varchar not null, v varchar not null)',
-        'create table if not exists ops_p (op integer not null, idx integer not null, p integer not null)',
+        'create table if not exists ops_p (op integer not null, idx integer not null, p integer primary key)',
         'create table if not exists ops_method (op integer primary key, method integer not null)',
         'create table if not exists ops_class (op integer primary key, class integer not null)',
         'create index ops_method_method on ops_method (method)',
