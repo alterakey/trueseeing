@@ -100,3 +100,10 @@ create view op_vecs as
       self.db.executemany('insert into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
     else:
       self.db.executemany('insert or ignore into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
+
+  def query(self):
+    return Query(self)
+
+class Query:
+  def __init__(self, store):
+    self.db = store.db
