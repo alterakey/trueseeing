@@ -9,6 +9,7 @@ from trueseeing.store import Store
 
 import logging
 import time
+import sys
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class P:
         b.op_append(t)
         analyzed_ops = analyzed_ops + 1
         if analyzed_ops & 0xffff == 0:
-          log.info("analyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
+          sys.stderr.write("\ranalyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
         if t.t == 'directive' and t.v == 'class':
           if reg1:
             analyzed_classes = analyzed_classes + 1
@@ -56,18 +57,18 @@ class P:
               b.op_param_append(reg2[0], t)
             else:
               if t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
-                b.op_mark_method(reg2[1:], reg2[0])
+                b.op_mark_method(reg2, reg2[0])
                 b.op_mark_class(reg2, reg1[0])
                 reg2 = []
                 analyzed_methods = analyzed_methods + 1
       else:
         if reg1:
-          b.op_mark_class(reg1[1:], reg1[0], ignore_dupes=True)
+          b.op_mark_class(reg1, reg1[0], ignore_dupes=True)
 
-      log.info("analyzed: %d ops, %d methods, %d classes" % (analyzed_ops, analyzed_methods, analyzed_classes))
-      log.info("analyzed: finalizing")
+      sys.stderr.write(("\ranalyzed: %d ops, %d methods, %d classes" + (" " * 20) + "\n") % (analyzed_ops, analyzed_methods, analyzed_classes))
+      sys.stderr.write("analyzed: finalizing\n")
       b.op_finalize()
-      log.info("analyzed: done (%.02f sec)" % (time.time() - started))
+      sys.stderr.write("analyzed: done (%.02f sec)\n" % (time.time() - started))
       return None
 
   @staticmethod
