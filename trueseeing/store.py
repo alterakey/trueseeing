@@ -93,13 +93,13 @@ create view op_vecs as
     self.db.execute('insert into ops_p(op, idx, p) values (?,?,?)', (op._id, p._idx, p._id))
 
   def op_mark_method(self, ops, method):
-    self.db.executemany('insert into ops_method(op,method) values (?,?)', ((str(o._id), str(method._id)) for o in ops))
+    self.db.executemany('insert into ops_method(op,method) values (?,?)', ((str(o._id), str(method._id)) for o in itertools.chain(ops, *(o.p for o in ops))))
 
   def op_mark_class(self, ops, class_, ignore_dupes=False):
     if not ignore_dupes:
-      self.db.executemany('insert into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
+      self.db.executemany('insert into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in itertools.chain(ops, *(o.p for o in ops))))
     else:
-      self.db.executemany('insert or ignore into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
+      self.db.executemany('insert or ignore into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in itertools.chain(ops, *(o.p for o in ops))))
 
   def query(self):
     return Query(self)
