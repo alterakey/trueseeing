@@ -40,14 +40,17 @@ insert into method_qualname select method, (class_name||'->'||method_name) as qu
 create index method_qualname_qualname on method_qualname(qualname);
 
 -- API calls
-create view api_calls as select ops_method.method as method, (case when invokes.t1='reflike' then invokes.v1 else invokes.v2 end) as qualname from ops_method join invokes using (op) left join method_qualname on ((case when invokes.t1='reflike' then invokes.v1 else invokes.v2 end)=qualname) where method_qualname.method is null;
-create table api_calls_snap (method integer not null, qualname varchar not null);
+create view api_calls as select invokes.op as op, ops_method.method as method, (case when invokes.t1='reflike' then invokes.v1 else invokes.v2 end) as qualname from ops_method join invokes using (op) left join method_qualname on ((case when invokes.t1='reflike' then invokes.v1 else invokes.v2 end)=qualname) where method_qualname.method is null;
+create table api_calls_snap (op integer primary key, method integer not null, qualname varchar not null);
 insert into api_calls_snap select * from api_calls;
 create index api_calls_snap_method on api_calls_snap(method);
 
+-- finds which op is calling given method
+--select op_vecs.* from ops_p join (select op as p from ops where v like 'Landroid/util/Log;%') using (p) join op_vecs using (op);
+
 -- extract call graph
-create view method_callees as select ops_method.method as method, method_qualname.method as callee from ops_method join invokes using (op) join method_qualname on ((case when invokes.t1='reflike' then invokes.v1 else invokes.v2 end)=qualname);
-create table method_callees_snap (method integer not null, callee integer not null);
+create view method_callees as select invokes.op as op, ops_method.method as method, method_qualname.method as callee from ops_method join invokes using (op) join method_qualname on ((case when invokes.t1='reflike' then invokes.v1 else invokes.v2 end)=qualname);
+create table method_callees_snap (op integer primary key, method integer not null, callee integer not null);
 insert into method_callees_snap select * from method_callees;
 create index method_callees_snap_method on method_callees_snap(method);
 
@@ -55,8 +58,7 @@ create view method_callgraphs as select distinct c1.method as method,c1.callee a
 
 -- extract register write
 
-create table op_reg_influences
-
+create view op_reg_influences as select referer.op as op, referer.v as insn, ops_p.idx as idx, ops.v as reg from ops join ops_p on (ops.op=ops_p.p) join ops as referer on (referer.op=ops_p.op) where ops.t in ('reg', 'multireg');
 
 -- extract register ref
 
