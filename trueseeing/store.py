@@ -52,6 +52,8 @@ create view op_vecs as
       left join ops as ops8 on (ops8.op=ops_p8.p)
       left join ops as ops9 on (ops9.op=ops_p9.p)
       left join ops as opsa on (opsa.op=ops_pa.p)
+  where
+    not exists (select 1 from ops_p where p=ops.op)
 ''',
     ]:
       self.db.execute(s)
