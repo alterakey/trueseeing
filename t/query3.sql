@@ -503,6 +503,27 @@ insert into op_reg_influence_mode(insn, idx, ref, mod)
 
 -- select A.op,A.v,A.v1,A.v2,'<----',B.op,B.v,B.v1,B.v2 from (select * from ops_method join op_vecs using (op) join op_reg_influence_mode as T on (T.insn=op_vecs.v and op_vecs.t='id' and T.idx=0 and T.ref) where method=245) as A left join (select * from ops_method join op_vecs using (op) join op_reg_influence_mode as TT on (TT.insn=op_vecs.v and op_vecs.t='id' and TT.idx=0 and TT.mod) where method=245 order by op desc) as B on (A.op>B.op);
 
+--select
+--    UA.op,UA.v,UA.v1,UA.v2,
+--    UB.op,UB.v,UB.v1,UB.v2
+--  from
+--    (select aop,max(bop) as bop from
+--      (select A.op as aop,B.op as bop from
+--        (select * from ops_method
+--	  join op_vecs using (op)
+--	  join op_reg_influence_mode as T
+--	    on (T.insn=op_vecs.v and op_vecs.t='id' and T.idx=0 and T.ref)
+--	  where method=245) as A
+--	  left join (select * from ops_method
+--	    join op_vecs using (op)
+--	    join op_reg_influence_mode as TT
+--	      on (TT.insn=op_vecs.v and op_vecs.t='id' and TT.idx=0 and TT.mod)
+--	    where method=245) as B
+--	    on (A.op>B.op))
+--	group by aop) as U
+--    join op_vecs as UA on (U.aop=UA.op)
+--    join op_vecs as UB on (U.bop=UB.op);
+--
 -- extract register ref
 
 commit;
