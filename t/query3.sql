@@ -64,428 +64,444 @@ create view op_reg_influences as select referer.op as op, ops_p.idx as idx, refe
 
 create table op_reg_influence_mode (insn varchar not null, idx integer not null, ref boolean not null, mod boolean not null, unique (insn, idx));
 create index op_reg_influence_mode_insn on op_reg_influence_mode (insn);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('nop', 0, 0, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move/from16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move/from16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-wide', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-wide', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-wide/from16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-wide/from16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-object', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-object', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-object/from16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-object/from16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-result', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-result-wide', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-result-object', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('move-exception', 0, 0, 1);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('return-void', 0, 0, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('return', 0, 1, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('return-wide', 0, 1, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('return-object', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const/4', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const/16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const/high16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const-wide/16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const-wide/32', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const-wide', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const-wide/high16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const-string', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const-string/jumbo', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('const-class', 0, 0, 1);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('monitor-enter', 0, 1, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('monitor-exit', 0, 1, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('check-cast', 0, 1, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('instance-of', 0, 0, 1);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('instance-of', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('array-length', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('array-length', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('new-instance', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('new-array', 0, 0, 1);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('filled-new-array', 0, 0, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('filled-new-array/range', 0, 0, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('fill-array-data', 0, 0, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('throw', 0, 1, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('goto', 0, 0, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('goto/16', 0, 0, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('goto/32', 0, 0, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('packed-switch', 0, 1, 0);
---insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sparse-switch', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpl-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpl-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpl-float', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpg-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpg-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpg-float', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpl-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpl-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpl-double', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpg-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpg-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmpg-double', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmp-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmp-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('cmp-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-eq', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-eq', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-ne', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-ne', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-lt', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-lt', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-ge', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-ge', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-gt', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-gt', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-le', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-le', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-eqz', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-nez', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-ltz', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-gez', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-gtz', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('if-lez', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-wide', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-wide', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-wide', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-object', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-object', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-object', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-boolean', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-boolean', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-boolean', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-byte', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-byte', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-byte', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-char', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-char', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-char', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-short', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-short', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aget-short', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-wide', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-wide', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-wide', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-object', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-object', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-object', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-boolean', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-boolean', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-boolean', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-byte', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-byte', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-byte', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-char', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-char', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-char', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-short', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-short', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('aput-short', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-wide', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-wide', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-object', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-object', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-boolean', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-boolean', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-byte', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-byte', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-char', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-char', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-short', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iget-short', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-wide', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-wide', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-object', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-object', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-boolean', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-boolean', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-byte', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-byte', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-char', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-char', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-short', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('iput-short', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sget', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sget-wide', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sget-object', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sget-boolean', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sget-byte', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sget-char', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sget-short', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sput', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sput-wide', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sput-object', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sput-boolean', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sput-byte', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sput-char', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sput-short', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-super', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-virtual', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-direct', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-static', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-interface', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-virtual/range', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-super/range', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-direct/range', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-static/range', 0, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('invoke-interface/range', 0, 1, 0);
+insert into op_reg_influence_mode(insn, idx, ref, mod)
+  values
+    --('nop', 0, 0, 0),
+    ('move', 0, 0, 1),
+    ('move', 1, 1, 0),
+    ('move/from16', 0, 0, 1),
+    ('move/from16', 1, 1, 0),
+    ('move-wide', 0, 0, 1),
+    ('move-wide', 1, 1, 0),
+    ('move-wide/from16', 0, 0, 1),
+    ('move-wide/from16', 1, 1, 0),
+    ('move-object', 0, 0, 1),
+    ('move-object', 1, 1, 0),
+    ('move-object/from16', 0, 0, 1),
+    ('move-object/from16', 1, 1, 0),
+    ('move-result', 0, 0, 1),
+    ('move-result', -1, 1, 0),
+    ('move-result-wide', 0, 0, 1),
+    ('move-result-wide', -1, 1, 0),
+    ('move-result-object', 0, 0, 1),
+    ('move-result-object', -1, 1, 0),
+    ('move-exception', 0, 0, 1),
+    --('return-void', 0, 0, 0),
+    --('return', 0, 1, 0),
+    ('return', -1, 0, 1),
+    --('return-wide', 0, 1, 0),
+    ('return-wide', -1, 0, 1),
+    --('return-object', 0, 1, 0),
+    ('return-object', -1, 0, 1),
+    ('const/4', 0, 0, 1),
+    ('const/16', 0, 0, 1),
+    ('const', 0, 0, 1),
+    ('const/high16', 0, 0, 1),
+    ('const-wide/16', 0, 0, 1),
+    ('const-wide/32', 0, 0, 1),
+    ('const-wide', 0, 0, 1),
+    ('const-wide/high16', 0, 0, 1),
+    ('const-string', 0, 0, 1),
+    ('const-string/jumbo', 0, 0, 1),
+    ('const-class', 0, 0, 1),
+    --('monitor-enter', 0, 1, 0),
+    --('monitor-exit', 0, 1, 0),
+    --('check-cast', 0, 1, 0),
+    --('instance-of', 0, 0, 1),
+    --('instance-of', 1, 1, 0),
+    ('array-length', 0, 0, 1),
+    ('array-length', 1, 1, 0),
+    ('new-instance', 0, 0, 1),
+    ('new-array', 0, 0, 1),
+    --('filled-new-array', 0, 0, 0),
+    --('filled-new-array/range', 0, 0, 0),
+    --('fill-array-data', 0, 0, 0),
+    --('throw', 0, 1, 0),
+    --('goto', 0, 0, 0),
+    --('goto/16', 0, 0, 0),
+    --('goto/32', 0, 0, 0),
+    --('packed-switch', 0, 1, 0),
+    --('sparse-switch', 0, 1, 0),
+    ('cmpl-float', 0, 0, 1),
+    ('cmpl-float', 1, 1, 0),
+    ('cmpl-float', 2, 1, 0),
+    ('cmpg-float', 0, 0, 1),
+    ('cmpg-float', 1, 1, 0),
+    ('cmpg-float', 2, 1, 0),
+    ('cmpl-double', 0, 0, 1),
+    ('cmpl-double', 1, 1, 0),
+    ('cmpl-double', 2, 1, 0),
+    ('cmpg-double', 0, 0, 1),
+    ('cmpg-double', 1, 1, 0),
+    ('cmpg-double', 2, 1, 0),
+    ('cmp-long', 0, 0, 1),
+    ('cmp-long', 1, 1, 0),
+    ('cmp-long', 2, 1, 0),
+    ('if-eq', 0, 1, 0),
+    ('if-eq', 1, 1, 0),
+    ('if-ne', 0, 1, 0),
+    ('if-ne', 1, 1, 0),
+    ('if-lt', 0, 1, 0),
+    ('if-lt', 1, 1, 0),
+    ('if-ge', 0, 1, 0),
+    ('if-ge', 1, 1, 0),
+    ('if-gt', 0, 1, 0),
+    ('if-gt', 1, 1, 0),
+    ('if-le', 0, 1, 0),
+    ('if-le', 1, 1, 0),
+    ('if-eqz', 0, 1, 0),
+    ('if-nez', 0, 1, 0),
+    ('if-ltz', 0, 1, 0),
+    ('if-gez', 0, 1, 0),
+    ('if-gtz', 0, 1, 0),
+    ('if-lez', 0, 1, 0),
+    ('aget', 0, 0, 1),
+    ('aget', 1, 1, 0),
+    ('aget', 2, 1, 0),
+    ('aget-wide', 0, 0, 1),
+    ('aget-wide', 1, 1, 0),
+    ('aget-wide', 2, 1, 0),
+    ('aget-object', 0, 0, 1),
+    ('aget-object', 1, 1, 0),
+    ('aget-object', 2, 1, 0),
+    ('aget-boolean', 0, 0, 1),
+    ('aget-boolean', 1, 1, 0),
+    ('aget-boolean', 2, 1, 0),
+    ('aget-byte', 0, 0, 1),
+    ('aget-byte', 1, 1, 0),
+    ('aget-byte', 2, 1, 0),
+    ('aget-char', 0, 0, 1),
+    ('aget-char', 1, 1, 0),
+    ('aget-char', 2, 1, 0),
+    ('aget-short', 0, 0, 1),
+    ('aget-short', 1, 1, 0),
+    ('aget-short', 2, 1, 0),
+    ('aput', 0, 1, 0),
+    ('aput', 1, 1, 0),
+    ('aput', 2, 1, 0),
+    ('aput-wide', 0, 1, 0),
+    ('aput-wide', 1, 1, 0),
+    ('aput-wide', 2, 1, 0),
+    ('aput-object', 0, 1, 0),
+    ('aput-object', 1, 1, 0),
+    ('aput-object', 2, 1, 0),
+    ('aput-boolean', 0, 1, 0),
+    ('aput-boolean', 1, 1, 0),
+    ('aput-boolean', 2, 1, 0),
+    ('aput-byte', 0, 1, 0),
+    ('aput-byte', 1, 1, 0),
+    ('aput-byte', 2, 1, 0),
+    ('aput-char', 0, 1, 0),
+    ('aput-char', 1, 1, 0),
+    ('aput-char', 2, 1, 0),
+    ('aput-short', 0, 1, 0),
+    ('aput-short', 1, 1, 0),
+    ('aput-short', 2, 1, 0),
+    ('iget', 0, 0, 1),
+    ('iget', 1, 1, 0),
+    ('iget-wide', 0, 0, 1),
+    ('iget-wide', 1, 1, 0),
+    ('iget-object', 0, 0, 1),
+    ('iget-object', 1, 1, 0),
+    ('iget-boolean', 0, 0, 1),
+    ('iget-boolean', 1, 1, 0),
+    ('iget-byte', 0, 0, 1),
+    ('iget-byte', 1, 1, 0),
+    ('iget-char', 0, 0, 1),
+    ('iget-char', 1, 1, 0),
+    ('iget-short', 0, 0, 1),
+    ('iget-short', 1, 1, 0),
+    ('iput', 0, 1, 0),
+    ('iput', 1, 1, 0),
+    ('iput-wide', 0, 1, 0),
+    ('iput-wide', 1, 1, 0),
+    ('iput-object', 0, 1, 0),
+    ('iput-object', 1, 1, 0),
+    ('iput-boolean', 0, 1, 0),
+    ('iput-boolean', 1, 1, 0),
+    ('iput-byte', 0, 1, 0),
+    ('iput-byte', 1, 1, 0),
+    ('iput-char', 0, 1, 0),
+    ('iput-char', 1, 1, 0),
+    ('iput-short', 0, 1, 0),
+    ('iput-short', 1, 1, 0),
+    ('sget', 0, 0, 1),
+    ('sget-wide', 0, 0, 1),
+    ('sget-object', 0, 0, 1),
+    ('sget-boolean', 0, 0, 1),
+    ('sget-byte', 0, 0, 1),
+    ('sget-char', 0, 0, 1),
+    ('sget-short', 0, 0, 1),
+    ('sput', 0, 1, 0),
+    ('sput-wide', 0, 1, 0),
+    ('sput-object', 0, 1, 0),
+    ('sput-boolean', 0, 1, 0),
+    ('sput-byte', 0, 1, 0),
+    ('sput-char', 0, 1, 0),
+    ('sput-short', 0, 1, 0),
+    ('invoke-super', 0, 1, 0),
+    ('invoke-super', -1, 0, 1),
+    ('invoke-virtual', 0, 1, 0),
+    ('invoke-virtual', -1, 0, 1),
+    ('invoke-direct', 0, 1, 0),
+    ('invoke-direct', -1, 0, 1),
+    ('invoke-static', 0, 1, 0),
+    ('invoke-static', -1, 0, 1),
+    ('invoke-interface', 0, 1, 0),
+    ('invoke-interface', -1, 0, 1),
+    ('invoke-virtual/range', 0, 1, 0),
+    ('invoke-virtual/range', -1, 0, 1),
+    ('invoke-super/range', 0, 1, 0),
+    ('invoke-super/range', -1, 0, 1),
+    ('invoke-direct/range', 0, 1, 0),
+    ('invoke-direct/range', -1, 0, 1),
+    ('invoke-static/range', 0, 1, 0),
+    ('invoke-static/range', -1, 0, 1),
+    ('invoke-interface/range', 0, 1, 0),
+    ('invoke-interface/range', -1, 0, 1),
+    ('neg-int', 0, 0, 1),
+    ('neg-int', 1, 1, 0),
+    ('not-int', 0, 0, 1),
+    ('not-int', 1, 1, 0),
+    ('neg-long', 0, 0, 1),
+    ('neg-long', 1, 1, 0),
+    ('not-long', 0, 0, 1),
+    ('not-long', 1, 1, 0),
+    ('neg-float', 0, 0, 1),
+    ('neg-float', 1, 1, 0),
+    ('neg-double', 0, 0, 1),
+    ('neg-double', 1, 1, 0),
+    ('int-to-long', 0, 0, 1),
+    ('int-to-long', 1, 1, 0),
+    ('int-to-float', 0, 0, 1),
+    ('int-to-float', 1, 1, 0),
+    ('int-to-double', 0, 0, 1),
+    ('int-to-double', 1, 1, 0),
+    ('long-to-int', 0, 0, 1),
+    ('long-to-int', 1, 1, 0),
+    ('long-to-float', 0, 0, 1),
+    ('long-to-float', 1, 1, 0),
+    ('long-to-double', 0, 0, 1),
+    ('long-to-double', 1, 1, 0),
+    ('float-to-int', 0, 0, 1),
+    ('float-to-int', 1, 1, 0),
+    ('float-to-long', 0, 0, 1),
+    ('float-to-long', 1, 1, 0),
+    ('float-to-double', 0, 0, 1),
+    ('float-to-double', 1, 1, 0),
+    ('double-to-int', 0, 0, 1),
+    ('double-to-int', 1, 1, 0),
+    ('double-to-long', 0, 0, 1),
+    ('double-to-long', 1, 1, 0),
+    ('double-to-float', 0, 0, 1),
+    ('double-to-float', 1, 1, 0),
+    ('int-to-byte', 0, 0, 1),
+    ('int-to-byte', 1, 1, 0),
+    ('int-to-char', 0, 0, 1),
+    ('int-to-char', 1, 1, 0),
+    ('int-to-short', 0, 0, 1),
+    ('int-to-short', 1, 1, 0),
+    ('add-int', 0, 0, 1),
+    ('add-int', 1, 1, 0),
+    ('add-int', 2, 1, 0),
+    ('sub-int', 0, 0, 1),
+    ('sub-int', 1, 1, 0),
+    ('sub-int', 2, 1, 0),
+    ('mul-int', 0, 0, 1),
+    ('mul-int', 1, 1, 0),
+    ('mul-int', 2, 1, 0),
+    ('div-int', 0, 0, 1),
+    ('div-int', 1, 1, 0),
+    ('div-int', 2, 1, 0),
+    ('rem-int', 0, 0, 1),
+    ('rem-int', 1, 1, 0),
+    ('rem-int', 2, 1, 0),
+    ('and-int', 0, 0, 1),
+    ('and-int', 1, 1, 0),
+    ('and-int', 2, 1, 0),
+    ('or-int', 0, 0, 1),
+    ('or-int', 1, 1, 0),
+    ('or-int', 2, 1, 0),
+    ('xor-int', 0, 0, 1),
+    ('xor-int', 1, 1, 0),
+    ('xor-int', 2, 1, 0),
+    ('shl-int', 0, 0, 1),
+    ('shl-int', 1, 1, 0),
+    ('shl-int', 2, 1, 0),
+    ('shr-int', 0, 0, 1),
+    ('shr-int', 1, 1, 0),
+    ('shr-int', 2, 1, 0),
+    ('ushr-int', 0, 0, 1),
+    ('ushr-int', 1, 1, 0),
+    ('ushr-int', 2, 1, 0),
+    ('add-long', 0, 0, 1),
+    ('add-long', 1, 1, 0),
+    ('add-long', 2, 1, 0),
+    ('sub-long', 0, 0, 1),
+    ('sub-long', 1, 1, 0),
+    ('sub-long', 2, 1, 0),
+    ('mul-long', 0, 0, 1),
+    ('mul-long', 1, 1, 0),
+    ('mul-long', 2, 1, 0),
+    ('div-long', 0, 0, 1),
+    ('div-long', 1, 1, 0),
+    ('div-long', 2, 1, 0),
+    ('rem-long', 0, 0, 1),
+    ('rem-long', 1, 1, 0),
+    ('rem-long', 2, 1, 0),
+    ('and-long', 0, 0, 1),
+    ('and-long', 1, 1, 0),
+    ('and-long', 2, 1, 0),
+    ('or-long', 0, 0, 1),
+    ('or-long', 1, 1, 0),
+    ('or-long', 2, 1, 0),
+    ('xor-long', 0, 0, 1),
+    ('xor-long', 1, 1, 0),
+    ('xor-long', 2, 1, 0),
+    ('shl-long', 0, 0, 1),
+    ('shl-long', 1, 1, 0),
+    ('shl-long', 2, 1, 0),
+    ('shr-long', 0, 0, 1),
+    ('shr-long', 1, 1, 0),
+    ('shr-long', 2, 1, 0),
+    ('ushr-long', 0, 0, 1),
+    ('ushr-long', 1, 1, 0),
+    ('ushr-long', 2, 1, 0),
+    ('add-float', 0, 0, 1),
+    ('add-float', 1, 1, 0),
+    ('add-float', 2, 1, 0),
+    ('sub-float', 0, 0, 1),
+    ('sub-float', 1, 1, 0),
+    ('sub-float', 2, 1, 0),
+    ('mul-float', 0, 0, 1),
+    ('mul-float', 1, 1, 0),
+    ('mul-float', 2, 1, 0),
+    ('div-float', 0, 0, 1),
+    ('div-float', 1, 1, 0),
+    ('div-float', 2, 1, 0),
+    ('rem-float', 0, 0, 1),
+    ('rem-float', 1, 1, 0),
+    ('rem-float', 2, 1, 0),
+    ('add-double', 0, 0, 1),
+    ('add-double', 1, 1, 0),
+    ('add-double', 2, 1, 0),
+    ('sub-double', 0, 0, 1),
+    ('sub-double', 1, 1, 0),
+    ('sub-double', 2, 1, 0),
+    ('mul-double', 0, 0, 1),
+    ('mul-double', 1, 1, 0),
+    ('mul-double', 2, 1, 0),
+    ('div-double', 0, 0, 1),
+    ('div-double', 1, 1, 0),
+    ('div-double', 2, 1, 0),
+    ('rem-double', 0, 0, 1),
+    ('rem-double', 1, 1, 0),
+    ('rem-double', 2, 1, 0),
+    ('add-int/2addr', 0, 1, 1),
+    ('add-int/2addr', 1, 1, 0),
+    ('sub-int/2addr', 0, 1, 1),
+    ('sub-int/2addr', 1, 1, 0),
+    ('mul-int/2addr', 0, 1, 1),
+    ('mul-int/2addr', 1, 1, 0),
+    ('div-int/2addr', 0, 1, 1),
+    ('div-int/2addr', 1, 1, 0),
+    ('rem-int/2addr', 0, 1, 1),
+    ('rem-int/2addr', 1, 1, 0),
+    ('and-int/2addr', 0, 1, 1),
+    ('and-int/2addr', 1, 1, 0),
+    ('or-int/2addr', 0, 1, 1),
+    ('or-int/2addr', 1, 1, 0),
+    ('xor-int/2addr', 0, 1, 1),
+    ('xor-int/2addr', 1, 1, 0),
+    ('shl-int/2addr', 0, 1, 1),
+    ('shl-int/2addr', 1, 1, 0),
+    ('shr-int/2addr', 0, 1, 1),
+    ('shr-int/2addr', 1, 1, 0),
+    ('ushr-int/2addr', 0, 1, 1),
+    ('ushr-int/2addr', 1, 1, 0),
+    ('add-long/2addr', 0, 1, 1),
+    ('add-long/2addr', 1, 1, 0),
+    ('sub-long/2addr', 0, 1, 1),
+    ('sub-long/2addr', 1, 1, 0),
+    ('mul-long/2addr', 0, 1, 1),
+    ('mul-long/2addr', 1, 1, 0),
+    ('div-long/2addr', 0, 1, 1),
+    ('div-long/2addr', 1, 1, 0),
+    ('rem-long/2addr', 0, 1, 1),
+    ('rem-long/2addr', 1, 1, 0),
+    ('and-long/2addr', 0, 1, 1),
+    ('and-long/2addr', 1, 1, 0),
+    ('or-long/2addr', 0, 1, 1),
+    ('or-long/2addr', 1, 1, 0),
+    ('xor-long/2addr', 0, 1, 1),
+    ('xor-long/2addr', 1, 1, 0),
+    ('shl-long/2addr', 0, 1, 1),
+    ('shl-long/2addr', 1, 1, 0),
+    ('shr-long/2addr', 0, 1, 1),
+    ('shr-long/2addr', 1, 1, 0),
+    ('ushr-long/2addr', 0, 1, 1),
+    ('ushr-long/2addr', 1, 1, 0),
+    ('add-float/2addr', 0, 1, 1),
+    ('add-float/2addr', 1, 1, 0),
+    ('sub-float/2addr', 0, 1, 1),
+    ('sub-float/2addr', 1, 1, 0),
+    ('mul-float/2addr', 0, 1, 1),
+    ('mul-float/2addr', 1, 1, 0),
+    ('div-float/2addr', 0, 1, 1),
+    ('div-float/2addr', 1, 1, 0),
+    ('rem-float/2addr', 0, 1, 1),
+    ('rem-float/2addr', 1, 1, 0),
+    ('add-double/2addr', 0, 1, 1),
+    ('add-double/2addr', 1, 1, 0),
+    ('sub-double/2addr', 0, 1, 1),
+    ('sub-double/2addr', 1, 1, 0),
+    ('mul-double/2addr', 0, 1, 1),
+    ('mul-double/2addr', 1, 1, 0),
+    ('div-double/2addr', 0, 1, 1),
+    ('div-double/2addr', 1, 1, 0),
+    ('rem-double/2addr', 0, 1, 1),
+    ('rem-double/2addr', 1, 1, 0),
+    ('add-int/lit16', 0, 0, 1),
+    ('add-int/lit16', 1, 1, 0),
+    ('rsub-int/lit16', 0, 0, 1),
+    ('rsub-int/lit16', 1, 1, 0),
+    ('mul-int/lit16', 0, 0, 1),
+    ('mul-int/lit16', 1, 1, 0),
+    ('div-int/lit16', 0, 0, 1),
+    ('div-int/lit16', 1, 1, 0),
+    ('rem-int/lit16', 0, 0, 1),
+    ('rem-int/lit16', 1, 1, 0),
+    ('and-int/lit16', 0, 0, 1),
+    ('and-int/lit16', 1, 1, 0),
+    ('or-int/lit16', 0, 0, 1),
+    ('or-int/lit16', 1, 1, 0),
+    ('xor-int/lit16', 0, 0, 1),
+    ('xor-int/lit16', 1, 1, 0),
+    ('add-int/lit8', 0, 0, 1),
+    ('add-int/lit8', 1, 1, 0),
+    ('rsub-int/lit8', 0, 0, 1),
+    ('rsub-int/lit8', 1, 1, 0),
+    ('mul-int/lit8', 0, 0, 1),
+    ('mul-int/lit8', 1, 1, 0),
+    ('div-int/lit8', 0, 0, 1),
+    ('div-int/lit8', 1, 1, 0),
+    ('rem-int/lit8', 0, 0, 1),
+    ('rem-int/lit8', 1, 1, 0),
+    ('and-int/lit8', 0, 0, 1),
+    ('and-int/lit8', 1, 1, 0),
+    ('or-int/lit8', 0, 0, 1),
+    ('or-int/lit8', 1, 1, 0),
+    ('xor-int/lit8', 0, 0, 1),
+    ('xor-int/lit8', 1, 1, 0),
+    ('shl-int/lit8', 0, 0, 1),
+    ('shl-int/lit8', 1, 1, 0),
+    ('shr-int/lit8', 0, 0, 1),
+    ('shr-int/lit8', 1, 1, 0),
+    ('ushr-int/lit8', 0, 0, 1),
+    ('ushr-int/lit8', 1, 1, 0);
 
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('not-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('not-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('not-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('not-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('neg-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('long-to-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('long-to-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('long-to-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('long-to-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('long-to-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('long-to-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('float-to-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('float-to-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('float-to-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('float-to-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('float-to-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('float-to-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('double-to-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('double-to-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('double-to-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('double-to-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('double-to-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('double-to-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-byte', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-byte', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-char', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-char', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-short', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('int-to-short', 1, 1, 0);
 
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-int', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-int', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-int', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-long', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-long', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-long', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-float', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-float', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-float', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-float', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-float', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-float', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-float', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-double', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-double', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-double', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-double', 2, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-double', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-double', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-double', 2, 1, 0);
-
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-int/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-int/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-long/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-long/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-float/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-float/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-float/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-float/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-float/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-float/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-float/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-float/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-float/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-float/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-double/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-double/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-double/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('sub-double/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-double/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-double/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-double/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-double/2addr', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-double/2addr', 0, 1, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-double/2addr', 1, 1, 0);
-
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int/lit16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rsub-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rsub-int/lit16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int/lit16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int/lit16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int/lit16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int/lit16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int/lit16', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int/lit16', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int/lit16', 1, 1, 0);
-
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('add-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rsub-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rsub-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('mul-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('div-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('rem-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('and-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('or-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('xor-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shl-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('shr-int/lit8', 1, 1, 0);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-int/lit8', 0, 0, 1);
-insert into op_reg_influence_mode(insn, idx, ref, mod) values ('ushr-int/lit8', 1, 1, 0);
+-- select A.op,A.v,A.v1,A.v2,'<----',B.op,B.v,B.v1,B.v2 from (select * from ops_method join op_vecs using (op) join op_reg_influence_mode as T on (T.insn=op_vecs.v and op_vecs.t='id' and T.idx=0 and T.ref) where method=245) as A left join (select * from ops_method join op_vecs using (op) join op_reg_influence_mode as TT on (TT.insn=op_vecs.v and op_vecs.t='id' and TT.idx=0 and TT.mod) where method=245 order by op desc) as B on (A.op>B.op);
 
 -- extract register ref
 
