@@ -32,8 +32,8 @@ class P:
     analyzed_classes = 0
     started = time.time()
 
-    reg1 = []
-    reg2 = []
+    reg1 = None
+    reg2 = None
 
     with Store('.') as b:
       for t in P.parsed_flat(s):
@@ -41,29 +41,33 @@ class P:
         analyzed_ops = analyzed_ops + 1
         if analyzed_ops & 0xffff == 0:
           sys.stderr.write("\ranalyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
+
+        if reg1 is not None:
+          reg1.append(t)
+        if reg2 is not None:
+          reg2.append(t)
+
         if t.t == 'directive' and t.v == 'class':
-          if reg1:
+          if reg1 is not None:
+            reg1.pop()
+            b.op_mark_class(reg1, reg1[0])
+            reg1 = [t]
             analyzed_classes = analyzed_classes + 1
-          reg1 = [t]
-        else:
-          assert reg1
-          if not reg2:
-            reg1.append(t)
-            if t.t == 'directive' and t.v == 'method':
-              reg2 = [t]
           else:
-            reg2.append(t)
-            if isinstance(t, Annotation):
-              b.op_param_append(reg2[0], t)
-            else:
-              if t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
-                b.op_mark_method(reg2, reg2[0])
-                b.op_mark_class(reg2, reg1[0])
-                reg2 = []
-                analyzed_methods = analyzed_methods + 1
+            reg1 = [t]
+        elif t.t == 'directive' and t.v == 'method':
+          if reg2 is None:
+            reg2 = [t]
+        elif t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
+          if reg2 is not None:
+            b.op_mark_method(reg2, reg2[0])
+            reg2 = None
+            analyzed_methods = analyzed_methods + 1
       else:
-        if reg1:
+        if reg1 is not None:
           b.op_mark_class(reg1, reg1[0], ignore_dupes=True)
+          reg1 = None
+          analyzed_classes = analyzed_classes + 1
 
       sys.stderr.write(("\ranalyzed: %d ops, %d methods, %d classes" + (" " * 20) + "\n") % (analyzed_ops, analyzed_methods, analyzed_classes))
       sys.stderr.write("analyzed: finalizing\n")
