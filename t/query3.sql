@@ -522,4 +522,6 @@ select
 
 -- extract register ref
 
+-- TBD: code xref, data xref
+
 commit;
