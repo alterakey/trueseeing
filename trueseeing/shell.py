@@ -48,10 +48,10 @@ def shell(argv):
   exploitation_mode = ''
   fingerprint_mode = False
   grab_mode = False
-  introspection_mode = False
+  inspection_mode = False
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'introspect'])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect'])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -73,8 +73,8 @@ def shell(argv):
         grab_mode = True
       if o in ['--fingerprint']:
         fingerprint_mode = True
-      if o in ['--introspect']:
-        introspection_mode = True
+      if o in ['--inspect']:
+        inspection_mode = True
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -86,7 +86,7 @@ def shell(argv):
     logging.basicConfig(level=log_level, format="%(msg)s")
 
     if not exploitation_mode:
-      if not any([fingerprint_mode, grab_mode, introspection_mode]):
+      if not any([fingerprint_mode, grab_mode, inspection_mode]):
         error_found = False
         for f in files:
           for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
@@ -113,10 +113,10 @@ def shell(argv):
           for p in sorted(trueseeing.grab.Grab(None).list_()):
             print(p)
           return 0
-      elif introspection_mode:
+      elif inspection_mode:
         f = files[0]
         with Context() as context:
-          print("introspection mode; analyzing %s" % f)
+          print("inspection mode; analyzing %s" % f)
           context.analyze(f)
           print("analyzed, context in 'context'")
           from IPython import embed
