@@ -29,7 +29,7 @@ class Context:
     try:
       return self.state['ts2.store']
     except KeyError:
-      self.state['ts2.store'] = trueseeing.store.Store(os.path.join(self.wd, 'store'))
+      self.state['ts2.store'] = trueseeing.store.Store(self.wd)
       return self.store()
 
   def fingerprint(self):
@@ -50,6 +50,8 @@ class Context:
       else:
         # XXX insecure
         os.system("java -jar %(apktool)s d -f%(skipresflag)so %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('r' if skip_resources else '')))
+        with self.store() as store:
+          trueseeing.code.parse.SmaliAnalyzer(store).analyze('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes()))
     else:
       raise ValueError('analyzed once')
 
@@ -65,13 +67,6 @@ class Context:
       for root, dirs, files in itertools.chain(*(os.walk(p) for p in glob.glob(os.path.join(self.wd, 'smali*/')))):
         self.state['ts2.context.disassembled_classes'].extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
       return self.disassembled_classes()
-
-  def analyzed_classes(self):
-    try:
-      return self.state['ts2.context.analyzed_classes']
-    except KeyError:
-      self.state['ts2.context.analyzed_classes'] = trueseeing.code.parse.P.parsed('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes())).global_.classes
-      return self.analyzed_classes()
 
   def disassembled_resources(self):
     try:
