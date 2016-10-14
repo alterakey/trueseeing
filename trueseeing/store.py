@@ -4,6 +4,7 @@ import os.path
 import sqlite3
 import itertools
 import pkg_resources
+import trueseeing.literalquery
 
 class Store:
   def __init__(self, path, mode='r'):
@@ -13,8 +14,7 @@ class Store:
         pass
       self.db = sqlite3.connect(self.path)
       if mode == 'w':
-        with open(pkg_resources.resource_filename(__name__, os.path.join('libs', 'store.0.sql')), 'r') as f:
-          self.db.executescript(f.read())
+        trueseeing.literalquery.Store(self.db).stage0()
     else:
       raise ArgumentError('mode: %s' % mode)
 
@@ -27,8 +27,7 @@ class Store:
 
   def op_finalize(self):
     self.db.execute('analyze')
-    with open(pkg_resources.resource_filename(__name__, os.path.join('libs', 'store.1.sql')), 'r') as f:
-      self.db.executescript(f.read())
+    trueseeing.literalquery.Store(self.db).stage1()
 
   def op_get(self, k):
     for t,v in self.db.execute('select t,v from ops where id=?', (k)):
