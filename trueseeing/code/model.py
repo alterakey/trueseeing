@@ -26,12 +26,17 @@ class FieldList(collections.UserList):
 class Op(Token):
   p = None
 
-  def __init__(self, t, v, p):
+  def __init__(self, t, v, p, id_=None):
     super().__init__(t, v)
     self.p = p
+    self._id = id_
 
   def __repr__(self):
-    return '<Op %s:%s:%s>' % (self.t, self.v, self.p)
+    return '<Op(%d) %s:%s:%s>' % (self._id, self.t, self.v, self.p)
+
+  @staticmethod
+  def of_id(id_):
+    return Op(None, None, None, id_)
 
 class Class(Op):
   def __init__(self, p):

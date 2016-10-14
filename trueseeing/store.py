@@ -5,6 +5,7 @@ import sqlite3
 import itertools
 import pkg_resources
 import trueseeing.literalquery
+import trueseeing.code.model
 
 class Store:
   def __init__(self, path, mode='r'):
@@ -70,3 +71,15 @@ class Store:
 class Query:
   def __init__(self, store):
     self.db = store.db
+
+  def reversed_insns_in_method(self, from_):
+    reg = []
+    for r in self.db.execute('select ops.op as _0, ops.t as _1, ops.v as _2, ops_p.idx as _3 from ops join ops_method on (ops.op=ops_method.op) left outer join ops_p on (ops_p.p=ops.op) where method=(select method from ops_method where op=:from_op) and ops.op<=:from_op order by ops.op desc', dict(from_op=from_._id)):
+      if r[3] is None:
+        yield trueseeing.code.model.Op(r[1], r[2], reg, id_=r[0])
+        reg = []
+      else:
+        idx = int(r[3])
+        if len(reg) < idx:
+          reg.extend([None] * (idx - len(reg)))
+        reg[idx-1] = trueseeing.code.model.Op(r[1], r[2], [], id_=r[0])
