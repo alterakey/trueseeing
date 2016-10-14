@@ -46,13 +46,14 @@ class Context:
     if self.wd is None:
       self.apk = apk
       self.wd = self.workdir_of(apk)
-      try:
+      if not os.path.exists(self.wd):
         os.makedirs(self.wd, mode=0o700)
-      except OSError:
-        pass
-      else:
+      if not os.path.exists(os.path.join(self.wd, '.done')):
         # XXX insecure
         os.system("java -jar %(apktool)s d -f%(skipresflag)so %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('r' if skip_resources else '')))
+        with open(os.path.join(self.wd, '.done'), 'w'):
+          pass
+      if not os.path.exists(os.path.join(self.wd, 'store.db')):
         with self.store() as store:
           trueseeing.code.parse.SmaliAnalyzer(store).analyze('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes()))
     else:
