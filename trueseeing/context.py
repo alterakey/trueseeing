@@ -29,7 +29,10 @@ class Context:
     try:
       return self.state['ts2.store']
     except KeyError:
-      self.state['ts2.store'] = trueseeing.store.Store(self.wd)
+      try:
+        self.state['ts2.store'] = trueseeing.store.Store(self.wd, 'r')
+      except IOError:
+        self.state['ts2.store'] = trueseeing.store.Store(self.wd, 'w')
       return self.store()
 
   def fingerprint(self):
