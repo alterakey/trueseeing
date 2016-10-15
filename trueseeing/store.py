@@ -94,3 +94,11 @@ class Query:
 
   def invocation_in_class(self, class_, pattern):
     return self.db.execute('select ops.op as _0, ops.v as _1, p2.v as _2 from ops join ops_class on (ops.op=ops_class.op) join ops_p on (ops_p.op=ops.op and ops_p.idx=2) join ops as p2 on (ops_p.p=p2.op) where class=(select class from ops_class where op=:from_op) and ops.t=\'id\' and ops.v like \'%(insn)s%%\'%(regexp)s' % dict(insn=pattern.insn, regexp=' and p2.v regexp \'%(expr)s\'' % dict(expr=pattern.value)), dict(from_op=class_._id))
+
+  def sput(self, from_, field):
+    for r in self.db.execute('select ops.op as _0, ops.v as _1, p1.v as _2, p2.v as _3 from ops join ops_method on (ops.op=ops_method.op) join ops_p as pp1 on (pp1.op=ops.op and pp1.idx=1)  join ops_p as pp2 on (pp2.op=ops.op and pp2.idx=2) join ops as p1 on (pp1.p=p1.op) join ops as p2 on (pp2.p=p2.op) where method=(select method from ops_method where op=:from_op) and ops.op<=:from_op and ops.v like \'sput-%%\' and p2.v=:field order by _0 desc limit 1', dict(from_op=from_._id, field=field)):
+      yield r
+      return
+    for r in self.db.execute('select ops.op as _0, ops.v as _1, p1.v as _2, p2.v as _3 from ops join ops_p as pp1 on (pp1.op=ops.op and pp1.idx=1)  join ops_p as pp2 on (pp2.op=ops.op and pp2.idx=2) join ops as p1 on (pp1.p=p1.op) join ops as p2 on (pp2.p=p2.op) where ops.v like \'sput-%%\' and p2.v=:field', dict(field=field)):
+      yield r
+      return
