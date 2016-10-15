@@ -89,5 +89,8 @@ class Query:
           reg.extend([None] * (idx - len(reg)))
         reg[idx-1] = trueseeing.code.model.Op(r[1], r[2], [], id_=r[0])
 
+  def invocations(self, pattern):
+    return self.db.execute('select ops.op as _0, ops.v as _1, p2.v as _2 from ops join ops_p on (ops_p.op=ops.op and ops_p.idx=2) join ops as p2 on (ops_p.p=p2.op) where ops.t=\'id\' and ops.v like \'%(insn)s%%\'%(regexp)s' % dict(insn=pattern.insn, regexp=' and p2.v regexp \'%(expr)s\'' % dict(expr=pattern.value)))
+
   def invocation_in_class(self, class_, pattern):
     return self.db.execute('select ops.op as _0, ops.v as _1, p2.v as _2 from ops join ops_class on (ops.op=ops_class.op) join ops_p on (ops_p.op=ops.op and ops_p.idx=2) join ops as p2 on (ops_p.p=p2.op) where class=(select class from ops_class where op=:from_op) and ops.t=\'id\' and ops.v like \'%(insn)s%%\'%(regexp)s' % dict(insn=pattern.insn, regexp=' and p2.v regexp \'%(expr)s\'' % dict(expr=pattern.value)), dict(from_op=class_._id))
