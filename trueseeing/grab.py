@@ -69,7 +69,7 @@ class Grab:
 
   def exploit(self):
     import sys
-    for from_, to_ in path_from(sys.argv[1]):
+    for from_, to_ in path_from(self.package):
       code, _, _ = invoked("adb pull %s %s 2>/dev/null" % (from_, to_))
       if code != 0:
         code, _, _ = invoked("adb shell 'cat %s 2>/dev/null' > %s" % (from_, to_))
