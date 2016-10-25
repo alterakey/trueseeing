@@ -71,27 +71,9 @@ class Query:
     self.db = store.db
 
   def reversed_insns_in_method(self, from_):
-    reg = []
-    for r in self.db.execute('select ops.op as _0, ops.t as _1, ops.v as _2, ops_p.idx as _3 from ops join ops_method on (ops.op=ops_method.op) left outer join ops_p on (ops_p.p=ops.op) where method=(select method from ops_method where op=:from_op) and ops.op<=:from_op order by ops.op desc', dict(from_op=from_._id)):
-      if r[3] is None:
-        yield trueseeing.code.model.Op(r[1], r[2], reg, id_=r[0])
-        reg = []
-      else:
-        idx = int(r[3])
-        if len(reg) < idx:
-          reg.extend([None] * (idx - len(reg)))
-        reg[idx-1] = trueseeing.code.model.Op(r[1], r[2], [], id_=r[0])
+    for r in self.db.execute('select op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from op_vecs where op in (select op from ops_method where op<=(select op from ops_p where p=:from_op) and method=(select method from ops_method where op=(select op from ops_p where p=:from_op))) order by op desc', dict(from_op=from_._id)):
+      yield trueseeing.code.model.Op(r[1], r[2], [trueseeing.code.model.Op(o[1], o[2], [], id_=o[0]) for o in (r[x:x+3] for x in range(3,30,3)) if o[0] is not None], id_=r[0])
 
   def invocations(self, pattern):
-    return self.db.execute('select ops.op as _0, ops.v as _1, p2.v as _2 from ops join ops_p on (ops_p.op=ops.op and ops_p.idx=2) join ops as p2 on (ops_p.p=p2.op) where ops.t=\'id\' and ops.v like \'%(insn)s%%\'%(regexp)s' % dict(insn=pattern.insn, regexp=' and p2.v regexp \'%(expr)s\'' % dict(expr=pattern.value)))
-
-  def invocation_in_class(self, class_, pattern):
-    return self.db.execute('select ops.op as _0, ops.v as _1, p2.v as _2 from ops join ops_class on (ops.op=ops_class.op) join ops_p on (ops_p.op=ops.op and ops_p.idx=2) join ops as p2 on (ops_p.p=p2.op) where class=(select class from ops_class where op=:from_op) and ops.t=\'id\' and ops.v like \'%(insn)s%%\'%(regexp)s' % dict(insn=pattern.insn, regexp=' and p2.v regexp \'%(expr)s\'' % dict(expr=pattern.value)), dict(from_op=class_._id))
-
-  def sput(self, from_, field):
-    for r in self.db.execute('select ops.op as _0, ops.v as _1, p1.v as _2, p2.v as _3 from ops join ops_method on (ops.op=ops_method.op) join ops_p as pp1 on (pp1.op=ops.op and pp1.idx=1)  join ops_p as pp2 on (pp2.op=ops.op and pp2.idx=2) join ops as p1 on (pp1.p=p1.op) join ops as p2 on (pp2.p=p2.op) where method=(select method from ops_method where op=:from_op) and ops.op<=:from_op and ops.v like \'sput-%%\' and p2.v=:field order by _0 desc limit 1', dict(from_op=from_._id, field=field)):
-      yield r
-      return
-    for r in self.db.execute('select ops.op as _0, ops.v as _1, p1.v as _2, p2.v as _3 from ops join ops_p as pp1 on (pp1.op=ops.op and pp1.idx=1)  join ops_p as pp2 on (pp2.op=ops.op and pp2.idx=2) join ops as p1 on (pp1.p=p1.op) join ops as p2 on (pp2.p=p2.op) where ops.v like \'sput-%%\' and p2.v=:field', dict(field=field)):
-      yield r
-      return
+    for r in self.db.execute('select op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from (select ops.op from ops join ops_p on (ops_p.op=ops.op and idx=2) join ops as target on (ops_p.p=target.op) where ops.t=\'id\' and ops.v like \'%(insn)s%%\'%(regexp)s) as A join op_vecs using (op)' % dict(insn=pattern.insn, regexp=' and target.v regexp \'%(expr)s\'' % dict(expr=pattern.value))):
+      yield trueseeing.code.model.Op(r[1], r[2], [trueseeing.code.model.Op(o[1], o[2], [], id_=o[0]) for o in (r[x:x+3] for x in range(3,30,3)) if o[0] is not None], id_=r[0])
