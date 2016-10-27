@@ -23,28 +23,27 @@ import base64
 import os
 import logging
 
-from trueseeing.flow.code import OpMatcher, InvocationPattern
+from trueseeing.flow.code import InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
 
 log = logging.getLogger(__name__)
 
 class SecurityFilePermissionDetector(Detector):
-  option = 'security-file-permission'
-  
+  #option = 'security-file-permission'
+
   def do_detect(self):
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')).matching():
-        try:
-          target_val = int(DataFlows.solved_constant_data_in_invocation(k, 1), 16)
-          if target_val & 3:
-            yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val])
-        except (DataFlows.NoSuchValueError):
-          pass
+    for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
+      try:
+        target_val = int(DataFlows.solved_constant_data_in_invocation(k, 1), 16)
+        if target_val & 3:
+          yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val])
+      except (DataFlows.NoSuchValueError):
+        pass
 
 class SecurityTlsInterceptionDetector(Detector):
-  option = 'security-tls-interception'
-  
+  #option = 'security-tls-interception'
+
   def do_detect(self):
     marks = []
 
@@ -58,19 +57,18 @@ class SecurityTlsInterceptionDetector(Detector):
     if not pins:
       yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, '(global)', 'insecure TLS connection')
     else:
-      for cl in self.context.analyzed_classes():
-        # XXX crude detection
-        for k in OpMatcher(cl.ops, InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')).matching():
-          if not DataFlows.solved_typeset_in_invocation(k, 2) & pins:
-            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), 'insecure TLS connection')
-        else:
-          yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '(global)', 'insecure TLS connection')
+      # XXX crude detection
+      for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')):
+        if not DataFlows.solved_typeset_in_invocation(k, 2) & pins:
+          yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), 'insecure TLS connection')
+      else:
+        yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '(global)', 'insecure TLS connection')
 
 
 class LayoutSizeGuesser:
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
   table = {'small':(320.0, 426.0), 'normal':(320.0, 470.0), 'large':(480.0, 640.0), 'xlarge':(720.0, 960.0)}
-  
+
   def guessed_size(self, t, path):
     def dps_from_modifiers(mods):
       try:
@@ -109,7 +107,7 @@ class LayoutSizeGuesser:
 
     def modifiers_in(path):
       return [set(c.split('-')) for c in path.split(os.sep) if 'layout' in c][0]
-      
+
     dps = dps_from_modifiers(modifiers_in(path))
     for e in self_and_containers_of(t):
       if any(is_bound(x) for x in (width_of(e), height_of(e))):
@@ -118,10 +116,10 @@ class LayoutSizeGuesser:
       return 1.0
 
 class SecurityArbitraryWebViewOverwriteDetector(Detector):
-  option = 'security-arbitrary-webview-overwrite'
-  
+  #option = 'security-arbitrary-webview-overwrite'
+
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
-  
+
   def do_detect(self):
     targets = {'WebView','XWalkView','GeckoView'}
     seed = '|'.join(targets)
@@ -144,7 +142,7 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
             yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.TENTATIVE, self.context.source_name_of_disassembled_resource(fn), 'arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size))
 
 class SecurityInsecureWebViewDetector(Detector):
-  option = 'security-insecure-webview'
+  #option = 'security-insecure-webview'
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
@@ -193,29 +191,23 @@ class FormatStringDetector(Detector):
         yield dict(severity=IssueSeverity.INFO, confidence=IssueConfidence.FIRM, value=x)
 
   def do_detect(self):
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('const-string', '.')).matching():
-        for t in self.analyzed(k.p[1].v):
-          yield self.issue(t['severity'], t['confidence'], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected format string: %(target_val)s' % dict(target_val=t['value']))
-    for name, val in self.context.string_resources():
-      for t in self.analyzed(val):
-        yield self.issue(t['severity'], t['confidence'], 'R.string.%s' % name, 'detected format string: %(target_val)s' % dict(target_val=t['value']))
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('const-string', '.')):
+        for t in self.analyzed(cl.p[1].v):
+          yield self.issue(t['severity'], t['confidence'], store.query().qualname_of(cl), 'detected format string: %(target_val)s' % dict(target_val=t['value']))
+      for name, val in self.context.string_resources():
+        for t in self.analyzed(val):
+          yield self.issue(t['severity'], t['confidence'], 'R.string.%s' % name, 'detected format string: %(target_val)s' % dict(target_val=t['value']))
 
 class LogDetector(Detector):
   option = 'security-log'
 
   def do_detect(self):
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')).matching():
-        if 'print' not in k.p[1].v:
-          try:
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=k.p[1].v, val=DataFlows.solved_constant_data_in_invocation(k, 1)))
-          except (DataFlows.NoSuchValueError):
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s' % dict(target_val=k.p[1].v))
-        elif 'Exception;->' not in k.p[1].v:
-          try:
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=k.p[1].v, val=DataFlows.solved_constant_data_in_invocation(k, 0)))
-          except (DataFlows.NoSuchValueError):
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s' % dict(target_val=k.p[1].v))
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
+        if 'print' not in cl.p[1].v:
+          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
+        elif 'Exception;->' not in cl.p[1].v:
+          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
         else:
-          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected logging: %(target_val)s' % dict(target_val=k.p[1].v))
+          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))

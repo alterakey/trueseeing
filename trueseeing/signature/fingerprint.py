@@ -7,7 +7,7 @@ import itertools
 import os
 import re
 import logging
-from trueseeing.flow.code import OpMatcher, InvocationPattern
+from trueseeing.flow.code import InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
 
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 class LibraryDetector(Detector):
   option = 'detect-library'
-  
+
   def package_name_of(self, path):
     return os.path.dirname(path).replace('/', '.')
 
@@ -38,7 +38,7 @@ class LibraryDetector(Detector):
           return None
     else:
       return p
-    
+
   def shared_package_of(self, c1, c2):
     o = []
     try:
@@ -69,8 +69,8 @@ class LibraryDetector(Detector):
     packages = {k:v for k,v in packages.items() if not self.is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
     yield from (self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, '(global)', 'detected library: %s (score: %d)' % (p, len(packages[p]))) for p in sorted(packages.keys()))
-    
-  
+
+
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
 
@@ -96,7 +96,7 @@ class UrlLikeDetector(Detector):
   def __init__(self, context):
     super().__init__(context)
     self.re_tlds = None
-  
+
   def analyzed(self, x):
     if '://' in x:
       yield dict(type_='URL', value=re.findall(r'\S+://\S+', x))
@@ -110,17 +110,17 @@ class UrlLikeDetector(Detector):
       elif self.re_tlds.search(components[-1]):
         if not re.search(r'^android\.(intent|media)\.', hostlike):
           yield dict(type_='possible FQDN', value=[hostlike])
-        
+
   def do_detect(self):
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r') as f:
       self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
 
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('const-string', '.')).matching():
-        for match in self.analyzed(k.p[1].v):
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('const-string', '.')):
+        for match in self.analyzed(cl.p[1].v):
           for v in match['value']:
-            yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))
-    for name, val in self.context.string_resources():
-      for match in self.analyzed(val):
-        for v in match['value']:
-          yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, 'R.string.%s' % name, 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))
+            yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, store.query().qualname_of(cl), 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))
+      for name, val in self.context.string_resources():
+        for match in self.analyzed(val):
+          for v in match['value']:
+            yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, 'R.string.%s' % name, 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))

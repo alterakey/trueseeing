@@ -10,20 +10,6 @@ class InvocationPattern:
     self.value = value
     self.i = i
 
-class OpMatcher:
-  def __init__(self, ops, *pats):
-    self.ops = ops
-    self.pats = pats
-
-  def matching(self):
-    table = [(re.compile(p.insn), (re.compile(p.value) if p.value is not None else None)) for p in self.pats]
-    for o in (o for o in self.ops if o.t == 'id'):
-      try:
-        if any(ipat.match(o.v) and (vpat is None or vpat.match(o.p[1].v)) for ipat, vpat in table):
-          yield o
-      except (IndexError, AttributeError):
-        pass
-
 class CodeFlows:
   @staticmethod
   def callers_of(method):
@@ -50,4 +36,3 @@ class CodeFlows:
   @staticmethod
   def invocations_in(ops):
     return (o for o in ops if o.t == 'id' and 'invoke' in o.v)
-
