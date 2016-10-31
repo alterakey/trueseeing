@@ -30,16 +30,17 @@ from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
 log = logging.getLogger(__name__)
 
 class SecurityFilePermissionDetector(Detector):
-  #option = 'security-file-permission'
+  option = 'security-file-permission'
 
   def do_detect(self):
-    for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
-      try:
-        target_val = int(DataFlows.solved_constant_data_in_invocation(k, 1), 16)
-        if target_val & 3:
-          yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val])
-      except (DataFlows.NoSuchValueError):
-        pass
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
+        try:
+          target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
+          if target_val & 3:
+            yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, store.query().qualname_of(cl), 'insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val])
+        except (DataFlows.NoSuchValueError):
+          pass
 
 class SecurityTlsInterceptionDetector(Detector):
   #option = 'security-tls-interception'
@@ -206,8 +207,14 @@ class LogDetector(Detector):
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         if 'print' not in cl.p[1].v:
-          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
+          try:
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=cl.p[1].v, val=DataFlows.solved_constant_data_in_invocation(store, cl, 1)))
+          except (DataFlows.NoSuchValueError):
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
         elif 'Exception;->' not in cl.p[1].v:
-          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
+          try:
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=cl.p[1].v, val=DataFlows.solved_constant_data_in_invocation(store, cl, 0)))
+          except (DataFlows.NoSuchValueError):
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
         else:
           yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
