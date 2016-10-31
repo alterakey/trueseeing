@@ -120,7 +120,7 @@ class DataFlows:
   def analyze_recent_static_load_of(store, op):
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['sget-'])
     target = op.p[1].v
-    for o in itertools.chain(DataFlows.looking_behind_from(store, op), store.query().ops()):
+    for o in itertools.chain(DataFlows.looking_behind_from(store, op), store.query().sputs()):
       if o.t == 'id' and o.v.startswith('sput-'):
         if o.p[1].v == target:
           return o

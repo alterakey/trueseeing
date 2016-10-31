@@ -31,24 +31,33 @@ create view op_vecs as
       left join ops_p as p9 on (p0.op=p9.op and p9.idx=9) left join ops as o9 on (o9.op=p9.p);
 
 -- views
-create table methods_class(method integer primary key, class integer);
+create table methods_class(method integer primary key, class integer not null) without rowid;
 insert into methods_class select ops_method.method as method,ops_class.class as class from ops_method join ops_class using (op) group by method;
 create index methods_class_class on methods_class (class);
 
 -- concrete tables
-create table class_class_name(class integer primary key, class_name varchar not null unique);
+create table class_class_name(class integer primary key, class_name varchar not null unique) without rowid;
 insert into class_class_name select op as class, coalesce(v9,v8,v7,v6,v5,v4,v3,v2,v1,v) as class_name from op_vecs where t='directive' and v='class';
 
-create table method_method_name (method integer primary key, method_name varchar not null);
+create table method_method_name (method integer primary key, method_name varchar not null) without rowid;
 insert into method_method_name select method, (case when name='constructor' then '' else name end||sig) as method_name from (select method, (select v from ops where op=sigop) as sig, (select v from ops where op=sigop-1) as name from (select op as method, coalesce(op9,op8,op7,op6,op5,op4,op3,op2,op1,op) as sigop from op_vecs where t='directive' and v='method') as A) as AA;
 
-create table method_qualname (method integer primary key, qualname varchar not null);
+create table method_qualname (method integer primary key, qualname varchar not null) without rowid;
 insert into method_qualname select method, (class_name||'->'||method_name) as qualname from methods_class join class_class_name using (class) join method_method_name using (method);
 create index method_qualname_qualname on method_qualname(qualname);
 
-create table classes_extends_name as select C.class as class,B.v as extends_name from (select op from ops where t='directive' and v='super') as A join ops as B on (B.op=A.op+1) join ops_class as C on (A.op=C.op);
+create table classes_extends_name (class integer primary key, extends_name varchar not null) without rowid;
+insert into classes_extends_name select C.class as class,B.v as extends_name from (select op from ops where t='directive' and v='super') as A join ops as B on (B.op=A.op+1) join ops_class as C on (A.op=C.op);
 
-create table classes_implements_name as select C.class as class,B.v as implements_name from (select op from ops where t='directive' and v='implements') as A join ops as B on (B.op=A.op+1) join ops_class as C on (A.op=C.op);
+create table classes_implements_name (class integer not null, implements_name varchar not null);
+insert into classes_implements_name select C.class as class,B.v as implements_name from (select op from ops where t='directive' and v='implements') as A join ops as B on (B.op=A.op+1) join ops_class as C on (A.op=C.op);
+
+-- analytic interests
+create table interests_invokes (op integer primary key, v varchar not null, target varchar not null) without rowid;
+insert into interests_invokes select op, v, coalesce(v2,v1) as target from op_vecs where t='id' and v like 'invoke%';
+
+create table interests_sputs (op integer primary key, v varchar not null, target varchar not null) without rowid;
+insert into interests_sputs select op, v, v1 as target from op_vecs where t='id' and v like 'sput%';
 
 analyze;
 
