@@ -116,30 +116,30 @@ class LayoutSizeGuesser:
       return 1.0
 
 class SecurityArbitraryWebViewOverwriteDetector(Detector):
-  #option = 'security-arbitrary-webview-overwrite'
+  option = 'security-arbitrary-webview-overwrite'
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
   def do_detect(self):
-    targets = {'WebView','XWalkView','GeckoView'}
-    seed = '|'.join(targets)
+    with self.context.store() as store:
+      targets = {'WebView','XWalkView','GeckoView'}
 
-    more = True
-    while more:
-      more = False
-      for cl in (c for c in self.context.analyzed_classes() if (c.super_.v in targets) or (re.search(seed, c.super_.v))):
-        name = self.context.class_name_of_dalvik_class_type(cl.qualified_name())
-        if name not in targets:
-          targets.add(self.context.class_name_of_dalvik_class_type(cl.qualified_name()))
-          more = True
+      more = True
+      while more:
+        more = False
+        for cl in store.query().related_classes('|'.join(targets)):
+          name = store.query().class_name_of(cl)
+          if name not in targets:
+            targets.add(name)
+            more = True
 
-    for fn in (n for n in self.context.disassembled_resources() if 'layout' in n):
-      with open(fn, 'r') as f:
-        r = ET.parse(f).getroot()
-        for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % c.replace('$', '_')) for c in targets)):
-          size = LayoutSizeGuesser().guessed_size(t, fn)
-          if size > 0.5:
-            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.TENTATIVE, self.context.source_name_of_disassembled_resource(fn), 'arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size))
+      for fn in (n for n in self.context.disassembled_resources() if 'layout' in n):
+        with open(fn, 'r') as f:
+          r = ET.parse(f).getroot()
+          for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % self.context.class_name_of_dalvik_class_type(c).replace('$', '_')) for c in targets)):
+            size = LayoutSizeGuesser().guessed_size(t, fn)
+            if size > 0.5:
+              yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.TENTATIVE, self.context.source_name_of_disassembled_resource(fn), 'arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size))
 
 class SecurityInsecureWebViewDetector(Detector):
   #option = 'security-insecure-webview'
