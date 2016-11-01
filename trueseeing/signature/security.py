@@ -43,27 +43,26 @@ class SecurityFilePermissionDetector(Detector):
           pass
 
 class SecurityTlsInterceptionDetector(Detector):
-  #option = 'security-tls-interception'
+  option = 'security-tls-interception'
 
   def do_detect(self):
-    marks = []
+    with self.context.store() as store:
+      marks = []
 
-    pins = set()
-    for cl in self.context.analyzed_classes():
-      # XXX crude detection
-      for m in (m for m in cl.methods if re.match('checkServerTrusted', m.qualified_name())):
-        for k in OpMatcher(m.ops, InvocationPattern('invoke-virtual', 'Ljava/security/MessageDigest->digest')).matching():
-          pins.add(cl)
+      pins = set()
+      for m in store.query().methods_in_class('checkServerTrusted', 'X509TrustManager'):
+        if any(store.query().matches_in_method(m, InvocationPattern('throw', ''))):
+          pins.add(m)
 
-    if not pins:
-      yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, '(global)', 'insecure TLS connection')
-    else:
-      # XXX crude detection
-      for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')):
-        if not DataFlows.solved_typeset_in_invocation(k, 2) & pins:
-          yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '%s#%s' % (self.context.class_name_of_dalvik_class_type(cl.qualified_name()), k.method_.v.v), 'insecure TLS connection')
+      if not pins:
+        yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, '(global)', 'insecure TLS connection: pinning X509TrustManagers are not detected')
       else:
-        yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '(global)', 'insecure TLS connection')
+        # XXX crude detection
+        for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')):
+          if not DataFlows.solved_typeset_in_invocation(store, cl, 2) & pins:
+            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, store.query().qualname_of(cl), 'insecure TLS connection: pinning X509TrustManagers are not used')
+        else:
+          yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '(global)', 'insecure TLS connection: use of standard SSLContext')
 
 
 class LayoutSizeGuesser:
