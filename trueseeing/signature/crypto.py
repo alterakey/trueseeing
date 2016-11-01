@@ -92,7 +92,7 @@ class CryptoEcbDetector(Detector):
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         try:
-          target_val = DataFlows.solved_possible_constant_data_in_invocation(cl, 0)
+          target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any(('ECB' in x or '/' not in x) for x in target_val):
             yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, store.query().qualname_of(cl), 'insecure cryptography: cipher might be operating in ECB mode: %s' % target_val)
         except (DataFlows.NoSuchValueError):
