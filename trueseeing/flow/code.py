@@ -12,20 +12,14 @@ class InvocationPattern:
 
 class CodeFlows:
   @staticmethod
-  def callers_of(method):
-    for r in (x for x in itertools.chain(*(c.ops for c in method.class_.global_.classes)) if x.t == 'id' and 'invoke' in x.v):
-      try:
-        ref = r.p[1].v
-      except IndexError:
-        ref = r.p[0].v
-      if method.qualified_name() in ref:
-        yield r
+  def callers_of(store, method):
+    yield from store.query().callers_of(method)
 
   @staticmethod
-  def callstacks_of(method):
+  def callstacks_of(store, method):
     o = dict()
-    for m in CodeFlows.callers_of(method):
-      o[m] = CodeFlows.callstacks_of(m)
+    for m in CodeFlows.callers_of(store, method):
+      o[m] = CodeFlows.callstacks_of(store, m)
     return o
 
   @staticmethod

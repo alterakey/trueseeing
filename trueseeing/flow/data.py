@@ -146,7 +146,7 @@ class DataFlows:
   def analyze_recent_load_of(store, from_, reg):
     if reg.startswith('p'):
       index = int(reg.replace('p', ''))
-      for caller in store.query().callers_of(from_):
+      for caller in CodeFlows.callers_of(store, from_):
         caller_reg = DataFlows.decoded_registers_of(caller.p[0], type_=list)[index]
         log.debug("analyze_recent_load_of: TBD: retrace: %s -> %s -> %r (in %r)" % (reg, caller_reg, caller, store.query().qualname_of(caller)))
       return None
