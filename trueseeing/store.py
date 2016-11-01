@@ -9,7 +9,10 @@ import trueseeing.literalquery
 import trueseeing.code.model
 
 def _re_fn(expr, item):
-  return re.compile(expr).search(item) is not None
+  if item is not None:
+    return re.compile(expr).search(item) is not None
+  else:
+    return False
 
 class Store:
   def __init__(self, path, mode='r'):
@@ -124,6 +127,10 @@ class Query:
 
   def methods_in_class(self, method_name, related_class_name):
     for r in self.db.execute('select op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from classes_extends_name left join classes_implements_name using (class) join methods_class using (class) join method_method_name using (method) join op_vecs on (method=op) where (extends_name like :class_pat or implements_name like :class_pat) and method_name like :method_pat', dict(class_pat='%%%s%%' % related_class_name, method_pat='%%%s%%' % method_name)):
+      yield trueseeing.code.model.Op(r[1], r[2], [trueseeing.code.model.Op(o[1], o[2], [], id_=o[0]) for o in (r[x:x+3] for x in range(3,30,3)) if o[0] is not None], id_=r[0])
+
+  def related_classes(self, related_class_name):
+    for r in self.db.execute('select op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from classes_extends_name left join classes_implements_name using (class) join op_vecs on (class=op) where (extends_name regexp :class_pat or implements_name regexp :class_pat)', dict(class_pat=related_class_name)):
       yield trueseeing.code.model.Op(r[1], r[2], [trueseeing.code.model.Op(o[1], o[2], [], id_=o[0]) for o in (r[x:x+3] for x in range(3,30,3)) if o[0] is not None], id_=r[0])
 
   def matches_in_method(self, method, pattern):
