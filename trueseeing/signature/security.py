@@ -180,6 +180,15 @@ class SecurityInsecureWebViewDetector(Detector):
         except (DataFlows.NoSuchValueError):
           pass
 
+        for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
+          try:
+            val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
+            if val == 0:
+              yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, store.query().qualname_of(q), 'insecure mixed content mode: MIXED_CONTENT_ALWAYS_ALLOW')
+          except (DataFlows.NoSuchValueError):
+            pass
+
+
 class FormatStringDetector(Detector):
   option = 'security-format-string'
 
