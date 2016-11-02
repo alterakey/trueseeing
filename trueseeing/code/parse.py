@@ -5,7 +5,65 @@ import itertools
 import pprint
 import traceback
 from .model import *
-      
+from trueseeing.store import Store
+
+import logging
+import time
+import sys
+
+log = logging.getLogger(__name__)
+
+class SmaliAnalyzer:
+  def __init__(self, store):
+    self.store = store
+
+  def analyze(self, s):
+    analyzed_ops = 0
+    analyzed_methods = 0
+    analyzed_classes = 0
+    started = time.time()
+
+    reg1 = None
+    reg2 = None
+
+    for t in P.parsed_flat(s):
+      self.store.op_append(t)
+      analyzed_ops = analyzed_ops + 1
+      if analyzed_ops & 0xffff == 0:
+        sys.stderr.write("\ranalyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
+
+      if reg1 is not None:
+        reg1.append(t)
+      if reg2 is not None:
+        reg2.append(t)
+
+      if t.t == 'directive' and t.v == 'class':
+        if reg1 is not None:
+          reg1.pop()
+          self.store.op_mark_class(reg1, reg1[0])
+          reg1 = [t]
+          analyzed_classes = analyzed_classes + 1
+        else:
+          reg1 = [t]
+      elif t.t == 'directive' and t.v == 'method':
+        if reg2 is None:
+          reg2 = [t]
+      elif t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
+        if reg2 is not None:
+          self.store.op_mark_method(reg2, reg2[0])
+          reg2 = None
+          analyzed_methods = analyzed_methods + 1
+    else:
+      if reg1 is not None:
+        self.store.op_mark_class(reg1, reg1[0], ignore_dupes=True)
+        reg1 = None
+        analyzed_classes = analyzed_classes + 1
+
+    sys.stderr.write(("\ranalyzed: %d ops, %d methods, %d classes" + (" " * 20) + "\n") % (analyzed_ops, analyzed_methods, analyzed_classes))
+    sys.stderr.write("analyzed: finalizing\n")
+    self.store.op_finalize()
+    sys.stderr.write("analyzed: done (%.02f sec)\n" % (time.time() - started))
+
 class P:
   @staticmethod
   def head_and_tail(xs):
@@ -13,45 +71,6 @@ class P:
       return xs[0], xs[1:]
     except IndexError:
       return xs[0], None
-
-  @staticmethod
-  def parsed(s):
-    app = App()
-    class_ = None
-    method_ = None
-
-    for t in P.parsed_flat(s):
-      if t.t == 'directive' and t.v == 'class':
-        class_ = Class(t.p, [], [])
-        class_.global_ = app
-        app.classes.append(class_)
-      else:
-        assert class_ is not None
-        t.class_ = class_
-        class_.ops.append(t)
-        if method_ is None:
-          if t.t == 'directive':
-            if t.v == 'super':
-              class_.super_ = t.p[0]
-            elif t.v == 'source':
-              class_.source = t.p[0]
-            elif t.v == 'method':
-              method_ = Method(t.p, [])
-              method_.class_ = class_
-            else:
-              pass
-        else:
-          t.method_ = method_
-          if isinstance(t, Annotation):
-            method_.p.append(t)
-          else:
-            if t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
-              class_.methods.append(method_)
-              method_ = None
-            else:
-              method_.ops.append(t)
-
-    return class_
 
   @staticmethod
   def parsed_flat(s):
@@ -72,7 +91,7 @@ class P:
 
   @staticmethod
   def parsed_as_annotation_content(q):
-    content = []
+    content = Program()
     try:
       while '.end annotation' not in q[0]:
         content.append(q.popleft())

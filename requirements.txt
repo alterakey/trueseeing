@@ -2,3 +2,4 @@ nose
 hypothesis
 wheel
 lxml
+ipython

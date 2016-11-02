@@ -18,7 +18,7 @@ import base64
 import os
 import logging
 
-from trueseeing.flow.code import OpMatcher, InvocationPattern
+from trueseeing.flow.code import InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector, IssueConfidence, IssueSeverity
 
@@ -57,16 +57,16 @@ class CryptoStaticKeyDetector(Detector):
     def looks_like_real_key(k):
       return len(k) >= 8 and 'Padding' not in k
 
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-', 'Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|Ljavax?.*/MessageDigest;->(update|digest)')).matching():
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('invoke-', 'Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|Ljavax?.*/MessageDigest;->(update|digest)')):
         try:
-          for nr in self.important_args_on_invocation(k):
-            for found in DataFlows.solved_possible_constant_data_in_invocation(k, nr):
+          for nr in self.important_args_on_invocation(cl):
+            for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
               try:
                 decoded = base64.b64decode(found)
-                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
+                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
               except (ValueError, binascii.Error):
-                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
+                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
         except IndexError:
           pass
 
@@ -76,25 +76,25 @@ class CryptoStaticKeyDetector(Detector):
       return any(x in k.method_.qualified_name().lower() for x in ['inapp','billing','iab','sku','store'])
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('const-string', pat)).matching():
-        val = k.p[1].v
-        yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(k, val)], '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
-    for name, val in self.context.string_resources():
-      if re.match(pat, val):
-        yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, 'R.string.%s' % name, 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('const-string', pat)):
+        val = cl.p[1].v
+        yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(cl, val)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
+      for name, val in self.context.string_resources():
+        if re.match(pat, val):
+          yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, 'R.string.%s' % name, 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
 
 
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
 
   def do_detect(self):
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')).matching():
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         try:
-          target_val = DataFlows.solved_possible_constant_data_in_invocation(k, 0)
+          target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any(('ECB' in x or '/' not in x) for x in target_val):
-            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: cipher might be operating in ECB mode: %s' % target_val)
+            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, store.query().qualname_of(cl), 'insecure cryptography: cipher might be operating in ECB mode: %s' % target_val)
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -102,11 +102,8 @@ class CryptoNonRandomXorDetector(Detector):
   option = 'crypto-xor'
 
   def do_detect(self):
-    for cl in self.context.analyzed_classes():
-      for k in OpMatcher(cl.ops, InvocationPattern('xor-int/lit8', None)).matching():
-        try:
-          target_val = int(k.p[2].v, 16)
-          if (k.p[0].v == k.p[1].v) and target_val > 1:
-            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, '%(name)s#%(method)s' % dict(name=self.context.class_name_of_dalvik_class_type(cl.qualified_name()), method=k.method_.v.v), 'insecure cryptography: non-random XOR cipher: 0x%02x' % target_val)
-        except (DataFlows.NoSuchValueError):
-          pass
+    with self.context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('xor-int/lit8', None)):
+        target_val = int(cl.p[2].v, 16)
+        if (cl.p[0].v == cl.p[1].v) and target_val > 1:
+          yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, store.query().qualname_of(cl), 'insecure cryptography: non-random XOR cipher: 0x%02x' % target_val)

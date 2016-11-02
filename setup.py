@@ -23,7 +23,7 @@ setup(
   url='https://github.com/taky/trueseeing',
   keywords='android java security pentest hacking',
   packages=find_packages(),
-  package_data={'trueseeing':['libs/*.jar']},
+  package_data={'trueseeing':['libs/*.jar', 'libs/*.txt', 'libs/*.sql']},
   include_package_data=True,
   zip_safe=False,
   install_requires = requires,

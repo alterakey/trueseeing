@@ -10,6 +10,7 @@ import itertools
 import glob
 
 import trueseeing.code.parse
+import trueseeing.store
 
 class Context:
   def __init__(self):
@@ -23,24 +24,38 @@ class Context:
     dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
     return dirname
 
+  def store(self):
+    assert self.wd is not None
+    try:
+      return self.state['ts2.store']
+    except KeyError:
+      try:
+        self.state['ts2.store'] = trueseeing.store.Store(self.wd, 'r')
+      except IOError:
+        self.state['ts2.store'] = trueseeing.store.Store(self.wd, 'w')
+      return self.store()
+
   def fingerprint(self):
     return fingerprint_of(self.apk)
-  
+
   def fingerprint_of(self, apk):
     with zipfile.ZipFile(apk, 'r') as f:
       return hashlib.sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
-    
+
   def analyze(self, apk, skip_resources=False):
     if self.wd is None:
       self.apk = apk
       self.wd = self.workdir_of(apk)
-      try:
+      if not os.path.exists(self.wd):
         os.makedirs(self.wd, mode=0o700)
-      except OSError:
-        pass
-      else:
+      if not os.path.exists(os.path.join(self.wd, '.done')):
         # XXX insecure
         os.system("java -jar %(apktool)s d -f%(skipresflag)so %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('r' if skip_resources else '')))
+        with open(os.path.join(self.wd, '.done'), 'w'):
+          pass
+      if not os.path.exists(os.path.join(self.wd, 'store.db')):
+        with self.store() as store:
+          trueseeing.code.parse.SmaliAnalyzer(store).analyze('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes()))
     else:
       raise ValueError('analyzed once')
 
@@ -56,13 +71,6 @@ class Context:
       for root, dirs, files in itertools.chain(*(os.walk(p) for p in glob.glob(os.path.join(self.wd, 'smali*/')))):
         self.state['ts2.context.disassembled_classes'].extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
       return self.disassembled_classes()
-
-  def analyzed_classes(self):
-    try:
-      return self.state['ts2.context.analyzed_classes']
-    except KeyError:
-      self.state['ts2.context.analyzed_classes'] = trueseeing.code.parse.P.parsed('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes())).global_.classes
-      return self.analyzed_classes()
 
   def disassembled_resources(self):
     try:
@@ -101,10 +109,9 @@ class Context:
     for fn in self.string_resource_files():
       with open(fn, 'r') as f:
         yield from ((c.attrib['name'], c.text) for c in ET.parse(f).getroot().xpath('//resources/string') if c.text)
-      
+
   def __enter__(self):
     return self
 
   def __exit__(self, *exc_details):
     pass
-

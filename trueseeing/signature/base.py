@@ -28,14 +28,14 @@ class Issue:
 
 class Detector:
   option = None
-  
+
   def __init__(self, context):
     self.context = context
 
   @classmethod
   def as_signature(cls):
     return (cls.option, cls)
-    
+
   def detect(self):
     res = self.do_detect()
     if res is not None:
@@ -51,7 +51,7 @@ class Detector:
 
 class SignatureDiscoverer:
   PRIORITY = ['fingerprint', 'manifest', 'security']
-  
+
   def __init__(self):
     pass
 
@@ -67,7 +67,7 @@ class SignatureDiscoverer:
 class SignatureClasses:
   def __init__(self):
     pass
-  
+
   def extracted(self):
     mods = [importlib.import_module('trueseeing.signature.%s' % s) for s in SignatureDiscoverer().discovered()]
     for m in mods:
