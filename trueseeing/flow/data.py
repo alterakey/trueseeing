@@ -120,16 +120,13 @@ class DataFlows:
   def analyze_recent_static_load_of(store, op):
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['sget-'])
     target = op.p[1].v
-    for o in itertools.chain(DataFlows.looking_behind_from(store, op), store.query().sputs()):
+    for o in itertools.chain(DataFlows.looking_behind_from(store, op), store.query().sputs(target)):
       if o.t == 'id' and o.v.startswith('sput-'):
         if o.p[1].v == target:
           return o
     else:
-      if op.p[1].v.startswith('Ljava/'):
-        return None
-      else:
-        raise Exception('failed static trace of: %r' % op)
-
+      log.debug("analyze_recent_static_load_of: failed static trace: %r" % op)
+      return None
 
   @staticmethod
   def analyze_load(store, op):
