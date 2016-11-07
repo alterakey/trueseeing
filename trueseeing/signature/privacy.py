@@ -45,5 +45,8 @@ class PrivacySMSDetector(Detector):
         except DataFlows.NoSuchValueError:
           pass
 
+      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsManager;->send')):
+        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: sending SMS')
+
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsMessage;->createFromPdu\(')):
         yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, store.query().qualname_of(op), 'privacy concerns: intercepting incoming SMS')
