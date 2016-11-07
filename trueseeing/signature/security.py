@@ -141,6 +141,16 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
             if size > 0.5:
               yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.TENTATIVE, self.context.source_name_of_disassembled_resource(fn), 'arbitrary WebView content overwrite: {0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size))
 
+      # XXX: crude detection
+      for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
+        try:
+          v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
+          if v.startswith('http://'):
+            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, store.query().qualname_of(op), 'arbitrary WebView content overwrite with URL: %s' % v)
+        except DataFlows.NoSuchValueError:
+          pass
+
+
 class SecurityInsecureWebViewDetector(Detector):
   option = 'security-insecure-webview'
 
@@ -187,7 +197,6 @@ class SecurityInsecureWebViewDetector(Detector):
               yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, store.query().qualname_of(q), 'insecure mixed content mode: MIXED_CONTENT_ALWAYS_ALLOW')
           except (DataFlows.NoSuchValueError):
             pass
-
 
 class FormatStringDetector(Detector):
   option = 'security-format-string'
