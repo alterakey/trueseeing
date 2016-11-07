@@ -32,3 +32,18 @@ class PrivacyDeviceIdDetector(Detector):
         yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting L2 address (Bluetooth)')
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting L2 address (Wi-Fi)')
+
+class PrivacySMSDetector(Detector):
+  option = 'privacy-sms'
+
+  def do_detect(self):
+    with self.context.store() as store:
+      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
+        try:
+          if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
+            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: accessing SMS')
+        except DataFlows.NoSuchValueError:
+          pass
+
+      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsMessage;->createFromPdu\(')):
+        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, store.query().qualname_of(op), 'privacy concerns: intercepting incoming SMS')
