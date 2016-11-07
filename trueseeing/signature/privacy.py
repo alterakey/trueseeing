@@ -26,3 +26,9 @@ class PrivacyDeviceIdDetector(Detector):
         yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting IMEI')
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;')):
         yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting IMSI')
+      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;')):
+        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting phone number')
+      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;')):
+        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting L2 address (Bluetooth)')
+      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
+        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting L2 address (Wi-Fi)')
