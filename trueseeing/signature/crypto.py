@@ -103,7 +103,7 @@ class CryptoNonRandomXorDetector(Detector):
 
   def do_detect(self):
     with self.context.store() as store:
-      for cl in store.query().invocations(InvocationPattern('xor-int/lit8', None)):
+      for cl in store.query().ops_of('xor-int/lit8'):
         target_val = int(cl.p[2].v, 16)
         if (cl.p[0].v == cl.p[1].v) and target_val > 1:
           yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, store.query().qualname_of(cl), 'insecure cryptography: non-random XOR cipher: 0x%02x' % target_val)
