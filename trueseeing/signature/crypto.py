@@ -72,14 +72,14 @@ class CryptoStaticKeyDetector(Detector):
 
   def do_detect_case2(self):
     # XXX: Crude detection
-    def should_be_secret(k, val):
-      return any(x in k.method_.qualified_name().lower() for x in ['inapp','billing','iab','sku','store'])
+    def should_be_secret(store, k, val):
+      return any(x in store.query().qualname_of(k).lower() for x in ['inapp','billing','iab','sku','store'])
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', pat)):
         val = cl.p[1].v
-        yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(cl, val)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
+        yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
       for name, val in self.context.string_resources():
         if re.match(pat, val):
           yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, 'R.string.%s' % name, 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))

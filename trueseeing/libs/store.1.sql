@@ -57,7 +57,7 @@ create table interests_invokes (op integer primary key, v varchar not null, targ
 insert into interests_invokes select op, v, coalesce(v2,v1) as target from op_vecs where t='id' and v like 'invoke%';
 
 create table interests_consts (op integer primary key, v varchar not null, target varchar not null) without rowid;
-insert into interests_consts select op, v, v1 as target from op_vecs where t='id' and v like 'const%';
+insert into interests_consts select op, v, v2 as target from op_vecs where t='id' and v like 'const%';
 
 create table interests_sputs (op integer primary key, v varchar not null, target varchar not null) without rowid;
 insert into interests_sputs select op, v, v1 as target from op_vecs where t='id' and v like 'sput%';
