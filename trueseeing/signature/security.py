@@ -208,7 +208,7 @@ class FormatStringDetector(Detector):
 
   def do_detect(self):
     with self.context.store() as store:
-      for cl in store.query().consts(InvocationPattern('const-string', '.')):
+      for cl in store.query().consts(InvocationPattern('const-string', r'%s')):
         for t in self.analyzed(cl.p[1].v):
           yield self.issue(t['severity'], t['confidence'], store.query().qualname_of(cl), 'detected format string: %(target_val)s' % dict(target_val=t['value']))
       for name, val in self.context.string_resources():
