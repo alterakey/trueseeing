@@ -8,6 +8,8 @@
 
 import logging
 
+import re
+
 from trueseeing.flow.code import InvocationPattern
 from trueseeing.flow.data import DataFlows
 from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
@@ -17,21 +19,30 @@ log = logging.getLogger(__name__)
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
 
+  def analyzed(self, store, op):
+    x = op.p[1].v
+    if re.search('Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
+      if DataFlows.solved_constant_data_in_invocation(store, op, 1) == 'android_id':
+        return 'ANDROID_ID'
+      else:
+        return None
+    elif re.search('Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;', x):
+      return 'IMEI'
+    elif re.search('Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;', x):
+      return 'IMSI'
+    elif re.search('Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;', x):
+      return 'phone number'
+    elif re.search('Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;', x):
+      return 'L2 address (Bluetooth)'
+    elif re.search('Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)', x):
+      return 'L2 address (Wi-Fi)'
+
   def do_detect(self):
     with self.context.store() as store:
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;')):
-        if DataFlows.solved_constant_data_in_invocation(store, op, 1) == 'android_id':
-          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting ANDROID_ID')
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;')):
-        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting IMEI')
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;')):
-        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting IMSI')
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;')):
-        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting phone number')
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;')):
-        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting L2 address (Bluetooth)')
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
-        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting L2 address (Wi-Fi)')
+      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
+        val_type = self.analyzed(store, op)
+        if val_type is not None:
+          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting %s' % val_type)
 
 class PrivacySMSDetector(Detector):
   option = 'privacy-sms'
