@@ -116,7 +116,7 @@ class UrlLikeDetector(Detector):
       self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
 
     with self.context.store() as store:
-      for cl in store.query().consts(InvocationPattern('const-string', '.')):
+      for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
         for match in self.analyzed(cl.p[1].v):
           for v in match['value']:
             yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, store.query().qualname_of(cl), 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))
