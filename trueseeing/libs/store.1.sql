@@ -55,12 +55,14 @@ insert into classes_implements_name select C.class as class,B.v as implements_na
 -- analytic interests
 create table interests_invokes (op integer primary key, v varchar not null, target varchar not null) without rowid;
 insert into interests_invokes select op, v, coalesce(v2,v1) as target from op_vecs where t='id' and v like 'invoke%';
+create index interests_invokes_target on interests_invokes (target);
 
 create table interests_consts (op integer primary key, v varchar not null, target varchar not null) without rowid;
 insert into interests_consts select op, v, v2 as target from op_vecs where t='id' and v like 'const%';
 
 create table interests_sputs (op integer primary key, v varchar not null, target varchar not null) without rowid;
 insert into interests_sputs select op, v, v1 as target from op_vecs where t='id' and v like 'sput%';
+create index interests_sputs_target on interests_sputs (target);
 
 analyze;
 
