@@ -4,6 +4,7 @@ import getopt
 import configparser
 import logging
 import collections
+import concurrent.futures
 
 import trueseeing.signature.base
 import trueseeing.exploit
@@ -25,13 +26,22 @@ def formatted(issue):
   else:
     return '%(source)s:0:0:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
 
+def apply_detector(context, c, r):
+  for e in (formatted(e) for e in c(context).detect()):
+    r['found'] = True
+    print(e)
+
 def processed(apkfilename, chain):
   with Context() as context:
     context.analyze(apkfilename)
     log.info("%s -> %s" % (apkfilename, context.wd))
 
-    for c in chain:
-      yield from (formatted(e) for e in c(context).detect())
+    r = dict(found=False)
+
+    with concurrent.futures.ProcessPoolExecutor() as pool:
+      for c in chain:
+        pool.submit(apply_detector, context, c, r)
+    return r['found']
 
 def selected_signatures_on(switch):
   if switch != 'all':
@@ -89,9 +99,8 @@ def shell(argv):
       if not any([fingerprint_mode, grab_mode, inspection_mode]):
         error_found = False
         for f in files:
-          for e in processed(f, [v for k,v in signatures.items() if k in signature_selected]):
+          if processed(f, [v for k,v in signatures.items() if k in signature_selected]):
             error_found = True
-            print(e)
         if not error_found:
           return 0
         else:
