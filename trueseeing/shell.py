@@ -39,8 +39,10 @@ def processed(apkfilename, chain):
     r = dict(found=False)
 
     with concurrent.futures.ProcessPoolExecutor() as pool:
-      for c in chain:
-        pool.submit(apply_detector, context, c, r)
+      futures = [pool.submit(apply_detector, context, c, r) for c in chain]
+      for f in concurrent.futures.as_completed(futures):
+        if f.exception() is not None:
+          raise f.exception()
     return r['found']
 
 def selected_signatures_on(switch):
