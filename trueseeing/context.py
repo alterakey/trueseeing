@@ -55,7 +55,7 @@ class Context:
           pass
       if not os.path.exists(os.path.join(self.wd, 'store.db')):
         with self.store() as store:
-          trueseeing.code.parse.SmaliAnalyzer(store).analyze('\n'.join(open(fn, 'r').read() for fn in self.disassembled_classes()))
+          trueseeing.code.parse.SmaliAnalyzer(store).analyze(open(fn, 'r') for fn in self.disassembled_classes())
     else:
       raise ValueError('analyzed once')
 
