@@ -26,24 +26,29 @@ def formatted(issue):
   else:
     return '%(source)s:0:0:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
 
-def apply_detector(context, c, r):
+def apply_detector(context, c):
+  found = False
   for e in (formatted(e) for e in c(context).detect()):
-    r['found'] = True
+    found = True
     print(e)
+  return found
 
 def processed(apkfilename, chain):
   with Context() as context:
     context.analyze(apkfilename)
     log.info("%s -> %s" % (apkfilename, context.wd))
 
-    r = dict(found=False)
+    found = False
 
     with concurrent.futures.ProcessPoolExecutor() as pool:
-      futures = [pool.submit(apply_detector, context, c, r) for c in chain]
+      futures = [pool.submit(apply_detector, context, c) for c in chain]
       for f in concurrent.futures.as_completed(futures):
         if f.exception() is not None:
           raise f.exception()
-    return r['found']
+        else:
+          found |= f.result()
+
+    return found
 
 def selected_signatures_on(switch):
   if switch != 'all':
