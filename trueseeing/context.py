@@ -54,8 +54,15 @@ class Context:
         with open(os.path.join(self.wd, '.done'), 'w'):
           pass
       if not os.path.exists(os.path.join(self.wd, 'store.db')):
-        with self.store() as store:
-          trueseeing.code.parse.SmaliAnalyzer(store).analyze(open(fn, 'r') for fn in self.disassembled_classes())
+        # XXX: containing analysis -- it seems like to taint the interpreter to a mystrerious crash during concurrent analysis
+        pid = os.fork()
+        if not pid:
+          with trueseeing.store.Store(self.wd, 'w') as store:
+            trueseeing.code.parse.SmaliAnalyzer(store).analyze(open(fn, 'r') for fn in self.disassembled_classes())
+          os.exit(0)
+        else:
+          os.waitpid(pid, 0)
+
     else:
       raise ValueError('analyzed once')
 
