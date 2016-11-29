@@ -17,47 +17,54 @@ class SmaliAnalyzer:
   def __init__(self, store):
     self.store = store
 
-  def analyze(self, s):
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    pass
+
+  def analyze(self, fs):
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0
     started = time.time()
 
-    reg1 = None
-    reg2 = None
+    for f in fs:
+      reg1 = None
+      reg2 = None
 
-    for t in P.parsed_flat(s):
-      self.store.op_append(t)
-      analyzed_ops = analyzed_ops + 1
-      if analyzed_ops & 0xffff == 0:
-        sys.stderr.write("\ranalyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
+      for t in P.parsed_flat(f.read()):
+        self.store.op_append(t)
+        analyzed_ops = analyzed_ops + 1
+        if analyzed_ops & 0xffff == 0:
+          sys.stderr.write("\ranalyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
 
-      if reg1 is not None:
-        reg1.append(t)
-      if reg2 is not None:
-        reg2.append(t)
-
-      if t.t == 'directive' and t.v == 'class':
         if reg1 is not None:
-          reg1.pop()
-          self.store.op_mark_class(reg1, reg1[0])
-          reg1 = [t]
-          analyzed_classes = analyzed_classes + 1
-        else:
-          reg1 = [t]
-      elif t.t == 'directive' and t.v == 'method':
-        if reg2 is None:
-          reg2 = [t]
-      elif t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
+          reg1.append(t)
         if reg2 is not None:
-          self.store.op_mark_method(reg2, reg2[0])
-          reg2 = None
-          analyzed_methods = analyzed_methods + 1
-    else:
-      if reg1 is not None:
-        self.store.op_mark_class(reg1, reg1[0], ignore_dupes=True)
-        reg1 = None
-        analyzed_classes = analyzed_classes + 1
+          reg2.append(t)
+
+        if t.t == 'directive' and t.v == 'class':
+          if reg1 is not None:
+            reg1.pop()
+            self.store.op_mark_class(reg1, reg1[0])
+            reg1 = [t]
+            analyzed_classes = analyzed_classes + 1
+          else:
+            reg1 = [t]
+        elif t.t == 'directive' and t.v == 'method':
+          if reg2 is None:
+            reg2 = [t]
+        elif t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
+          if reg2 is not None:
+            self.store.op_mark_method(reg2, reg2[0])
+            reg2 = None
+            analyzed_methods = analyzed_methods + 1
+      else:
+        if reg1 is not None:
+          self.store.op_mark_class(reg1, reg1[0], ignore_dupes=True)
+          reg1 = None
+          analyzed_classes = analyzed_classes + 1
 
     sys.stderr.write(("\ranalyzed: %d ops, %d methods, %d classes" + (" " * 20) + "\n") % (analyzed_ops, analyzed_methods, analyzed_classes))
     sys.stderr.write("analyzed: finalizing\n")
