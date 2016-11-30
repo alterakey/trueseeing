@@ -8,6 +8,7 @@ import hashlib
 import zipfile
 import itertools
 import glob
+import sys
 
 import trueseeing.code.parse
 import trueseeing.store
@@ -59,7 +60,7 @@ class Context:
         if not pid:
           with trueseeing.store.Store(self.wd, 'w') as store:
             trueseeing.code.parse.SmaliAnalyzer(store).analyze(open(fn, 'r') for fn in self.disassembled_classes())
-          os.exit(0)
+          sys.exit(0)
         else:
           os.waitpid(pid, 0)
 
