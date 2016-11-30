@@ -58,7 +58,7 @@ class DataFlows:
   def solved_constant_data_in_invocation(store, invokation_op, index):
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(store, invokation_op)
-    reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if invokation_op.v.endswith('-static') else 1)]
+    reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
     arg = graph[invokation_op][reg]
     try:
       if arg.t == 'id' and arg.v.startswith('const'):
@@ -80,14 +80,14 @@ class DataFlows:
   def solved_possible_constant_data_in_invocation(store, invokation_op, index):
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(store, invokation_op)
-    reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if invokation_op.v.endswith('-static') else 1)]
+    reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
     return {x.p[1].v for x in DataFlows.walk_dict_values(graph[invokation_op][reg]) if x is not None and x.t == 'id' and x.v.startswith('const')}
 
   @staticmethod
   def solved_typeset_in_invocation(store, invokation_op, index):
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(store, invokation_op)
-    reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if invokation_op.v.endswith('-static') else 1)]
+    reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
     arg = graph[invokation_op][reg]
     pprint.pprint(graph)
     raise Exception('breakpoint')
