@@ -25,11 +25,10 @@ class Store:
       trueseeing.literalquery.Store(self.db).stage1()
 
   def __enter__(self):
-    self.db.__enter__()
     return self
 
   def __exit__(self, exc_type, exc_value, traceback):
-    self.db.__exit__(exc_type, exc_value, traceback)
+    pass
 
   def op_finalize(self):
     trueseeing.literalquery.Store(self.db).stage2()
