@@ -30,7 +30,7 @@ def apply_detector(context, c):
   found = False
   for e in (formatted(e) for e in c(context).detect()):
     found = True
-    print(e)
+    log.error(e)
   return found
 
 def processed(apkfilename, chain):
