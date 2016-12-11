@@ -27,14 +27,7 @@ class Context:
 
   def store(self):
     assert self.wd is not None
-    try:
-      return self.state['ts2.store']
-    except KeyError:
-      try:
-        self.state['ts2.store'] = trueseeing.store.Store(self.wd, 'r')
-      except IOError:
-        self.state['ts2.store'] = trueseeing.store.Store(self.wd, 'w')
-      return self.store()
+    return trueseeing.store.Store(self.wd)
 
   def fingerprint(self):
     return fingerprint_of(self.apk)
@@ -55,14 +48,7 @@ class Context:
         with open(os.path.join(self.wd, '.done'), 'w'):
           pass
       if not os.path.exists(os.path.join(self.wd, 'store.db')):
-        # XXX: containing analysis -- it seems like to taint the interpreter to a mystrerious crash during concurrent analysis
-        pid = os.fork()
-        if not pid:
-          with trueseeing.store.Store(self.wd, 'w') as store:
-            trueseeing.code.parse.SmaliAnalyzer(store).analyze(open(fn, 'r') for fn in self.disassembled_classes())
-          sys.exit(0)
-        else:
-          os.waitpid(pid, 0)
+        trueseeing.code.parse.SmaliAnalyzer(self.store()).analyze(open(fn, 'r') for fn in self.disassembled_classes())
 
     else:
       raise ValueError('analyzed once')

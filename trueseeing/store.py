@@ -15,18 +15,14 @@ def _re_fn(expr, item):
     return False
 
 class Store:
-  def __init__(self, path, mode='r'):
-    if mode in 'rw':
-      self.path = os.path.join(path, 'store.db')
-      with open(self.path, mode) as _:
-        pass
-      self.db = sqlite3.connect(self.path)
-      self.db.create_function("REGEXP", 2, _re_fn)
-      trueseeing.literalquery.Store(self.db).stage0()
-      if mode == 'w':
-        trueseeing.literalquery.Store(self.db).stage1()
-    else:
-      raise ArgumentError('mode: %s' % mode)
+  def __init__(self, path):
+    self.path = os.path.join(path, 'store.db')
+    is_creating = not os.path.exists(self.path)
+    self.db = sqlite3.connect(self.path)
+    self.db.create_function("REGEXP", 2, _re_fn)
+    trueseeing.literalquery.Store(self.db).stage0()
+    if is_creating:
+      trueseeing.literalquery.Store(self.db).stage1()
 
   def __enter__(self):
     self.db.__enter__()
