@@ -64,6 +64,9 @@ create table interests_sputs (op integer primary key, v varchar not null, target
 insert into interests_sputs select op, v, v1 as target from op_vecs where t='id' and v like 'sput%';
 create index interests_sputs_target on interests_sputs (target);
 
+-- analytic reports
+create table analysis_issues (detector varchar not null, description varchar not null, severity varchar not null, confidence varchar not null, source varchar, row varchar, col varchar);
+
 analyze;
 
 commit;

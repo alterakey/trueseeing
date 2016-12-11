@@ -32,10 +32,11 @@ def processed(apkfilename, chain):
 
     found = False
     for c in chain:
-      found = True
-      for e in (formatted(e) for e in c(context).detect()):
-        log.error(e)
-
+      with context.store().db as db:
+        for e in c(context).detect():
+          found = True
+          log.error(formatted(e))
+          db.execute('insert into analysis_issues (detector, description, severity, confidence, source, row, col) values (:detector_id, :description, :severity, :confidence, :source, :row, :col)', e.__dict__)
     return found
 
 def selected_signatures_on(switch):
