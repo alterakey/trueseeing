@@ -4,7 +4,6 @@ import getopt
 import configparser
 import logging
 import collections
-import concurrent.futures
 
 import trueseeing.signature.base
 import trueseeing.exploit
@@ -26,27 +25,16 @@ def formatted(issue):
   else:
     return '%(source)s:0:0:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
 
-def apply_detector(context, c):
-  found = False
-  for e in (formatted(e) for e in c(context).detect()):
-    found = True
-    log.error(e)
-  return found
-
 def processed(apkfilename, chain):
   with Context() as context:
     context.analyze(apkfilename)
     log.info("%s -> %s" % (apkfilename, context.wd))
 
     found = False
-
-    with concurrent.futures.ProcessPoolExecutor() as pool:
-      futures = [pool.submit(apply_detector, context, c) for c in chain]
-      for f in concurrent.futures.as_completed(futures):
-        if f.exception() is not None:
-          raise f.exception()
-        else:
-          found |= f.result()
+    for c in chain:
+      found = True
+      for e in (formatted(e) for e in c(context).detect()):
+        log.error(e)
 
     return found
 
