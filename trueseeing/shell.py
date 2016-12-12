@@ -20,15 +20,14 @@ signatures_all = set(signatures.keys())
 signatures_default = signatures_all.copy()
 
 def formatted(issue):
-  if not (issue.row is None or issue.col is None):
-    return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
-  else:
-    return '%(source)s:0:0:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % issue.__dict__
+  return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=issue.source, row=(0 if issue.row is None else issue.row), col=(0 if issue.col is None else issue.col), severity=issue.severity(), confidence=issue.confidence, description=issue.description(), detector_id=issue.detector_id)
 
 def processed(apkfilename, chain):
   with Context() as context:
     context.analyze(apkfilename)
     log.info("%s -> %s" % (apkfilename, context.wd))
+    with context.store().db as db:
+      db.execute('delete from analysis_issues')
 
     found = False
     for c in chain:
@@ -36,7 +35,7 @@ def processed(apkfilename, chain):
         for e in c(context).detect():
           found = True
           log.error(formatted(e))
-          db.execute('insert into analysis_issues (detector, description, severity, confidence, source, row, col) values (:detector_id, :description, :severity, :confidence, :source, :row, :col)', e.__dict__)
+          db.execute('insert into analysis_issues (detector, summary, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)', e.__dict__)
     return found
 
 def selected_signatures_on(switch):

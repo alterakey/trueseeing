@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 
 class LibraryDetector(Detector):
   option = 'detect-library'
+  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def package_name_of(self, path):
     return os.path.dirname(path).replace('/', '.')
@@ -68,11 +69,13 @@ class LibraryDetector(Detector):
           pass
     packages = {k:v for k,v in packages.items() if not self.is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
-    yield from (self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, '(global)', 'detected library: %s (score: %d)' % (p, len(packages[p]))) for p in sorted(packages.keys()))
+    yield from (self.issue(IssueConfidence.FIRM, self.cvss, 'detected library', '%s (score: %d)' % (p, len(packages[p])), None, None, '(global)') for p in sorted(packages.keys()))
 
 
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
+  cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
   def class_name_of(self, path):
     return path.replace('.smali', '').replace('/', '.')
@@ -80,10 +83,10 @@ class ProGuardDetector(Detector):
   def detect(self):
     for c in (self.class_name_of(self.context.source_name_of_disassembled_class(r)) for r in self.context.disassembled_classes()):
       if re.search('(?:^|\.)a$', c):
-        yield self.issue(IssueSeverity.INFO, IssueConfidence.CERTAIN, '(global)', 'detected obfuscator: ProGuard')
+        yield self.issue(IssueConfidence.CERTAIN, self.cvss_true, 'detected obfuscator', 'ProGuard', None, None, '(global)')
         break
     else:
-      yield self.issue(IssueSeverity.LOW, IssueConfidence.FIRM, '(global)', 'lack of obfuscation')
+      yield self.issue(IssueConfidence.FIRM, self.cvss_false, 'lack of obfuscation', None, None, None, '(global)')
 
 class FakeToken:
   def __init__(self, v, p):
@@ -92,6 +95,7 @@ class FakeToken:
 
 class UrlLikeDetector(Detector):
   option = 'detect-url'
+  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def __init__(self, context):
     super().__init__(context)
@@ -119,8 +123,8 @@ class UrlLikeDetector(Detector):
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
         for match in self.analyzed(cl.p[1].v):
           for v in match['value']:
-            yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, store.query().qualname_of(cl), 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))
+            yield self.issue(IssueConfidence.FIRM, self.cvss, 'detected %s' % match['type_'], v, None, None, store.query().qualname_of(cl))
       for name, val in self.context.string_resources():
         for match in self.analyzed(val):
           for v in match['value']:
-            yield self.issue(IssueSeverity.INFO, IssueConfidence.FIRM, 'R.string.%s' % name, 'detected %(target_type)s: %(target_val)s' % dict(target_type=match['type_'], target_val=v))
+            yield self.issue(IssueConfidence.FIRM, self.cvss, 'detected %s' % match['type_'], v, None, None, 'R.string.%s' % name)

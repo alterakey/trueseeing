@@ -26,6 +26,7 @@ log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'
+  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N/'
 
   def entropy_of(self, string):
     o = 0.0
@@ -64,9 +65,9 @@ class CryptoStaticKeyDetector(Detector):
             for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
               try:
                 decoded = base64.b64decode(found)
-                yield self.issue(IssueSeverity.CRITICAL, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
+                yield self.issue({True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], self.cvss, 'insecure cryptography: static keys', '"%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)), None, None, store.query().qualname_of(cl))
               except (ValueError, binascii.Error):
-                yield self.issue(IssueSeverity.CRITICAL, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
+                yield self.issue({True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], self.cvss, 'insecure cryptography: static keys', '"%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)), None, None, store.query().qualname_of(cl))
         except IndexError:
           pass
 
@@ -79,14 +80,15 @@ class CryptoStaticKeyDetector(Detector):
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', pat)):
         val = cl.p[1].v
-        yield self.issue(IssueSeverity.CRITICAL, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
+        yield self.issue({True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)], self.cvss, 'insecure cryptography: static keys', '"%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)), None, None, store.query().qualname_of(cl))
       for name, val in self.context.string_resources():
         if re.match(pat, val):
-          yield self.issue(IssueSeverity.CRITICAL, IssueConfidence.TENTATIVE, 'R.string.%s' % name, 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
+          yield self.issue(IssueConfidence.TENTATIVE, 'insecure cryptography: static keys', '"%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)), None, None, 'R.string.%s' % name)
 
 
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
+  cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
   def do_detect(self):
     with self.context.store() as store:
@@ -94,16 +96,17 @@ class CryptoEcbDetector(Detector):
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any(('ECB' in x or '/' not in x) for x in target_val):
-            yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.CERTAIN, store.query().qualname_of(cl), 'insecure cryptography: cipher might be operating in ECB mode: %s' % target_val)
+            yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'insecure cryptography: cipher might be operating in ECB mode', ','.join(target_val), None, None, store.query().qualname_of(cl))
         except (DataFlows.NoSuchValueError):
           pass
 
 class CryptoNonRandomXorDetector(Detector):
   option = 'crypto-xor'
+  cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N/'
 
   def do_detect(self):
     with self.context.store() as store:
       for cl in store.query().ops_of('xor-int/lit8'):
         target_val = int(cl.p[2].v, 16)
         if (cl.p[0].v == cl.p[1].v) and target_val > 1:
-          yield self.issue(IssueSeverity.MEDIUM, IssueConfidence.FIRM, store.query().qualname_of(cl), 'insecure cryptography: non-random XOR cipher: 0x%02x' % target_val)
+          yield self.issue(IssueConfidence.FIRM, self.cvss, 'insecure cryptography: non-random XOR cipher', '0x%02x' % target_val, None, None, store.query().qualname_of(cl))

@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
+  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:N/A:N/'
 
   def analyzed(self, store, op):
     x = op.p[1].v
@@ -42,22 +43,23 @@ class PrivacyDeviceIdDetector(Detector):
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         val_type = self.analyzed(store, op)
         if val_type is not None:
-          yield self.issue(IssueSeverity.HIGH, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting %s' % val_type)
+          yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'privacy concerns', 'getting %s' % val_type, None, None, store.query().qualname_of(op))
 
 class PrivacySMSDetector(Detector):
   option = 'privacy-sms'
+  cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N/'
 
   def do_detect(self):
     with self.context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
         try:
           if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
-            yield self.issue(IssueSeverity.HIGH, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: accessing SMS')
+            yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'privacy concerns', 'accessing SMS', None, None, store.query().qualname_of(op))
         except DataFlows.NoSuchValueError:
           pass
 
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsManager;->send')):
-        yield self.issue(IssueSeverity.HIGH, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: sending SMS')
+        yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'privacy concerns', 'sending SMS', None, None, store.query().qualname_of(op))
 
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsMessage;->createFromPdu\(')):
-        yield self.issue(IssueSeverity.HIGH, IssueConfidence.FIRM, store.query().qualname_of(op), 'privacy concerns: intercepting incoming SMS')
+        yield self.issue(IssueConfidence.FIRM, self.cvss, 'privacy concerns', 'intercepting incoming SMS', None, None, store.query().qualname_of(op))
