@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'
-  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N/'
+  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N/'
 
   def entropy_of(self, string):
     o = 0.0
@@ -102,7 +102,7 @@ class CryptoEcbDetector(Detector):
 
 class CryptoNonRandomXorDetector(Detector):
   option = 'crypto-xor'
-  cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N/'
+  cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N/'
 
   def do_detect(self):
     with self.context.store() as store:

@@ -119,7 +119,7 @@ class LayoutSizeGuesser:
 
 class SecurityArbitraryWebViewOverwriteDetector(Detector):
   option = 'security-arbitrary-webview-overwrite'
-  cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:N/I:H/A:N/'
+  cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:C/C:N/I:H/A:N/'
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
