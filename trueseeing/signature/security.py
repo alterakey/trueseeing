@@ -38,7 +38,7 @@ class SecurityFilePermissionDetector(Detector):
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
           if target_val & 3:
-            yield self.issue(IssueSeverity.SEVERE, IssueConfidence.CERTAIN, store.query().qualname_of(cl), 'insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val])
+            yield self.issue(IssueSeverity.CRITICAL, IssueConfidence.CERTAIN, store.query().qualname_of(cl), 'insecure file permission: %s' % {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val])
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -184,9 +184,9 @@ class SecurityInsecureWebViewDetector(Detector):
               for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', '%s->addJavascriptInterface' % target)):
                 try:
                   if DataFlows.solved_constant_data_in_invocation(store, q, 0):
-                    yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, store.query().qualname_of(q), 'insecure Javascript interface')
+                    yield self.issue(IssueSeverity.HIGH, IssueConfidence.FIRM, store.query().qualname_of(q), 'insecure Javascript interface')
                 except (DataFlows.NoSuchValueError):
-                  yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(q), 'insecure Javascript interface')
+                  yield self.issue(IssueSeverity.HIGH, IssueConfidence.TENTATIVE, store.query().qualname_of(q), 'insecure Javascript interface')
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -194,7 +194,7 @@ class SecurityInsecureWebViewDetector(Detector):
           try:
             val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
             if val == 0:
-              yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, store.query().qualname_of(q), 'insecure mixed content mode: MIXED_CONTENT_ALWAYS_ALLOW')
+              yield self.issue(IssueSeverity.HIGH, IssueConfidence.FIRM, store.query().qualname_of(q), 'insecure mixed content mode: MIXED_CONTENT_ALWAYS_ALLOW')
           except (DataFlows.NoSuchValueError):
             pass
 
@@ -223,13 +223,13 @@ class LogDetector(Detector):
       for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         if 'print' not in cl.p[1].v:
           try:
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=cl.p[1].v, val=DataFlows.solved_constant_data_in_invocation(store, cl, 1)))
+            yield self.issue(IssueSeverity.HIGH, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=cl.p[1].v, val=DataFlows.solved_constant_data_in_invocation(store, cl, 1)))
           except (DataFlows.NoSuchValueError):
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
+            yield self.issue(IssueSeverity.HIGH, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
         elif 'Exception;->' not in cl.p[1].v:
           try:
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=cl.p[1].v, val=DataFlows.solved_constant_data_in_invocation(store, cl, 0)))
+            yield self.issue(IssueSeverity.HIGH, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s: "%(val)s"' % dict(target_val=cl.p[1].v, val=DataFlows.solved_constant_data_in_invocation(store, cl, 0)))
           except (DataFlows.NoSuchValueError):
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
+            yield self.issue(IssueSeverity.HIGH, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
         else:
-          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))
+          yield self.issue(IssueSeverity.HIGH, IssueConfidence.TENTATIVE, store.query().qualname_of(cl), 'detected logging: %(target_val)s' % dict(target_val=cl.p[1].v))

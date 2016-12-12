@@ -64,9 +64,9 @@ class CryptoStaticKeyDetector(Detector):
             for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
               try:
                 decoded = base64.b64decode(found)
-                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
+                yield self.issue(IssueSeverity.CRITICAL, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)))
               except (ValueError, binascii.Error):
-                yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
+                yield self.issue(IssueSeverity.CRITICAL, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)))
         except IndexError:
           pass
 
@@ -79,10 +79,10 @@ class CryptoStaticKeyDetector(Detector):
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', pat)):
         val = cl.p[1].v
-        yield self.issue(IssueSeverity.SEVERE, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
+        yield self.issue(IssueSeverity.CRITICAL, {True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)], store.query().qualname_of(cl), 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
       for name, val in self.context.string_resources():
         if re.match(pat, val):
-          yield self.issue(IssueSeverity.SEVERE, IssueConfidence.TENTATIVE, 'R.string.%s' % name, 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
+          yield self.issue(IssueSeverity.CRITICAL, IssueConfidence.TENTATIVE, 'R.string.%s' % name, 'insecure cryptography: static keys: "%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)))
 
 
 class CryptoEcbDetector(Detector):

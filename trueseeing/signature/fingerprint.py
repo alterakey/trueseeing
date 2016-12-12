@@ -83,7 +83,7 @@ class ProGuardDetector(Detector):
         yield self.issue(IssueSeverity.INFO, IssueConfidence.CERTAIN, '(global)', 'detected obfuscator: ProGuard')
         break
     else:
-      yield self.issue(IssueSeverity.MINOR, IssueConfidence.FIRM, '(global)', 'lack of obfuscation')
+      yield self.issue(IssueSeverity.LOW, IssueConfidence.FIRM, '(global)', 'lack of obfuscation')
 
 class FakeToken:
   def __init__(self, v, p):

@@ -42,7 +42,7 @@ class PrivacyDeviceIdDetector(Detector):
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         val_type = self.analyzed(store, op)
         if val_type is not None:
-          yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting %s' % val_type)
+          yield self.issue(IssueSeverity.HIGH, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: getting %s' % val_type)
 
 class PrivacySMSDetector(Detector):
   option = 'privacy-sms'
@@ -52,12 +52,12 @@ class PrivacySMSDetector(Detector):
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
         try:
           if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
-            yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: accessing SMS')
+            yield self.issue(IssueSeverity.HIGH, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: accessing SMS')
         except DataFlows.NoSuchValueError:
           pass
 
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsManager;->send')):
-        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: sending SMS')
+        yield self.issue(IssueSeverity.HIGH, IssueConfidence.CERTAIN, store.query().qualname_of(op), 'privacy concerns: sending SMS')
 
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsMessage;->createFromPdu\(')):
-        yield self.issue(IssueSeverity.MAJOR, IssueConfidence.FIRM, store.query().qualname_of(op), 'privacy concerns: intercepting incoming SMS')
+        yield self.issue(IssueSeverity.HIGH, IssueConfidence.FIRM, store.query().qualname_of(op), 'privacy concerns: intercepting incoming SMS')

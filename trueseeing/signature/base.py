@@ -5,10 +5,10 @@ import importlib
 import pkg_resources
 
 class IssueSeverity:
-  SEVERE = 'severe'
-  MAJOR = 'major'
+  CRITICAL = 'critical'
+  HIGH = 'high'
   MEDIUM = 'medium'
-  MINOR = 'minor'
+  LOW = 'low'
   INFO = 'info'
 
 class IssueConfidence:
