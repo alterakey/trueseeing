@@ -19,9 +19,10 @@ class IssueConfidence:
 
 class Issue:
   def __init__(self, detector_id, confidence, cvss3_vector, summary, info1, info2, info3, source, row=None, col=None):
+    cvss3_vector = '%sRC:%s/' % (cvss3_vector, {IssueConfidence.CERTAIN:'C',IssueConfidence.FIRM:'R',IssueConfidence.TENTATIVE:'U'}[confidence])
     self.detector_id = detector_id
-    self.cvss3_vector = cvss3_vector
     self.confidence = confidence
+    self.cvss3_vector = cvss3_vector
     self.source = source
     self.summary = summary
     self.info1 = info1
@@ -47,9 +48,25 @@ class Issue:
     return ': '.join(filter(None, (self.summary, self.info1, self.info2, self.info3)))
 
   def cvss3_score_from(self, vec):
-    m = re.match(r'CVSS:3.0/AV:(?P<AV>[NALP])/AC:(?P<AC>[LH])/PR:(?P<PR>[NLH])/UI:(?P<UI>[NR])/S:(?P<S>[CU])/C:(?P<C>[HLN])/I:(?P<I>[HLN])/A:(?P<A>[HLN])/', vec)
+    m = re.match(r'CVSS:3.0/AV:(?P<AV>[NALP])/AC:(?P<AC>[LH])/PR:(?P<PR>[NLH])/UI:(?P<UI>[NR])/S:(?P<S>[CU])/C:(?P<C>[HLN])/I:(?P<I>[HLN])/A:(?P<A>[HLN])(?:/RC:(?P<RC>[XCRU]))?/', vec)
     if m:
       def score(m):
+        return temporal_score(m)
+
+      def temporal_score(m):
+        return roundup(base_score(m) * exploit_code_maturity_score(m) * remediation_level_score(m) * report_confidence_score(m))
+
+      def exploit_code_maturity_score(m):
+        return 1
+
+      def remediation_level_score(m):
+        return 1
+
+      def report_confidence_score(m):
+        M = dict(X=1.0, C=1.0, R=0.96, U=0.92)
+        return M[m.group('RC')]
+
+      def base_score(m):
         impact, exploitability = subscore_impact(m), subscore_exploitability(m)
         if impact <= 0:
           return 0
