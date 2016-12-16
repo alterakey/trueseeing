@@ -30,12 +30,25 @@ def processed(apkfilename, chain):
       db.execute('delete from analysis_issues')
 
     found = False
+    sigs_done = 0
+    sigs_total = len(chain)
+
+    issues = dict(critical=0, high=0, medium=0, low=0, info=0, progress=0.0)
+
     for c in chain:
       with context.store().db as db:
         for e in c(context).detect():
           found = True
-          log.error(formatted(e))
+          issues[e.severity()] += 1
+          #log.error(formatted(e))
+          sys.stdout.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d' % issues)
           db.execute('insert into analysis_issues (detector, summary, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)', e.__dict__)
+        else:
+          sigs_done += 1
+          issues['progress'] = 100.0 * (sigs_done / float(sigs_total))
+    else:
+      sys.stdout.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d\n' % issues)
+
     return found
 
 def selected_signatures_on(switch):
