@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Trueseeing2 Report</title></head>
+  <body>
+    <h1>Trueseeing2 Report</h1>
+    <h2>1. Overview</h2>
+    <h2>2. Details</h2>
+    {% for issue in issues %}
+    <h3>2.{{issue.no}} {{issue.summary}} ({{issue.severity}}:{{issue.cvss3_score}})</h3>
+    <h4>Instances</h4>
+    <ul>
+    {% for instance in issue.instances %}
+    <li>{{instance.info1}}: {{instance.info2}}: {{instance.info3}} ({{instance.source}}:{{instance.row}})</li>
+    {% endfor %}
+    </ul>
+    {% endfor %}
+  </body>
+</html>

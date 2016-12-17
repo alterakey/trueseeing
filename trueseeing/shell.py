@@ -4,6 +4,7 @@ import getopt
 import configparser
 import logging
 import collections
+import jinja2
 
 import trueseeing.signature.base
 import trueseeing.exploit
@@ -29,6 +30,9 @@ def processed(apkfilename, chain):
     with context.store().db as db:
       db.execute('delete from analysis_issues')
 
+    env = jinja2.Environment(loader=jinja2.PackageLoader('trueseeing', 'template'))
+    template = env.get_template('report.html')
+
     found = False
     sigs_done = 0
     sigs_total = len(chain)
@@ -41,21 +45,22 @@ def processed(apkfilename, chain):
           found = True
           issues[e.severity()] += 1
           #log.error(formatted(e))
-          sys.stdout.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d' % issues)
+          sys.stderr.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d' % issues)
           db.execute('insert into analysis_issues (detector, summary, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)', e.__dict__)
         else:
           sigs_done += 1
           issues['progress'] = 100.0 * (sigs_done / float(sigs_total))
     else:
-      sys.stdout.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d\n' % issues)
+      sys.stderr.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d\n' % issues)
       with context.store().db as db:
         issues = []
-        for row in db.execute('select distinct detector, summary, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc'):
+        for row, no in zip(db.execute('select distinct detector, summary, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc'), range(1, 2**32)):
           instances = []
-          issues.append(dict(detector=row[0], summary=row[1], cvss3_score=row[2], cvss3_vector=row[3], instances=instances))
+          issues.append(dict(no=no, detector=row[0], summary=row[1], cvss3_score=row[2], cvss3_vector=row[3], instances=instances))
           for m in db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', {v:row[k] for k,v in {0:'detector', 1:'summary', 2:'cvss3_score'}.items()}):
             issue = trueseeing.signature.base.Issue.from_analysis_issues_row(m)
             instances.append(dict(info1=issue.info1, info2=issue.info2, info3=issue.info3, source=issue.source, row=issue.row, col=issue.col))
+        print(template.render(issues=issues))
     return found
 
 def selected_signatures_on(switch):
