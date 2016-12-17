@@ -18,19 +18,31 @@ class IssueConfidence:
   TENTATIVE = 'tentative'
 
 class Issue:
-  def __init__(self, detector_id, confidence, cvss3_vector, summary, info1, info2, info3, source, row=None, col=None):
+  @staticmethod
+  def from_desc(detector_id, confidence, cvss3_vector, summary, info1, info2, info3, source, row=None, col=None):
+    o = Issue()
     cvss3_vector = '%sRC:%s/' % (cvss3_vector, {IssueConfidence.CERTAIN:'C',IssueConfidence.FIRM:'R',IssueConfidence.TENTATIVE:'U'}[confidence])
-    self.detector_id = detector_id
-    self.confidence = confidence
-    self.cvss3_vector = cvss3_vector
-    self.source = source
-    self.summary = summary
-    self.info1 = info1
-    self.info2 = info2
-    self.info3 = info3
-    self.row = row
-    self.col = col
-    self.cvss3_score = self.cvss3_score_from(cvss3_vector)
+    o.detector_id = detector_id
+    o.confidence = confidence
+    o.cvss3_vector = cvss3_vector
+    o.source = source
+    o.summary = summary
+    o.info1 = info1
+    o.info2 = info2
+    o.info3 = info3
+    o.row = row
+    o.col = col
+    o.cvss3_score = o.cvss3_score_from(cvss3_vector)
+    return o
+
+  @staticmethod
+  def from_analysis_issues_row(row):
+    o = Issue()
+    o.detector_id, o.summary, \
+    o.info1, o.info2, o.info3, o.confidence, \
+    o.cvss3_score, o.cvss3_vector, o.source, o.row, \
+    o.col = row
+    return o
 
   def severity(self):
     if self.cvss3_score <= 0.0:
@@ -128,7 +140,7 @@ class Detector:
     pass
 
   def issue(self, *args, **kwargs):
-    return Issue(self.option, *args, **kwargs)
+    return Issue.from_desc(self.option, *args, **kwargs)
 
 class SignatureDiscoverer:
   PRIORITY = ['fingerprint', 'manifest', 'security']

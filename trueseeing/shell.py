@@ -48,7 +48,14 @@ def processed(apkfilename, chain):
           issues['progress'] = 100.0 * (sigs_done / float(sigs_total))
     else:
       sys.stdout.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d\n' % issues)
-
+      with context.store().db as db:
+        issues = []
+        for row in db.execute('select distinct detector, summary, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc'):
+          instances = []
+          issues.append(dict(detector=row[0], summary=row[1], cvss3_score=row[2], cvss3_vector=row[3], instances=instances))
+          for m in db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', {v:row[k] for k,v in {0:'detector', 1:'summary', 2:'cvss3_score'}.items()}):
+            issue = trueseeing.signature.base.Issue.from_analysis_issues_row(m)
+            instances.append(dict(info1=issue.info1, info2=issue.info2, info3=issue.info3, source=issue.source, row=issue.row, col=issue.col))
     return found
 
 def selected_signatures_on(switch):
