@@ -44,17 +44,21 @@ class Issue:
     o.col = row
     return o
 
-  def severity(self):
-    if self.cvss3_score <= 0.0:
+  @staticmethod
+  def cvss3_severity(score):
+    if score <= 0.0:
       return IssueSeverity.INFO
-    elif self.cvss3_score < 4.0:
+    elif score < 4.0:
       return IssueSeverity.LOW
-    elif self.cvss3_score < 7.0:
+    elif score < 7.0:
       return IssueSeverity.MEDIUM
-    elif self.cvss3_score < 9.0:
+    elif score < 9.0:
       return IssueSeverity.HIGH
     else:
       return IssueSeverity.CRITICAL
+
+  def severity(self):
+    return self.cvss3_severity(self.cvss3_score)
 
   def description(self):
     return ': '.join(filter(None, (self.summary, self.info1, self.info2, self.info3)))

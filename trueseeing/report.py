@@ -3,7 +3,7 @@ import sys
 import logging
 import jinja2
 
-import trueseeing.signature.base
+from trueseeing.signature.base import Issue
 
 log = logging.getLogger(__name__)
 
@@ -15,6 +15,9 @@ class NullReporter:
     pass
 
   def progress(self):
+    pass
+
+  def done(self):
     pass
 
 class ProgressReporter:
@@ -35,6 +38,9 @@ class ProgressReporter:
   def _report(self):
     sys.stderr.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d' % self._issues)
 
+  def done(self):
+    sys.stderr.write('\n')
+
 class ReportGenerator:
   def __init__(self, context, progress):
     self._progress = progress
@@ -47,7 +53,7 @@ class ReportGenerator:
     self._progress.issue(issue)
 
   def generate(self):
-    pass
+    self._progress.done()
 
 class CIReportGenerator(ReportGenerator):
   def __init__(self, context):
@@ -67,12 +73,13 @@ class HTMLReportGenerator(ReportGenerator):
     self._template = jinja2.Environment(loader=jinja2.PackageLoader('trueseeing', 'template')).get_template('report.html')
 
   def generate(self):
+    super().generate()
     with self._context.store().db as db:
       issues = []
       for row, no in zip(db.execute('select distinct detector, summary, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc'), range(1, 2**32)):
         instances = []
-        issues.append(dict(no=no, detector=row[0], summary=row[1], cvss3_score=row[2], cvss3_vector=row[3], instances=instances))
+        issues.append(dict(no=no, detector=row[0], summary=row[1].title(), cvss3_score=row[2], cvss3_vector=row[3], severity=Issue.cvss3_severity(row[2]).title(), instances=instances))
         for m in db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', {v:row[k] for k,v in {0:'detector', 1:'summary', 2:'cvss3_score'}.items()}):
-          issue = trueseeing.signature.base.Issue.from_analysis_issues_row(m)
+          issue = Issue.from_analysis_issues_row(m)
           instances.append(dict(info1=issue.info1, info2=issue.info2, info3=issue.info3, source=issue.source, row=issue.row, col=issue.col))
-      log.error(self._template.render(issues=issues))
+      sys.stdout.write(self._template.render(issues=issues))

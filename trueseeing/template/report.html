@@ -6,7 +6,7 @@
     <h2>1. Overview</h2>
     <h2>2. Details</h2>
     {% for issue in issues %}
-    <h3>2.{{issue.no}} {{issue.summary}} ({{issue.severity}}:{{issue.cvss3_score}})</h3>
+    <h3>2.{{issue.no}} {{issue.summary}} ({{issue.severity}}: {{issue.cvss3_score}})</h3>
     <h4>Instances</h4>
     <ul>
     {% for instance in issue.instances %}
