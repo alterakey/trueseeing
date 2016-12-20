@@ -70,7 +70,7 @@ class CIReportGenerator(ReportGenerator):
 class HTMLReportGenerator(ReportGenerator):
   def __init__(self, context, progress):
     super().__init__(context, progress)
-    self._template = jinja2.Environment(loader=jinja2.PackageLoader('trueseeing', 'template')).get_template('report.html')
+    self._template = jinja2.Environment(loader=jinja2.PackageLoader('trueseeing', 'template'), autoescape=True).get_template('report.html')
 
   def generate(self):
     super().generate()
@@ -81,5 +81,5 @@ class HTMLReportGenerator(ReportGenerator):
         issues.append(dict(no=no, detector=row[0], summary=row[1].title(), cvss3_score=row[2], cvss3_vector=row[3], severity=Issue.cvss3_severity(row[2]).title(), instances=instances))
         for m in db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', {v:row[k] for k,v in {0:'detector', 1:'summary', 2:'cvss3_score'}.items()}):
           issue = Issue.from_analysis_issues_row(m)
-          instances.append(dict(info1=issue.info1, info2=issue.info2, info3=issue.info3, source=issue.source, row=issue.row, col=issue.col))
+          instances.append(dict(info=issue.info(), source=issue.source, row=issue.row, col=issue.col))
       sys.stdout.write(self._template.render(issues=issues))

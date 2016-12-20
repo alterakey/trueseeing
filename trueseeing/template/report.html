@@ -9,9 +9,9 @@
     <h3>2.{{issue.no}} {{issue.summary}} ({{issue.severity}}: {{issue.cvss3_score}})</h3>
     <h4>Instances</h4>
     <ul>
-    {% for instance in issue.instances %}
-    <li>{{instance.info1}}: {{instance.info2}}: {{instance.info3}} ({{instance.source}}:{{instance.row}})</li>
-    {% endfor %}
+    {% for instance in issue.instances -%}
+    <li>{{instance.info}} ({{instance.source}}:{{instance.row}})</li>
+    {% endfor -%}
     </ul>
     {% endfor %}
   </body>

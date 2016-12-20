@@ -61,7 +61,10 @@ class Issue:
     return self.cvss3_severity(self.cvss3_score)
 
   def description(self):
-    return ': '.join(filter(None, (self.summary, self.info1, self.info2, self.info3)))
+    return ': '.join(filter(None, (self.summary, self.info())))
+
+  def info(self):
+    return ': '.join(filter(None, (self.info1, self.info2, self.info3)))
 
   def cvss3_score_from(self, vec):
     m = re.match(r'CVSS:3.0/AV:(?P<AV>[NALP])/AC:(?P<AC>[LH])/PR:(?P<PR>[NLH])/UI:(?P<UI>[NR])/S:(?P<S>[CU])/C:(?P<C>[HLN])/I:(?P<I>[HLN])/A:(?P<A>[HLN])(?:/RC:(?P<RC>[XCRU]))?/', vec)
