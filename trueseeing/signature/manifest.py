@@ -11,7 +11,7 @@
 import itertools
 import logging
 
-from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
+from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence, Issue
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +21,15 @@ class ManifestOpenPermissionDetector(Detector):
 
   def do_detect(self):
     # TBD: compare with actual permission needs
-    yield from (self.issue(IssueConfidence.CERTAIN, self.cvss, 'open permissions', p, None, None, 'AndroidManifest.xml') for p in self.context.permissions_declared())
+    yield from (
+      Issue(
+        detector_id=self.option,
+        confidence=IssueConfidence.CERTAIN,
+        cvss3_vector=self.cvss,
+        summary='open permissions',
+        info1=p,
+        source='AndroidManifest.xml'
+      ) for p in self.context.permissions_declared())
 
 class ManifestMissingPermissionDetector(Detector):
   option = 'manifest-missing-permission'
@@ -36,30 +44,54 @@ class ManifestManipActivity(Detector):
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def do_detect(self):
-    yield from (self.issue(IssueConfidence.CERTAIN, self.cvss, 'manipulatable Activity', name, None, None, 'AndroidManifest.xml') for name in set(itertools.chain(
-      self.context.parsed_manifest().getroot().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-      self.context.parsed_manifest().getroot().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-    )))
+    yield from (
+      Issue(
+        detector_id=self.option,
+        confidence=IssueConfidence.CERTAIN,
+        cvss3_vector=self.cvss,
+        summary='manipulatable Activity',
+        info1=name,
+        source='AndroidManifest.xml'
+      ) for name in set(itertools.chain(
+        self.context.parsed_manifest().getroot().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+        self.context.parsed_manifest().getroot().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+      )))
 
 class ManifestManipBroadcastReceiver(Detector):
   option = 'manifest-manip-broadcastreceiver'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def do_detect(self):
-    yield from (self.issue(IssueConfidence.CERTAIN, self.cvss, 'manipulatable BroadcastReceiver', name, None, None, 'AndroidManifest.xml') for name in set(itertools.chain(
-      self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-      self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-    )))
+    yield from (
+      Issue(
+        detector_id=self.option,
+        confidence=IssueConfidence.CERTAIN,
+        cvss3_vector=self.cvss,
+        summary='manipulatable BroadcastReceiver',
+        info1=name,
+        source='AndroidManifest.xml'
+      ) for name in set(itertools.chain(
+        self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+        self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+      )))
 
 class ManifestManipContentProvider(Detector):
   option = 'manifest-manip-contentprovider'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def do_detect(self):
-    yield from (self.issue(IssueConfidence.CERTAIN, self.cvss, 'manipulatable ContentProvider', name, None, None, 'AndroidManifest.xml') for name in set(itertools.chain(
-      self.context.parsed_manifest().getroot().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-      self.context.parsed_manifest().getroot().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-    )))
+    yield from (
+      Issue(
+        detector_id=self.option,
+        confidence=IssueConfidence.CERTAIN,
+        cvss3_vector=self.cvss,
+        summary='manipulatable ContentProvider',
+        info1=name,
+        source='AndroidManifest.xml'
+      ) for name in set(itertools.chain(
+        self.context.parsed_manifest().getroot().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+        self.context.parsed_manifest().getroot().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+      )))
 
 class ManifestManipBackup(Detector):
   option = 'manifest-manip-backup'
@@ -67,7 +99,13 @@ class ManifestManipBackup(Detector):
 
   def do_detect(self):
     if self.context.parsed_manifest().getroot().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'manipulatable backups', None, None, None, 'AndroidManifest.xml')
+      yield Issue(
+        detector_id=self.option,
+        confidence=IssueConfidence.CERTAIN,
+        cvss3_vector=self.cvss,
+        summary='manipulatable backups',
+        source='AndroidManifest.xml'
+      )
 
 class ManifestDebuggable(Detector):
   option = 'manifest-debuggable'
@@ -75,4 +113,10 @@ class ManifestDebuggable(Detector):
 
   def do_detect(self):
     if self.context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'app is debuggable', None, None, None, 'AndroidManifest.xml')
+      yield Issue(
+        detector_id=self.option,
+        confidence=IssueConfidence.CERTAIN,
+        cvss3_vector=self.cvss,
+        summary='app is debuggable',
+        source='AndroidManifest.xml'
+      )

@@ -25,7 +25,7 @@ import logging
 
 from trueseeing.flow.code import InvocationPattern
 from trueseeing.flow.data import DataFlows
-from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
+from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence, Issue
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +39,14 @@ class SecurityFilePermissionDetector(Detector):
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
           if target_val & 3:
-            yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'insecure file permission', {1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val], None, None, store.query().qualname_of(cl))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.CERTAIN,
+              cvss3_vector=self.cvss,
+              summary='insecure file permission',
+              info1={1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val],
+              source=store.query().qualname_of(cl)
+            )
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -57,14 +64,33 @@ class SecurityTlsInterceptionDetector(Detector):
           pins.add(m)
 
       if not pins:
-        yield self.issue(IssueConfidence.CERTAIN, self.cvss, 'insecure TLS connection', 'pinning X509TrustManagers are not detected', None, None, '(global)')
+        yield Issue(
+          detector_id=self.option,
+          confidence=IssueConfidence.CERTAIN,
+          cvss3_vector=self.cvss,
+          summary='insecure TLS connection',
+          info1='pinning X509TrustManagers are not detected'
+        )
       else:
         # XXX crude detection
         for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')):
           if not DataFlows.solved_typeset_in_invocation(store, cl, 2) & pins:
-            yield self.issue(IssueConfidence.FIRM, self.cvss, 'insecure TLS connection', 'pinning X509TrustManagers are not used', None, None, store.query().qualname_of(cl))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.FIRM,
+              cvss3_vector=self.cvss,
+              summary='insecure TLS connection',
+              info1='pinning X509TrustManagers are not used',
+              source=store.query().qualname_of(cl)
+            )
         else:
-          yield self.issue(IssueConfidence.FIRM, self.cvss, 'insecure TLS connection', 'use of standard SSLContext', None, None, '(global)')
+          yield Issue(
+            detector_id=self.option,
+            confidence=IssueConfidence.FIRM,
+            cvss3_vector=self.cvss,
+            summary='insecure TLS connection',
+            info1='use of standard SSLContext'
+          )
 
 
 class LayoutSizeGuesser:
@@ -142,14 +168,28 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
           for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % self.context.class_name_of_dalvik_class_type(c).replace('$', '_')) for c in targets)):
             size = LayoutSizeGuesser().guessed_size(t, fn)
             if size > 0.5:
-              yield self.issue(IssueConfidence.TENTATIVE, self.cvss, 'arbitrary WebView content overwrite', '{0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size), None, None, self.context.source_name_of_disassembled_resource(fn))
+              yield Issue(
+                detector_id=self.option,
+                confidence=IssueConfidence.TENTATIVE,
+                cvss3_vector=self.cvss,
+                summary='arbitrary WebView content overwrite',
+                info1='{0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size),
+                source=self.context.source_name_of_disassembled_resource(fn)
+              )
 
       # XXX: crude detection
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
         try:
           v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
           if v.startswith('http://'):
-            yield self.issue(IssueConfidence.FIRM, self.cvss, 'arbitrary WebView content overwrite with URL', v, None, None, store.query().qualname_of(op))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.FIRM,
+              cvss3_vector=self.cvss,
+              summary='arbitrary WebView content overwrite with URL',
+              info1=v,
+              source=store.query().qualname_of(op)
+            )
         except DataFlows.NoSuchValueError:
           pass
 
@@ -188,9 +228,21 @@ class SecurityInsecureWebViewDetector(Detector):
               for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', '%s->addJavascriptInterface' % target)):
                 try:
                   if DataFlows.solved_constant_data_in_invocation(store, q, 0):
-                    yield self.issue(IssueConfidence.FIRM, self.cvss, 'insecure Javascript interface', None, None, None, store.query().qualname_of(q))
+                    yield Issue(
+                      detector_id=self.option,
+                      confidence=IssueConfidence.FIRM,
+                      cvss3_vector=self.cvss,
+                      summary='insecure Javascript interface',
+                      source=store.query().qualname_of(q)
+                    )
                 except (DataFlows.NoSuchValueError):
-                    yield self.issue(IssueConfidence.TENTATIVE, self.cvss, 'insecure Javascript interface', None, None, None, store.query().qualname_of(q))
+                    yield Issue(
+                      detector_id=self.option,
+                      confidence=IssueConfidence.TENTATIVE,
+                      cvss3_vector=self.cvss,
+                      summary='insecure Javascript interface',
+                      source=store.query().qualname_of(q)
+                    )
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -198,7 +250,13 @@ class SecurityInsecureWebViewDetector(Detector):
           try:
             val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
             if val == 0:
-              yield self.issue(IssueConfidence.FIRM, self.cvss, 'insecure mixed content mode', 'MIXED_CONTENT_ALWAYS_ALLOW', None, None, store.query().qualname_of(q))
+              yield Issue(
+                detector_id=self.option,
+                confidence=IssueConfidence.FIRM,
+                cvss3_vector=self.cvss,
+                summary='insecure mixed content mode',
+                info1='MIXED_CONTENT_ALWAYS_ALLOW',
+                source=store.query().qualname_of(q))
           except (DataFlows.NoSuchValueError):
             pass
 
@@ -215,10 +273,24 @@ class FormatStringDetector(Detector):
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'%s')):
         for t in self.analyzed(cl.p[1].v):
-          yield self.issue(t['confidence'], self.cvss, 'detected format string', t['value'], None, None, store.query().qualname_of(cl))
+          yield Issue(
+            detector_id=self.option,
+            confidence=t['confidence'],
+            cvss3_vector=self.cvss,
+            summary='detected format string',
+            info1=t['value'],
+            source=store.query().qualname_of(cl)
+          )
       for name, val in self.context.string_resources():
         for t in self.analyzed(val):
-          yield self.issue(t['confidence'], self.cvss, 'detected format string', t['value'], None, None, 'R.string.%s' % name)
+          yield Issue(
+            detector_id=self.option,
+            confidence=t['confidence'],
+            cvss3_vector=self.cvss,
+            summary='detected format string',
+            info1=t['value'],
+            source='R.string.%s' % name
+          )
 
 class LogDetector(Detector):
   option = 'security-log'
@@ -229,13 +301,50 @@ class LogDetector(Detector):
       for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         if 'print' not in cl.p[1].v:
           try:
-            yield self.issue(IssueConfidence.TENTATIVE, self.cvss, 'detected logging', cl.p[1].v, DataFlows.solved_constant_data_in_invocation(store, cl, 1), None, store.query().qualname_of(cl))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.TENTATIVE,
+              cvss3_vector=self.cvss,
+              summary='detected logging',
+              info1=cl.p[1].v,
+              info2=DataFlows.solved_constant_data_in_invocation(store, cl, 1),
+              source=store.query().qualname_of(cl)
+            )
           except (DataFlows.NoSuchValueError):
-            yield self.issue(IssueConfidence.TENTATIVE, self.cvss, 'detected logging', cl.p[1].v, None, None, store.query().qualname_of(cl))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.TENTATIVE,
+              cvss3_vector=self.cvss,
+              summary='detected logging',
+              info1=cl.p[1].v,
+              source=store.query().qualname_of(cl)
+            )
         elif 'Exception;->' not in cl.p[1].v:
           try:
-            yield self.issue(IssueConfidence.TENTATIVE, self.cvss, 'detected logging', cl.p[1].v, DataFlows.solved_constant_data_in_invocation(store, cl, 0), None, store.query().qualname_of(cl))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.TENTATIVE,
+              cvss3_vector=self.cvss,
+              summary='detected logging',
+              info1=cl.p[1].v,
+              info2=DataFlows.solved_constant_data_in_invocation(store, cl, 0),
+              source=store.query().qualname_of(cl)
+            )
           except (DataFlows.NoSuchValueError):
-            yield self.issue(IssueConfidence.TENTATIVE, self.cvss, 'detected logging', cl.p[1].v, None, None, store.query().qualname_of(cl))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.TENTATIVE,
+              cvss3_vector=self.cvss,
+              summary='detected logging',
+              info1=cl.p[1].v,
+              source=store.query().qualname_of(cl)
+            )
         else:
-          yield self.issue(IssueConfidence.TENTATIVE, self.cvss, 'detected logging', cl.p[1].v, None, None, store.query().qualname_of(cl))
+            yield Issue(
+              detector_id=self.option,
+              confidence=IssueConfidence.TENTATIVE,
+              cvss3_vector=self.cvss,
+              summary='detected logging',
+              info1=cl.p[1].v,
+              source=store.query().qualname_of(cl)
+            )

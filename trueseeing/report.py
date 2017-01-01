@@ -4,6 +4,7 @@ import logging
 import jinja2
 
 from trueseeing.signature.base import Issue
+from trueseeing.tools import noneif
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class CIReportGenerator(ReportGenerator):
     log.error(self._formatted(issue))
 
   def _formatted(self, issue):
-    return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=issue.source, row=(0 if issue.row is None else issue.row), col=(0 if issue.col is None else issue.col), severity=issue.severity(), confidence=issue.confidence, description=issue.description(), detector_id=issue.detector_id)
+    return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=noneif(issue.source, '(global)'), row=noneif(issue.row, 0), col=noneif(issue.col, 0), severity=issue.severity(), confidence=issue.confidence, description=issue.description(), detector_id=issue.detector_id)
 
 
 class HTMLReportGenerator(ReportGenerator):

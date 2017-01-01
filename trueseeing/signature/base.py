@@ -163,9 +163,6 @@ class Detector:
   def do_detect(self):
     pass
 
-  def issue(self, *args, **kwargs):
-    return Issue(detector_id=self.option, *args, **kwargs)
-
 class SignatureDiscoverer:
   PRIORITY = ['fingerprint', 'manifest', 'security']
 
