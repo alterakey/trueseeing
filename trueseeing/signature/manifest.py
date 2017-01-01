@@ -11,7 +11,8 @@
 import itertools
 import logging
 
-from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence, Issue
+from trueseeing.signature.base import Detector
+from trueseeing.issue import IssueConfidence, Issue
 
 log = logging.getLogger(__name__)
 

@@ -12,7 +12,8 @@ import re
 
 from trueseeing.flow.code import InvocationPattern
 from trueseeing.flow.data import DataFlows
-from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence, Issue
+from trueseeing.signature.base import Detector
+from trueseeing.issue import IssueConfidence, Issue
 
 log = logging.getLogger(__name__)
 
