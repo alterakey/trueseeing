@@ -18,7 +18,15 @@
     <h4>Instances</h4>
     <ul>
     {% for instance in issue.instances -%}
+    {% if instance.source is not none %}
+    {% if instance.row is not none %}
     <li>{{instance.info}} ({{instance.source}}:{{instance.row}})</li>
+    {% else %}
+    <li>{{instance.info}} ({{instance.source}})</li>
+    {% endif %}
+    {% else %}
+    <li>{{instance.info}}</li>
+    {% endif %}
     {% endfor -%}
     </ul>
     {% endfor %}
