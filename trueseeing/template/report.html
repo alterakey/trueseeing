@@ -8,9 +8,21 @@
     {% for issue in issues %}
     <h3>2.{{issue.no}} ({{issue.instances|length}}) {{issue.summary}}</h3>
     <h4>Synopsis</h4>
+    <p>{{issue.synopsis}}</p>
     <h4>Description</h4>
+    {% if issue.description is not none %}
+    <p>{{issue.description}}</p>
+    {% else %}
+    <p>No description provided.</p>
+    {% endif %}
+    {% if issue.seealso is not none %}
     <h4>See Also</h4>
+    <p>{{issue.seealso}}</p>
+    {% endif %}
+    {% if issue.solution is not none %}
     <h4>Solution</h4>
+    <p>{{issue.solution}}</p>
+    {% endif %}
     <h4>Risk Factor</h4>
     <p>{{issue.severity}}</p>
     <h4>CVSS Temporal Score</h4>
