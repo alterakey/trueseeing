@@ -29,7 +29,9 @@ class ManifestOpenPermissionDetector(Detector):
         cvss3_vector=self.cvss,
         summary='open permissions',
         info1=p,
-        source='AndroidManifest.xml'
+        source='AndroidManifest.xml',
+        synopsis="Application is requesting one or more permissions.",
+        description="Application is requesting one or more permissions.  Permissions are an important security system of Android.  They control accesses to sensitive information (e.g. GPS, IMEI/IMSI, process stats, accounts, contacts, SMSs) or possibly dangerous/costly operation (e.g. SMSs, internet access, controlling system services, obstructing screens.)  Requesting ones are vital for proper functioning of application, though abusage leads to hurt privacy or device availability.  This issue is just an observance; requesting permissions alone does not constitute an security issue.",
       ) for p in self.context.permissions_declared())
 
 class ManifestMissingPermissionDetector(Detector):
