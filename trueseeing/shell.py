@@ -39,7 +39,7 @@ def processed(apkfilename, chain):
         for e in c(context).detect():
           found = True
           reporter.note(e)
-          db.execute('insert into analysis_issues (detector, summary, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)', e.__dict__)
+          db.execute('insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)', e.__dict__)
         else:
           reporter.progress().progress()
     else:
