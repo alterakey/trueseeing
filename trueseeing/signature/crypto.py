@@ -153,14 +153,21 @@ class CryptoEcbDetector(Detector):
       for cl in store.query().invocations(InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
-          if any(('ECB' in x or '/' not in x) for x in target_val):
+          if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
             yield Issue(
               detector_id=self.option,
               cvss3_vector=self.cvss,
               confidence=IssueConfidence.CERTAIN,
               summary='insecure cryptography: cipher might be operating in ECB mode',
               info1=','.join(target_val),
-              source=store.query().qualname_of(cl)
+              source=store.query().qualname_of(cl),
+              synopsis='The application might be using ciphers in ECB mode.',
+              description='''\
+              The application might be using symmetric ciphers in ECB mode.  ECB mode is the most basic operating mode that independently transform data blocks.  Indepent transformation leaks information about distribution in plaintext.
+''',
+              solution='''\
+Use CBC or CTR mode.
+'''
             )
         except (DataFlows.NoSuchValueError):
           pass
