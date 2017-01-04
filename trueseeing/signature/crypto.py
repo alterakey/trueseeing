@@ -70,7 +70,7 @@ class CryptoStaticKeyDetector(Detector):
                   detector_id=self.option,
                   cvss3_vector=self.cvss,
                   confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)],
-                  summary='insecure cryptography: static keys',
+                  summary='insecure cryptography: static keys (1)',
                   info1='"%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)),
                   source=store.query().qualname_of(cl),
                   synopsis='Traces of cryptographic material has been found the application binary.',
@@ -86,7 +86,7 @@ Use a device or installation specific information, or obfuscate them.
                   detector_id=self.option,
                   cvss3_vector=self.cvss,
                   confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)],
-                  summary='insecure cryptography: static keys',
+                  summary='insecure cryptography: static keys (1)',
                   info1='"%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)),
                   source=store.query().qualname_of(cl),
                   synopsis='Traces of cryptographic material has been found the application binary.',
@@ -114,7 +114,7 @@ Use a device or installation specific information, or obfuscate them.
           detector_id=self.option,
           cvss3_vector=self.cvss,
           confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)],
-          summary='insecure cryptography: static keys',
+          summary='insecure cryptography: static keys (2)',
           info1='"%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)),
           source=store.query().qualname_of(cl),
           synopsis='Traces of X.509 certificates has been found the application binary.',
@@ -131,9 +131,16 @@ Use a device or installation specific information, or obfuscate them.  Especiall
             detector_id=self.option,
             cvss3_vector=self.cvss,
             confidence=IssueConfidence.TENTATIVE,
-            summary='insecure cryptography: static keys',
+            summary='insecure cryptography: static keys (2)',
             info1='"%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)),
-            source='R.string.%s' % name
+            source='R.string.%s' % name,
+            synopsis='Traces of X.509 certificates has been found the application binary.',
+            description='''\
+Traces of X.509 certificates has been found in the application binary.  X.509 ceritificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
+''',
+            solution='''\
+Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
+'''
           )
 
 
