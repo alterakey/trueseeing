@@ -1,46 +1,67 @@
 <!DOCTYPE html>
 <html>
-  <head><title>Trueseeing2 Report</title></head>
+  <head>
+    <title>Trueseeing2 Report</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+  </head>
   <body>
-    <h1>Trueseeing2 Report</h1>
-    <h2>1. Overview</h2>
-    <h2>2. Details</h2>
-    {% for issue in issues %}
-    <h3>2.{{issue.no}} ({{issue.instances|length}}) {{issue.summary}}</h3>
-    <h4>Synopsis</h4>
-    <p>{{issue.synopsis}}</p>
-    <h4>Description</h4>
-    {% if issue.description is not none %}
-    <p>{{issue.description}}</p>
-    {% else %}
-    <p>No description provided.</p>
-    {% endif %}
-    {% if issue.seealso is not none %}
-    <h4>See Also</h4>
-    <p>{{issue.seealso}}</p>
-    {% endif %}
-    {% if issue.solution is not none %}
-    <h4>Solution</h4>
-    <p>{{issue.solution}}</p>
-    {% endif %}
-    <h4>Risk Factor</h4>
-    <p>{{issue.severity}}</p>
-    <h4>CVSS Temporal Score</h4>
-    <p>{{issue.cvss3_score}} ({{issue.cvss3_vector}})</p>
-    <h4>Instances</h4>
-    <ul>
-    {% for instance in issue.instances -%}
-    {% if instance.source is not none %}
-    {% if instance.row is not none %}
-    <li>{{instance.info}} ({{instance.source}}:{{instance.row}})</li>
-    {% else %}
-    <li>{{instance.info}} ({{instance.source}})</li>
-    {% endif %}
-    {% else %}
-    <li>{{instance.info}}</li>
-    {% endif %}
-    {% endfor -%}
-    </ul>
-    {% endfor %}
+    <div class="container" role="main">
+      <div class="jumbotron">
+	<h1>Trueseeing2 Report</h1>
+      </div>
+      <div class="pageheader">
+	<h1>1. Overview</h2>
+      </div>
+      <div class="pageheader">
+	<h1>2. Details</h2>
+      </div>
+      {% for issue in issues %}
+      <div class="panel {{issue.severity_panel_style}}">
+	<div class="panel-heading">
+	  <h3 class="panel-title">2.{{issue.no}} ({{issue.instances|length}}) {{issue.summary}}</h3>
+	</div>
+	<div class="panel-body">
+	    <h4>Synopsis</h4>
+	    <p>{{issue.synopsis}}</p>
+	    <h4>Description</h4>
+	    {% if issue.description is not none %}
+	    <p>{{issue.description}}</p>
+	    {% else %}
+	    <p>No description provided.</p>
+	    {% endif %}
+	    {% if issue.seealso is not none %}
+	    <h4>See Also</h4>
+	    <p>{{issue.seealso}}</p>
+	    {% endif %}
+	    {% if issue.solution is not none %}
+	    <h4>Solution</h4>
+	    <p>{{issue.solution}}</p>
+	    {% endif %}
+	    <h4>Risk Factor</h4>
+	    <p>{{issue.severity}}</p>
+	    <h4>CVSS Temporal Score</h4>
+	    <p>{{issue.cvss3_score}} ({{issue.cvss3_vector}})</p>
+	    <h4>Instances</h4>
+	    <ul>
+	      {% for instance in issue.instances -%}
+	      {% if instance.source is not none %}
+	      {% if instance.row is not none %}
+	      <li>{{instance.info}} ({{instance.source}}:{{instance.row}})</li>
+	      {% else %}
+	      <li>{{instance.info}} ({{instance.source}})</li>
+	      {% endif %}
+	      {% else %}
+	      <li>{{instance.info}}</li>
+	      {% endif %}
+	      {% endfor -%}
+	    </ul>
+	</div>
+      </div>
+      {% endfor %}
+      </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
   </body>
 </html>
