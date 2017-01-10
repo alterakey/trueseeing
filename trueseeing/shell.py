@@ -20,7 +20,7 @@ signatures = collections.OrderedDict([cl.as_signature() for cl in trueseeing.sig
 signatures_all = set(signatures.keys())
 signatures_default = signatures_all.copy()
 
-def processed(apkfilename, chain):
+def processed(apkfilename, chain, output_format=None):
   with Context() as context:
     context.analyze(apkfilename)
     log.info("%s -> %s" % (apkfilename, context.wd))
@@ -31,8 +31,10 @@ def processed(apkfilename, chain):
     sigs_done = 0
     sigs_total = len(chain)
 
-    #reporter = CIReportGenerator(context)
-    reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
+    if output_format == 'gcc':
+      reporter = CIReportGenerator(context)
+    else:
+      reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
 
     for c in chain:
       with context.store().db as db:
@@ -62,9 +64,10 @@ def shell(argv):
   fingerprint_mode = False
   grab_mode = False
   inspection_mode = False
+  output_format = None
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect'])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output='])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -88,6 +91,8 @@ def shell(argv):
         fingerprint_mode = True
       if o in ['--inspect']:
         inspection_mode = True
+      if o in ['--output']:
+        output_format = a
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -102,7 +107,7 @@ def shell(argv):
       if not any([fingerprint_mode, grab_mode, inspection_mode]):
         error_found = False
         for f in files:
-          if processed(f, [v for k,v in signatures.items() if k in signature_selected]):
+          if processed(f, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format):
             error_found = True
         if not error_found:
           return 0
