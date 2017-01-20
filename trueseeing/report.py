@@ -84,4 +84,14 @@ class HTMLReportGenerator(ReportGenerator):
         for m in db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', {v:row[k] for k,v in {0:'detector', 1:'summary', 6:'cvss3_score'}.items()}):
           issue = Issue.from_analysis_issues_row(m)
           instances.append(dict(info=issue.brief_info(), source=issue.source, row=issue.row, col=issue.col))
-      sys.stdout.write(self._template.render(issues=issues))
+
+      app = dict(
+        package=self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
+        issues=len(issues),
+        issues_critical=len([_ for _ in issues if _['severity'] == 'Critical']),
+        issues_high=len([_ for _ in issues if _['severity'] == 'High']),
+        issues_medium=len([_ for _ in issues if _['severity'] == 'Medium']),
+        issues_low=len([_ for _ in issues if _['severity'] == 'Low']),
+        issues_info=len([_ for _ in issues if _['severity'] == 'Info'])
+      )
+      sys.stdout.write(self._template.render(app=app, issues=issues))

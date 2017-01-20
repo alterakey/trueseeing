@@ -13,6 +13,42 @@
       <div class="pageheader">
 	<h1>1. Overview</h2>
       </div>
+      <div>
+	<p>Trueseeing2 has analyzed the given application '{{app.package}}'.</p>
+
+	<p>We have detected {{app.issues}} issues.</p>
+	<div class="progress">
+	  <div class="progress-bar progress-bar-danger progress-bar-striped" style="width: {{app.issues_critical / app.issues * 100}}%">
+	    <span class="sr-only">{{app.issues_critical}}</span>
+	  </div>
+	  <div class="progress-bar progress-bar-warning progress-bar-striped" style="width: {{app.issues_high / app.issues * 100}}%">
+	    <span class="sr-only">{{app.issues_high}}</span>
+	  </div>
+	  <div class="progress-bar progress-bar-warning" style="width: {{app.issues_medium / app.issues * 100}}%">
+	    <span class="sr-only">{{app.issues_medium}}</span>
+	  </div>
+	  <div class="progress-bar progress-bar-success" style="width: {{app.issues_low / app.issues * 100}}%">
+	    <span class="sr-only">{{app.issues_low}}</span>
+	  </div>
+	  <div class="progress-bar progress-bar-info" style="width: {{app.issues_info / app.issues * 100}}%">
+	    <span class="sr-only">{{app.issues_info}}</span>
+	  </div>
+	</div>
+
+	<table class="table table-hover">
+	<thead>
+	  <th>Severity</th><th>Count</th>
+	</thead>
+	<tbody>
+	  <tr><td>Critical</td><td>{{app.issues_critical}}</td></tr>
+	  <tr><td>High</td><td>{{app.issues_high}}</td></td></td></tr>
+	  <tr><td>Medium</td><td>{{app.issues_medium}}</td></td></td></tr>
+	  <tr><td>Low</td><td>{{app.issues_low}}</td></td></td></tr>
+	  <tr><td>Info</td><td>{{app.issues_info}}</td></td></td></tr>
+	</tbody>
+	</table>
+
+      </div>
       <div class="pageheader">
 	<h1>2. Details</h2>
       </div>
