@@ -7,7 +7,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.md')).read()
 CHANGES = open(os.path.join(here, 'CHANGES.md')).read()
 
-requires = open(os.path.join(here, 'requirements.txt').read()).split()
+requires = open(os.path.join(here, 'requirements.txt')).read().split()
 
 setup(
   name='trueseeing',

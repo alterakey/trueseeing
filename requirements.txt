@@ -3,3 +3,4 @@ hypothesis
 wheel
 lxml
 ipython
+jinja2

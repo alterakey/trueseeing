@@ -9,7 +9,8 @@ import re
 import logging
 from trueseeing.flow.code import InvocationPattern
 from trueseeing.flow.data import DataFlows
-from trueseeing.signature.base import Detector, IssueSeverity, IssueConfidence
+from trueseeing.signature.base import Detector
+from trueseeing.issue import IssueConfidence, Issue
 
 import pkg_resources
 
@@ -69,7 +70,15 @@ class LibraryDetector(Detector):
           pass
     packages = {k:v for k,v in packages.items() if not self.is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
-    yield from (self.issue(IssueConfidence.FIRM, self.cvss, 'detected library', '%s (score: %d)' % (p, len(packages[p])), None, None, '(global)') for p in sorted(packages.keys()))
+    yield from (
+      Issue(
+        detector_id=self.option,
+        confidence=IssueConfidence.FIRM,
+        cvss3_vector=self.cvss,
+        summary='detected library',
+        info1='%s (score: %d)' % (p, len(packages[p])),
+      ) for p in sorted(packages.keys())
+    )
 
 
 class ProGuardDetector(Detector):
@@ -83,10 +92,10 @@ class ProGuardDetector(Detector):
   def detect(self):
     for c in (self.class_name_of(self.context.source_name_of_disassembled_class(r)) for r in self.context.disassembled_classes()):
       if re.search('(?:^|\.)a$', c):
-        yield self.issue(IssueConfidence.CERTAIN, self.cvss_true, 'detected obfuscator', 'ProGuard', None, None, '(global)')
+        yield Issue(detector_id=self.option, confidence=IssueConfidence.CERTAIN, cvss3_vector=self.cvss_true, summary='detected obfuscator', info1='ProGuard')
         break
     else:
-      yield self.issue(IssueConfidence.FIRM, self.cvss_false, 'lack of obfuscation', None, None, None, '(global)')
+      yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss_false, summary='lack of obfuscation')
 
 class FakeToken:
   def __init__(self, v, p):
@@ -123,8 +132,8 @@ class UrlLikeDetector(Detector):
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
         for match in self.analyzed(cl.p[1].v):
           for v in match['value']:
-            yield self.issue(IssueConfidence.FIRM, self.cvss, 'detected %s' % match['type_'], v, None, None, store.query().qualname_of(cl))
+            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary='detected %s' % match['type_'], info1=v, source=store.query().qualname_of(cl))
       for name, val in self.context.string_resources():
         for match in self.analyzed(val):
           for v in match['value']:
-            yield self.issue(IssueConfidence.FIRM, self.cvss, 'detected %s' % match['type_'], v, None, None, 'R.string.%s' % name)
+            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary='detected %s' % match['type_'], info1=v, source='R.string.%s' % name)

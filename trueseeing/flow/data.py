@@ -58,7 +58,10 @@ class DataFlows:
   def solved_constant_data_in_invocation(store, invokation_op, index):
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(store, invokation_op)
-    reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
+    try:
+      reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
+    except IndexError:
+      raise DataFlows.NoSuchValueError('argument not found at index %d' % index)
     arg = graph[invokation_op][reg]
     try:
       if arg.t == 'id' and arg.v.startswith('const'):

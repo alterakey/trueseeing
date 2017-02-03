@@ -10,6 +10,7 @@ import trueseeing.exploit
 import trueseeing.grab
 
 from trueseeing.context import Context
+from trueseeing.report import CIReportGenerator, HTMLReportGenerator, ProgressReporter
 
 log = logging.getLogger(__name__)
 
@@ -19,10 +20,7 @@ signatures = collections.OrderedDict([cl.as_signature() for cl in trueseeing.sig
 signatures_all = set(signatures.keys())
 signatures_default = signatures_all.copy()
 
-def formatted(issue):
-  return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=issue.source, row=(0 if issue.row is None else issue.row), col=(0 if issue.col is None else issue.col), severity=issue.severity(), confidence=issue.confidence, description=issue.description(), detector_id=issue.detector_id)
-
-def processed(apkfilename, chain):
+def processed(apkfilename, chain, output_format=None):
   with Context() as context:
     context.analyze(apkfilename)
     log.info("%s -> %s" % (apkfilename, context.wd))
@@ -30,12 +28,24 @@ def processed(apkfilename, chain):
       db.execute('delete from analysis_issues')
 
     found = False
+    sigs_done = 0
+    sigs_total = len(chain)
+
+    if output_format == 'gcc':
+      reporter = CIReportGenerator(context)
+    else:
+      reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
+
     for c in chain:
       with context.store().db as db:
         for e in c(context).detect():
           found = True
-          log.error(formatted(e))
-          db.execute('insert into analysis_issues (detector, summary, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)', e.__dict__)
+          reporter.note(e)
+          db.execute('insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)', e.__dict__)
+        else:
+          reporter.progress().progress()
+    else:
+      reporter.generate()
     return found
 
 def selected_signatures_on(switch):
@@ -54,9 +64,10 @@ def shell(argv):
   fingerprint_mode = False
   grab_mode = False
   inspection_mode = False
+  output_format = None
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect'])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output='])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -80,6 +91,8 @@ def shell(argv):
         fingerprint_mode = True
       if o in ['--inspect']:
         inspection_mode = True
+      if o in ['--output']:
+        output_format = a
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -94,7 +107,7 @@ def shell(argv):
       if not any([fingerprint_mode, grab_mode, inspection_mode]):
         error_found = False
         for f in files:
-          if processed(f, [v for k,v in signatures.items() if k in signature_selected]):
+          if processed(f, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format):
             error_found = True
         if not error_found:
           return 0

@@ -65,7 +65,7 @@ insert into interests_sputs select op, v, v1 as target from op_vecs where t='id'
 create index interests_sputs_target on interests_sputs (target);
 
 -- analytic reports
-create table analysis_issues (detector varchar not null, summary varchar not null, info1 varchar, info2 varchar, info3 varchar, confidence varchar not null, cvss3_score float not null, cvss3_vector varchar not null, source varchar, row varchar, col varchar);
+create table analysis_issues (detector varchar not null, summary varchar not null, synopsis varchar, description varchar, seealso varchar, solution varchar, info1 varchar, info2 varchar, info3 varchar, confidence varchar not null, cvss3_score float not null, cvss3_vector varchar not null, source varchar, row varchar, col varchar);
 
 analyze;
 
