@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def entropy_of(self, string):
     o = 0.0
@@ -57,7 +58,8 @@ class CryptoStaticKeyDetector(Detector):
 
   def do_detect_case1(self):
     def looks_like_real_key(k):
-      return len(k) >= 8 and 'Padding' not in k
+      # XXX: silly
+      return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac'))
 
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', 'Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|Ljavax?.*/MessageDigest;->(update|digest)')):
@@ -66,12 +68,17 @@ class CryptoStaticKeyDetector(Detector):
             for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
               try:
                 decoded = base64.b64decode(found)
+                info1 = '"%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
+              except (ValueError, binascii.Error):
+                info1 = '"%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found))
+
+              if looks_like_real_key(found):
                 yield Issue(
                   detector_id=self.option,
                   cvss3_vector=self.cvss,
-                  confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)],
-                  summary='insecure cryptography: static keys (1)',
-                  info1='"%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded)),
+                  confidence=IssueConfidence.FIRM,
+                  summary='insecure cryptography: static keys',
+                  info1=info1,
                   source=store.query().qualname_of(cl),
                   synopsis='Traces of cryptographic material has been found the application binary.',
                   description='''\
@@ -81,22 +88,18 @@ Traces of cryptographic material has been found in the application binary.  If c
 Use a device or installation specific information, or obfuscate them.
 '''
                 )
-              except (ValueError, binascii.Error):
+              else:
                 yield Issue(
                   detector_id=self.option,
-                  cvss3_vector=self.cvss,
-                  confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[looks_like_real_key(found)],
-                  summary='insecure cryptography: static keys (1)',
-                  info1='"%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found)),
+                  cvss3_vector=self.cvss_nonkey,
+                  confidence=IssueConfidence.TENTATIVE,
+                  summary='Cryptographic constants detected',
+                  info1=info1,
                   source=store.query().qualname_of(cl),
-                  synopsis='Traces of cryptographic material has been found the application binary.',
+                  synopsis='Possible cryptographic constants have been found.',
                   description='''\
-Traces of cryptographic material has been found in the application binary.  If cryptographic material is hardcoded, attackers can extract or replace them.
-''',
-                  solution='''\
-Use a device or installation specific information, or obfuscate them.
+Possible cryptographic constants has been found in the application binary.
 '''
-
                 )
         except IndexError:
           pass
@@ -104,7 +107,7 @@ Use a device or installation specific information, or obfuscate them.
   def do_detect_case2(self):
     # XXX: Crude detection
     def should_be_secret(store, k, val):
-      return any(x in store.query().qualname_of(k).lower() for x in ['inapp','billing','iab','sku','store'])
+      return any(x in store.query().qualname_of(k).lower() for x in ['inapp','billing','iab','sku','store','key'])
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
     with self.context.store() as store:
@@ -115,7 +118,7 @@ Use a device or installation specific information, or obfuscate them.
           cvss3_vector=self.cvss,
           confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)],
           summary='insecure cryptography: static keys (2)',
-          info1='"%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)),
+          info1='"%(target_val)s" [%(target_val_len)d] (X.509)' % dict(target_val=val, target_val_len=len(val)),
           source=store.query().qualname_of(cl),
           synopsis='Traces of X.509 certificates has been found the application binary.',
           description='''\
@@ -132,7 +135,7 @@ Use a device or installation specific information, or obfuscate them.  Especiall
             cvss3_vector=self.cvss,
             confidence=IssueConfidence.TENTATIVE,
             summary='insecure cryptography: static keys (2)',
-            info1='"%(target_val)s" [%(target_val_len)d] (X.509; Google Play In App Billing Key)' % dict(target_val=val, target_val_len=len(val)),
+            info1='"%(target_val)s" [%(target_val_len)d] (X.509)' % dict(target_val=val, target_val_len=len(val)),
             source='R.string.%s' % name,
             synopsis='Traces of X.509 certificates has been found the application binary.',
             description='''\
