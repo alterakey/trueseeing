@@ -75,6 +75,15 @@ class Context:
         self.state['ts2.context.disassembled_resources'].extend(os.path.join(root, f) for f in files if f.endswith('.xml'))
       return self.disassembled_resources()
 
+  def disassembled_assets(self):
+    try:
+      return self.state['ts2.context.disassembled_assets']
+    except KeyError:
+      self.state['ts2.context.disassembled_assets'] = []
+      for root, dirs, files in os.walk(os.path.join(self.wd, 'assets')):
+        self.state['ts2.context.disassembled_assets'].extend(os.path.join(root, f) for f in files)
+      return self.disassembled_assets()
+
   def source_name_of_disassembled_class(self, fn):
     return os.path.join(*os.path.relpath(fn, self.wd).split(os.sep)[1:])
 
