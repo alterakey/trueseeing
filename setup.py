@@ -7,7 +7,23 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.md')).read()
 CHANGES = open(os.path.join(here, 'CHANGES.md')).read()
 
-requires = open(os.path.join(here, 'requirements.txt')).read().split()
+install_require = [
+  "wheel",
+  "lxml",
+  "ipython",
+  "jinja2"
+]
+
+tests_requires = [
+  "nose",
+  "hypothesis",
+]
+
+testing_requires = tests_requires
+
+api_requires = [
+  "pyramid"
+]
 
 setup(
   name='trueseeing',
@@ -26,6 +42,11 @@ setup(
   package_data={'trueseeing':['libs/*.jar', 'libs/*.txt', 'libs/*.sql']},
   include_package_data=True,
   zip_safe=False,
-  install_requires = requires,
+  install_requires=install_require,
+  extras_require={
+    "testing":testing_requires,
+    "api":api_requires
+  },
+  tests_require=tests_requires,
   entry_points = {'console_scripts':['trueseeing = trueseeing.shell:entry']}
 )
