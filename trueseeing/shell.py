@@ -10,7 +10,7 @@ import trueseeing.exploit
 import trueseeing.grab
 
 from trueseeing.context import Context
-from trueseeing.report import CIReportGenerator, HTMLReportGenerator, ProgressReporter
+from trueseeing.report import CIReportGenerator, HTMLReportGenerator, APIHTMLReportGenerator, NullReporter, ProgressReporter
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +33,8 @@ def processed(apkfilename, chain, output_format=None):
 
     if output_format == 'gcc':
       reporter = CIReportGenerator(context)
+    elif output_format == 'api':
+      reporter = APIHTMLReportGenerator(context, NullReporter())
     else:
       reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
 
@@ -46,7 +48,7 @@ def processed(apkfilename, chain, output_format=None):
           reporter.progress().progress()
     else:
       reporter.generate()
-    return found
+    return reporter.return_(found)
 
 def selected_signatures_on(switch):
   if switch != 'all':

@@ -57,17 +57,22 @@ class ReportGenerator:
   def generate(self):
     self._progress.done()
 
+  def return_(self, found):
+    return found
+
 class CIReportGenerator(ReportGenerator):
   def __init__(self, context):
     super().__init__(context, NullReporter())
 
   def note(self, issue):
     super().note(issue)
-    log.error(self._formatted(issue))
+    self._write(self._formatted(issue))
+
+  def _write(self, x):
+    log.error(x)
 
   def _formatted(self, issue):
     return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=noneif(issue.source, '(global)'), row=noneif(issue.row, 0), col=noneif(issue.col, 0), severity=issue.severity(), confidence=issue.confidence, description=issue.brief_description(), detector_id=issue.detector_id)
-
 
 class HTMLReportGenerator(ReportGenerator):
   def __init__(self, context, progress):
@@ -94,4 +99,14 @@ class HTMLReportGenerator(ReportGenerator):
         issues_low=len([_ for _ in issues if _['severity'] == 'Low']),
         issues_info=len([_ for _ in issues if _['severity'] == 'Info'])
       )
-      sys.stdout.write(self._template.render(app=app, issues=issues))
+      self._write(self._template.render(app=app, issues=issues))
+
+  def _write(self, x):
+    sys.stdout.write(x)
+
+class APIHTMLReportGenerator(HTMLReportGenerator):
+  def _write(self, x):
+    self.result = x
+
+  def return_(self, found):
+    return self.result
