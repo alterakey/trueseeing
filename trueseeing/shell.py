@@ -3,6 +3,7 @@ import sys
 import getopt
 import configparser
 import logging
+import resource
 import collections
 
 import trueseeing.signature.base
@@ -69,7 +70,7 @@ def shell(argv):
   output_format = None
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output='])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'rlimit-cpu=', 'rlimit-mem='])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -95,6 +96,10 @@ def shell(argv):
         inspection_mode = True
       if o in ['--output']:
         output_format = a
+      if o in ['--rlimit-cpu']:
+        resource.setrlimit(resource.RLIMIT_CPU, (int(a), int(a)))
+      if o in ['--rlimit-mem']:
+        resource.setrlimit(resource.RLIMIT_RSS, (int(a), int(a)))
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
