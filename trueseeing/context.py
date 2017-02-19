@@ -9,6 +9,7 @@ import zipfile
 import itertools
 import glob
 import sys
+import subprocess
 
 import trueseeing.code.parse
 import trueseeing.store
@@ -44,7 +45,7 @@ class Context:
         os.makedirs(self.wd, mode=0o700)
       if not os.path.exists(os.path.join(self.wd, '.done')):
         # XXX insecure
-        os.system("java -jar %(apktool)s d -f%(skipresflag)so %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('r' if skip_resources else '')))
+        subprocess.run("java -jar %(apktool)s d -f%(skipresflag)so %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('r' if skip_resources else '')), shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         with open(os.path.join(self.wd, '.done'), 'w'):
           pass
       if not os.path.exists(os.path.join(self.wd, 'store.db')):
