@@ -5,13 +5,14 @@ import configparser
 import logging
 import resource
 import collections
+import tempfile
 
 import trueseeing.signature.base
 import trueseeing.exploit
 import trueseeing.grab
 
 from trueseeing.context import Context
-from trueseeing.report import CIReportGenerator, HTMLReportGenerator, APIHTMLReportGenerator, NullReporter, ProgressReporter
+from trueseeing.report import CIReportGenerator, HTMLReportGenerator, APIHTMLReportGenerator, NullReporter, ProgressReporter, APIProgressReporter
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def processed(apkfilename, chain, output_format=None):
     if output_format == 'gcc':
       reporter = CIReportGenerator(context)
     elif output_format == 'api':
-      reporter = APIHTMLReportGenerator(context, NullReporter())
+      reporter = APIHTMLReportGenerator(context, APIProgressReporter(sigs_total))
     else:
       reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
 
@@ -68,9 +69,11 @@ def shell(argv):
   grab_mode = False
   inspection_mode = False
   output_format = None
+  api_mode = True
+  api_read_limit = None
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'rlimit-cpu=', 'rlimit-mem='])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'rlimit-cpu=', 'rlimit-mem=', 'rlimit-input=', 'api'])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -96,10 +99,15 @@ def shell(argv):
         inspection_mode = True
       if o in ['--output']:
         output_format = a
+      if o in ['--api']:
+        output_format = 'api'
+        api_mode = True
       if o in ['--rlimit-cpu']:
         resource.setrlimit(resource.RLIMIT_CPU, (int(a), int(a)))
       if o in ['--rlimit-mem']:
         resource.setrlimit(resource.RLIMIT_RSS, (int(a), int(a)))
+      if o in ['--rlimit-input']:
+        api_read_limit = int(a)
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -111,7 +119,7 @@ def shell(argv):
     logging.basicConfig(level=log_level, format="%(msg)s")
 
     if not exploitation_mode:
-      if not any([fingerprint_mode, grab_mode, inspection_mode]):
+      if not any([fingerprint_mode, grab_mode, inspection_mode, api_mode]):
         error_found = False
         for f in files:
           if processed(f, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format):
@@ -120,6 +128,15 @@ def shell(argv):
           return 0
         else:
           return 1
+      elif api_mode:
+        with tempfile.NamedTemporaryFile('w+b') as f:
+          if api_read_limit is not None:
+            f.write(sys.stdin.buffer.read(api_read_limit))
+          else:
+            f.write(sys.stdin.buffer.read())
+          f.seek(0)
+          processed(f, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format)
+          return 0
       elif fingerprint_mode:
         for f in files:
           print('%s: %s' % (f, Context().fingerprint_of(f)))
