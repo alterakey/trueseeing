@@ -104,28 +104,3 @@ class HTMLReportGenerator(ReportGenerator):
 
   def _write(self, x):
     sys.stdout.write(x)
-
-class APIProgressReporter:
-  def __init__(self, total_sigs):
-    self._sigs_done = 0
-    self._sigs_total = total_sigs
-    self._issues = dict(critical=0, high=0, medium=0, low=0, info=0, progress=0.0)
-
-  def issue(self, issue):
-    self._issues[issue.severity()] += 1
-    self._report()
-
-  def progress(self):
-    self._sigs_done += 1
-    self._issues['progress'] = 100.0 * (self._sigs_done / float(self._sigs_total))
-    self._report()
-
-  def _report(self):
-    sys.stdout.write(json.dumps(self._issues) + '\n')
-
-  def done(self):
-    pass
-
-class APIHTMLReportGenerator(HTMLReportGenerator):
-  def _write(self, x):
-    sys.stdout.write(json.dumps({'report':x}) + '\n')

@@ -12,7 +12,7 @@ import trueseeing.exploit
 import trueseeing.grab
 
 from trueseeing.context import Context
-from trueseeing.report import CIReportGenerator, HTMLReportGenerator, APIHTMLReportGenerator, NullReporter, ProgressReporter, APIProgressReporter
+from trueseeing.report import CIReportGenerator, HTMLReportGenerator, NullReporter, ProgressReporter
 
 log = logging.getLogger(__name__)
 
@@ -35,8 +35,6 @@ def processed(apkfilename, chain, output_format=None):
 
     if output_format == 'gcc':
       reporter = CIReportGenerator(context)
-    elif output_format == 'api':
-      reporter = APIHTMLReportGenerator(context, APIProgressReporter(sigs_total))
     else:
       reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
 
@@ -100,7 +98,6 @@ def shell(argv):
       if o in ['--output']:
         output_format = a
       if o in ['--api']:
-        output_format = 'api'
         api_mode = True
       if o in ['--rlimit-cpu']:
         resource.setrlimit(resource.RLIMIT_CPU, (int(a), int(a)))
