@@ -38,6 +38,7 @@ class SmaliAnalyzer:
         analyzed_ops = analyzed_ops + 1
         if analyzed_ops & 0xffff == 0:
           sys.stderr.write("\ranalyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
+          sys.stderr.flush()
 
         if reg1 is not None:
           reg1.append(t)
@@ -68,8 +69,10 @@ class SmaliAnalyzer:
 
     sys.stderr.write(("\ranalyzed: %d ops, %d methods, %d classes" + (" " * 20) + "\n") % (analyzed_ops, analyzed_methods, analyzed_classes))
     sys.stderr.write("analyzed: finalizing\n")
+    sys.stderr.flush()
     self.store.op_finalize()
     sys.stderr.write("analyzed: done (%.02f sec)\n" % (time.time() - started))
+    sys.stderr.flush()
 
 class P:
   @staticmethod

@@ -40,9 +40,11 @@ class ProgressReporter:
 
   def _report(self):
     sys.stderr.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d' % self._issues)
+    sys.stderr.flush()
 
   def done(self):
     sys.stderr.write('\n')
+    sys.stderr.flush()
 
 class ReportGenerator:
   def __init__(self, context, progress):
@@ -104,3 +106,4 @@ class HTMLReportGenerator(ReportGenerator):
 
   def _write(self, x):
     sys.stdout.write(x)
+    sys.stdout.flush()

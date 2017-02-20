@@ -6,6 +6,7 @@ import logging
 import resource
 import collections
 import tempfile
+import datetime
 
 import trueseeing.signature.base
 import trueseeing.exploit
@@ -68,10 +69,12 @@ def shell(argv):
   inspection_mode = False
   output_format = None
   api_mode = False
+  api_cputime_limit = None
   api_read_limit = None
+  api_expires = None
 
   try:
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'rlimit-cpu=', 'rlimit-mem=', 'rlimit-input=', 'api'])
+    opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'rlimit-cpu=', 'rlimit-input=', 'rlimit-expires=', 'api'])
     for o, a in opts:
       if o in ['-d']:
         log_level = logging.DEBUG
@@ -100,11 +103,12 @@ def shell(argv):
       if o in ['--api']:
         api_mode = True
       if o in ['--rlimit-cpu']:
-        resource.setrlimit(resource.RLIMIT_CPU, (int(a), int(a)))
-      if o in ['--rlimit-mem']:
-        resource.setrlimit(resource.RLIMIT_RSS, (int(a), int(a)))
+        api_cputime_limit = int(a)
+        resource.setrlimit(resource.RLIMIT_CPU, (api_cputime_limit, api_cputime_limit))
       if o in ['--rlimit-input']:
         api_read_limit = int(a)
+      if o in ['--rlimit-expires']:
+        api_expires = datetime.datetime.fromtimestamp(int(a))
   except IndexError:
     print("%s: no input files" % argv[0])
     return 2
@@ -126,6 +130,17 @@ def shell(argv):
         else:
           return 1
       elif api_mode:
+        if api_expires is not None:
+          if api_expires < datetime.datetime.today():
+            sys.stderr.write('Your license is expired\n')
+            return 1
+
+        sys.stderr.write('Trueseeing 2.0.0, the app vulnerability scanner\n')
+        sys.stderr.write('Copyright (C) 2017 Takahiro Yoshimura <altakey@gmail.com>.  All rights reserved.\n')
+        sys.stderr.write('Maximum CPU time is %s\n' % ('%.02f sec' % api_cputime_limit if api_cputime_limit is not None else 'unlimited'))
+        sys.stderr.write('Maximum input filesize: %s\n' % ('%d bytes' % api_read_limit if api_read_limit is not None else 'unlimited'))
+        sys.stderr.write('Expires at: %s\n' % (api_expires.date().isoformat() if api_expires is not None else 'unlimited'))
+        sys.stderr.flush()
         with tempfile.NamedTemporaryFile('w+b') as f:
           if api_read_limit is not None:
             f.write(sys.stdin.buffer.read(api_read_limit))

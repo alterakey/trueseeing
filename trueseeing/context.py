@@ -41,15 +41,24 @@ class Context:
     if self.wd is None:
       self.apk = apk
       self.wd = self.workdir_of(apk)
-      if not os.path.exists(self.wd):
-        os.makedirs(self.wd, mode=0o700)
+      if not os.path.exists(os.path.join(self.wd, 'target.apk')):
+        shutil.copyfile(self.apk.name, os.path.join(self.wd, 'target.apk'))
       if not os.path.exists(os.path.join(self.wd, '.done')):
+        if os.path.exists(self.wd):
+          sys.stderr.write('analyze: removing leftover\n')
+          sys.stderr.flush()
+          shutil.rmtree(self.wd)
+
+        sys.stderr.write('\ranalyze: disassembling... ')
+        sys.stderr.flush()
+        os.makedirs(self.wd, mode=0o700)
         # XXX insecure
         subprocess.run("java -jar %(apktool)s d -f%(skipresflag)so %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk.name, skipresflag=('r' if skip_resources else '')), shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        trueseeing.code.parse.SmaliAnalyzer(self.store()).analyze(open(fn, 'r') for fn in self.disassembled_classes())
         with open(os.path.join(self.wd, '.done'), 'w'):
           pass
-      if not os.path.exists(os.path.join(self.wd, 'store.db')):
-        trueseeing.code.parse.SmaliAnalyzer(self.store()).analyze(open(fn, 'r') for fn in self.disassembled_classes())
+        sys.stderr.write('\ranalyze: disassembling... done.\n')
+        sys.stderr.flush()
 
     else:
       raise ValueError('analyzed once')
