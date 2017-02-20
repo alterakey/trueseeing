@@ -69,7 +69,7 @@ def shell(argv):
   grab_mode = False
   inspection_mode = False
   output_format = None
-  api_mode = True
+  api_mode = False
   api_read_limit = None
 
   try:
