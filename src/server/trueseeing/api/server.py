@@ -92,7 +92,7 @@ async def entry(websocket, path):
         finally:
             transport.close()
 
-if __name__ == '__main__':
+def shell():
     import sys
     import os
     import getopt
@@ -145,3 +145,6 @@ if __name__ == '__main__':
     start_server = websockets.serve(entry, listen_at['host'], listen_at['port'])
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
+
+if __name__ == '__main__':
+    shell()

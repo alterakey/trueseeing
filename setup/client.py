@@ -4,12 +4,6 @@ import shutil
 
 from setuptools import setup, find_packages
 
-install_require = [
-  "wheel",
-  "pycrypto",
-  "websockets"
-]
-
 try:
   os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
   shutil.copy(__file__, 'setup.py')
@@ -31,10 +25,16 @@ try:
     author_email='altakey@gmail.com',
     url='https://github.com/taky/trueseeing',
     keywords='android java security pentest hacking',
-    packages=['trueseeing.api'],
-    zip_safe=False,
-    install_requires=install_require,
-    entry_points = {'console_scripts':['trueseeing = trueseeing.api.client:entry']}
+    packages=find_packages('src/client'),
+    package_dir={'':'src/client'},
+    install_requires=[
+      "pycrypto",
+      "websockets"
+    ],
+    setup_requires=[
+      "wheel",
+    ],
+    entry_points = {'console_scripts':['trueseeing = trueseeing.api.client:shell']}
   )
 finally:
   os.unlink('setup.py')

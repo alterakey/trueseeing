@@ -56,7 +56,7 @@ async def hello(host, port):
         await complete_either(msg(websocket), send(websocket))
         await msg(websocket)
 
-if __name__ == '__main__':
+def shell():
     import sys
     import os
     import getopt
@@ -92,3 +92,6 @@ if __name__ == '__main__':
     KEY = parser['trueseeing']['key']
 
     asyncio.get_event_loop().run_until_complete(hello(connect_to['host'], connect_to['port']))
+
+if __name__ == '__main__':
+    shell()
