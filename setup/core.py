@@ -4,12 +4,6 @@ import shutil
 
 from setuptools import setup, find_packages
 
-install_require = [
-  "wheel",
-  "pycrypto",
-  "websockets"
-]
-
 try:
   os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
   shutil.copy(__file__, 'setup.py')
@@ -19,7 +13,7 @@ try:
   CHANGES = open('CHANGES.md').read()
 
   setup(
-    name='trueseeing',
+    name='trueseeing-core',
     version='2.0.0',
     description='Trueseeing is Android vulnerability scanner and peneration test framework.',
     long_description=README + '\n\n' + CHANGES,
@@ -31,10 +25,18 @@ try:
     author_email='altakey@gmail.com',
     url='https://github.com/taky/trueseeing',
     keywords='android java security pentest hacking',
-    packages=['trueseeing.api'],
+    packages=find_packages('src/core'),
+    package_dir={'':'src/core'},
+    package_data={'trueseeing':['libs/*.jar', 'libs/*.txt', 'libs/*.sql', 'template/*']},
+    include_package_data=True,
     zip_safe=False,
-    install_requires=install_require,
-    entry_points = {'console_scripts':['trueseeing = trueseeing.api.client:entry']}
+    install_requires=[
+      "lxml",
+      "jinja2"
+    ],
+    setup_requires=[
+      "wheel",
+    ],
   )
 finally:
   os.unlink('setup.py')

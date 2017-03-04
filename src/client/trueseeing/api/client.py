@@ -51,12 +51,12 @@ async def hello(host, port):
         key = {'X-Trueseeing2-Key':KEY}
     else:
         key = None
-    async with websockets.connect('ws://[::1]:8789/analyze', extra_headers=key) as websocket:
+    async with websockets.connect('ws://%s:%d/analyze' % (host, port), extra_headers=key) as websocket:
         sys.stderr.write(await websocket.recv())
         await complete_either(msg(websocket), send(websocket))
         await msg(websocket)
 
-if __name__ == '__main__':
+def shell():
     import sys
     import os
     import getopt
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     log_level = logging.INFO
     configfile_required = False
     configfile = os.path.join(os.environ['HOME'], '.trueseeing2', 'config')
-    connect_to = dict(host='localhost', port=8789)
+    connect_to = dict(host='trueseeing.io', port=443)
 
     opts, _ = getopt.getopt(sys.argv[1:], 'dc:p:', ['debug', 'config=', 'port='])
     for o, a in opts:
@@ -87,8 +87,14 @@ if __name__ == '__main__':
         sys.stderr.write('%s: config file is not found\n', sys.argv[0])
         sys.exit(1)
 
-    parser = configparser.ConfigParser()
-    parser.read(configfile)
-    KEY = parser['trueseeing']['key']
+    try:
+        parser = configparser.ConfigParser()
+        parser.read(configfile)
+        KEY = parser['trueseeing']['key']
+    except KeyError:
+        pass
 
     asyncio.get_event_loop().run_until_complete(hello(connect_to['host'], connect_to['port']))
+
+if __name__ == '__main__':
+    shell()

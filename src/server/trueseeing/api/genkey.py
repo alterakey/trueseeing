@@ -5,7 +5,7 @@ import os
 import configparser
 from api import TS2Key
 
-if __name__ == '__main__':
+def shell():
     configfile_required = False
     configfile = os.path.join('', 'etc', 'trueseeing2', 'trueseeingd_config')
 
@@ -37,3 +37,6 @@ if __name__ == '__main__':
     TS2Key.KEY2 = parser['trueseeingd']['key2']
 
     print('Key is: "%s"' % TS2Key.write(cpulimit=cpulimit, readlimit=readlimit, expires=expires).decode())
+
+if __name__ == '__main__':
+    shell()

@@ -87,12 +87,12 @@ async def entry(websocket, path):
 
         cmdline = [('--rlimit-%s=%s' % (dict(cpu='cpu', read='input', expires='expires')[k], v)) for k,v in limits.items() if v is not None]
         try:
-            transport, protocol = await loop.subprocess_shell(lambda: TS2Protocol(loop, websocket), '/Users/taky/ve/ts2/bin/trueseeing --api%s' % ((' ' + ' '.join(cmdline)) if cmdline else ''))
+            transport, protocol = await loop.subprocess_shell(lambda: TS2Protocol(loop, websocket), 'agent --api%s' % ((' ' + ' '.join(cmdline)) if cmdline else ''))
             await protocol.future
         finally:
             transport.close()
 
-if __name__ == '__main__':
+def shell():
     import sys
     import os
     import getopt
@@ -145,3 +145,6 @@ if __name__ == '__main__':
     start_server = websockets.serve(entry, listen_at['host'], listen_at['port'])
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
+
+if __name__ == '__main__':
+    shell()

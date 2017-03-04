@@ -13,7 +13,7 @@ try:
   CHANGES = open('CHANGES.md').read()
 
   setup(
-    name='trueseeing-agent',
+    name='trueseeing',
     version='2.0.0',
     description='Trueseeing is Android vulnerability scanner and peneration test framework.',
     long_description=README + '\n\n' + CHANGES,
@@ -25,13 +25,16 @@ try:
     author_email='altakey@gmail.com',
     url='https://github.com/taky/trueseeing',
     keywords='android java security pentest hacking',
+    packages=find_packages('src/client'),
+    package_dir={'':'src/client'},
     install_requires=[
-      "trueseeing-core"
+      "pycrypto",
+      "websockets"
     ],
     setup_requires=[
       "wheel",
     ],
-    entry_points = {'console_scripts':['agent = trueseeing.shell:entry']}
+    entry_points = {'console_scripts':['trueseeing = trueseeing.api.client:shell']}
   )
 finally:
   os.unlink('setup.py')
