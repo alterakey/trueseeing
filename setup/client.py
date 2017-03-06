@@ -28,6 +28,7 @@ try:
     packages=find_packages('src/client'),
     package_dir={'':'src/client'},
     install_requires=[
+      "certifi",
       "pycrypto",
       "websockets"
     ],

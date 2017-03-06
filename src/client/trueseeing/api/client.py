@@ -5,6 +5,7 @@ import tempfile
 import websockets
 import sys
 import logging
+import certifi
 
 KEY = None
 _YIELD = 0.00000001
@@ -51,7 +52,9 @@ async def hello(host, port):
         key = {'X-Trueseeing2-Key':KEY}
     else:
         key = None
-    async with websockets.connect('ws://%s:%d/analyze' % (host, port), extra_headers=key) as websocket:
+    context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
+    async with websockets.connect('wss://%s:%d/analyze' % (host, port), extra_headers=key, ssl=context) as websocket:
         sys.stderr.write(await websocket.recv())
         await complete_either(msg(websocket), send(websocket))
         await msg(websocket)
