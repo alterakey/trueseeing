@@ -64,7 +64,7 @@ class Context:
       raise ValueError('analyzed once')
 
   def parsed_manifest(self):
-    with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'r') as f:
+    with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:
       return ET.parse(f)
 
   def disassembled_classes(self):
@@ -120,7 +120,7 @@ class Context:
 
   def string_resources(self):
     for fn in self.string_resource_files():
-      with open(fn, 'r') as f:
+      with open(fn, 'rb') as f:
         yield from ((c.attrib['name'], c.text) for c in ET.parse(f).getroot().xpath('//resources/string') if c.text)
 
   def __enter__(self):
