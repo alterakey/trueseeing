@@ -91,6 +91,7 @@ def shell():
         sys.exit(1)
 
     try:
+        global KEY
         parser = configparser.ConfigParser()
         parser.read(configfile)
         KEY = parser['trueseeing']['key']
