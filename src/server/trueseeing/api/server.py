@@ -103,7 +103,7 @@ def shell():
     foreground = False
     configfile_required = False
     configfile = os.path.join('', 'etc', 'trueseeing2', 'trueseeingd_config')
-    listen_at = dict(host='::', port=8789)
+    listen_at = dict(host='::1', port=8789)
 
     opts, _ = getopt.getopt(sys.argv[1:], 'dfc:p:', ['debug', 'foreground', 'config=', 'port='])
     for o, a in opts:
