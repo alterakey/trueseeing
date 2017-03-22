@@ -6,6 +6,7 @@ from setuptools import setup, find_packages
 
 try:
   os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+  shutil.copy(os.path.join(os.path.dirname(__file__), 'common.cfg'), 'setup.cfg')
   shutil.copy(__file__, 'setup.py')
   sys.argv[0] = 'setup.py'
 
@@ -35,3 +36,4 @@ try:
   )
 finally:
   os.unlink('setup.py')
+  os.unlink('setup.cfg')
