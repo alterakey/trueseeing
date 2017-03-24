@@ -59,17 +59,17 @@ class TS2Protocol(asyncio.SubprocessProtocol):
             if block:
                 stdin.write(block)
                 total = total + len(block)
-                await ws.send('\rread: %d bytes' % total)
+                await ws.send('2\rread: %d bytes' % total)
             else:
                 stdin.write_eof()
-                await ws.send('\rread: %d bytes\n' % total)
+                await ws.send('2\rread: %d bytes\n' % total)
                 break
 
     def connection_made(self, transport):
         self.loop.create_task(self._send(transport, self.ws))
 
     def pipe_data_received(self, fd, data):
-        self.loop.create_task(self.ws.send(data.decode('utf-8')))
+        self.loop.create_task(self.ws.send('%d%s' % (fd, data.decode('utf-8'))))
 
     def process_exited(self):
         self.future.set_result(True)
@@ -82,7 +82,7 @@ async def entry(websocket, path):
             try:
                 limits.update(TS2Key(websocket.request_headers['X-Trueseeing2-Key']).read())
             except ValueError:
-                await websocket.send('API key is invalid\n')
+                await websocket.send('2API key is invalid\n')
                 return
 
         cmdline = [('--rlimit-%s=%s' % (dict(cpu='cpu', read='input', expires='expires')[k], v)) for k,v in limits.items() if v is not None]

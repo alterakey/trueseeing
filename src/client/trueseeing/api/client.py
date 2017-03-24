@@ -13,7 +13,12 @@ _YIELD = 0.00000001
 async def msg(websocket):
     while True:
         try:
-            sys.stderr.write(await websocket.recv())
+            m = await websocket.recv()
+            fd, content = int(m[0]), m[1:]
+            if fd == 1:
+                sys.stdout.write(content)
+            elif fd == 2:
+                sys.stderr.write(content)
         except websockets.exceptions.ConnectionClosed as e:
             if e.code == 1000:
                 return
@@ -55,8 +60,13 @@ async def hello(host, port, target):
     with open(target, 'rb') as f:
         context = ssl.create_default_context()
         context.load_verify_locations(cafile=certifi.where())
-        async with websockets.connect('wss://%s:%d/analyze' % (host, port), extra_headers=key, ssl=context) as websocket:
-            sys.stderr.write(await websocket.recv())
+        async with websockets.connect('ws://%s:%d/analyze' % (host, port), extra_headers=key) as websocket:
+            m = await websocket.recv()
+            fd, content = int(m[0]), m[1:]
+            if fd == 1:
+                sys.stdout.write(content)
+            elif fd == 2:
+                sys.stderr.write(content)
             await complete_either(msg(websocket), send(websocket, f))
             await msg(websocket)
 
