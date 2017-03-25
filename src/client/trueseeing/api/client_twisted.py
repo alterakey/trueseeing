@@ -13,9 +13,17 @@ class TrueseeingClientProtocol(WebSocketClientProtocol):
     def onOpen(self):
         self._state = 0
 
+    @staticmethod
+    def write_message(payload):
+        fd, content = int(payload[0]), payload[1:]
+        if fd == 1:
+            sys.stdout.write(content)
+        elif fd == 2:
+            sys.stderr.write(content)
+
     def onMessage(self, payload, isBinary):
         if self._state == 0:
-            sys.stderr.write(payload)
+            self.write_message(payload)
             self._state = 1
         if self._state == 1:
             def send():
@@ -32,9 +40,9 @@ class TrueseeingClientProtocol(WebSocketClientProtocol):
             self._state = 2
             return
         if self._state == 2:
-            sys.stderr.write(payload)
+            self.write_message(payload)
         if self._state == 3:
-            sys.stderr.write(payload)
+            self.write_message(payload)
 
     def onClose(self, wasClean, code, reason):
         if code != 1000:
