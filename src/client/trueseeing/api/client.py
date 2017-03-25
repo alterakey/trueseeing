@@ -60,7 +60,7 @@ async def hello(host, port, target):
     with open(target, 'rb') as f:
         context = ssl.create_default_context()
         context.load_verify_locations(cafile=certifi.where())
-        async with websockets.connect('ws://%s:%d/analyze' % (host, port), extra_headers=key) as websocket:
+        async with websockets.connect('wss://%s:%d/analyze' % (host, port), extra_headers=key, ssl=context) as websocket:
             m = await websocket.recv()
             fd, content = int(m[0]), m[1:]
             if fd == 1:
