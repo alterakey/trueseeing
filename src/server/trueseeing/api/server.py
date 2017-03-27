@@ -75,22 +75,24 @@ class TS2Protocol(asyncio.SubprocessProtocol):
         self.future.set_result(True)
 
 async def entry(websocket, path):
-    if path == '/analyze':
-        loop = asyncio.get_event_loop()
-        limits = dict(cpu=240, read=32*1048576, expires=None)
-        if 'X-Trueseeing2-Key' in websocket.request_headers:
-            try:
-                limits.update(TS2Key(websocket.request_headers['X-Trueseeing2-Key']).read())
-            except ValueError:
-                await websocket.send('2API key is invalid\n')
-                return
+    loop = asyncio.get_event_loop()
+    limits = dict(cpu=240, read=32*1048576, expires=None)
+    if 'X-Trueseeing2-Key' in websocket.request_headers:
+        try:
+            limits.update(TS2Key(websocket.request_headers['X-Trueseeing2-Key']).read())
+        except ValueError:
+            await websocket.send('2API key is invalid\n')
+            return
 
-        cmdline = [('--rlimit-%s=%s' % (dict(cpu='cpu', read='input', expires='expires')[k], v)) for k,v in limits.items() if v is not None]
+    cmdline = [('--rlimit-%s=%s' % (dict(cpu='cpu', read='input', expires='expires')[k], v)) for k,v in limits.items() if v is not None]
+
+    if path == '/analyze':
         try:
             transport, protocol = await loop.subprocess_shell(lambda: TS2Protocol(loop, websocket), 'agent --api%s' % ((' ' + ' '.join(cmdline)) if cmdline else ''))
             await protocol.future
         finally:
             transport.close()
+
 
 def shell():
     import sys
