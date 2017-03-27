@@ -125,7 +125,7 @@ class UrlLikeDetector(Detector):
           yield dict(type_='possible FQDN', value=[hostlike])
 
   def do_detect(self):
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r') as f:
+    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
       self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
 
     with self.context.store() as store:
