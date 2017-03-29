@@ -136,7 +136,7 @@ def shell(argv):
             return 1
 
         sys.stderr.write('Trueseeing 2.0.0, the app vulnerability scanner\n')
-        sys.stderr.write('Copyright (C) 2017 Takahiro Yoshimura <altakey@gmail.com>.  All rights reserved.\n')
+        sys.stderr.write('Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>.  All rights reserved.\n')
         if api_cputime_limit is not None:
           sys.stderr.write('Maximum CPU time is %s\n' % ('%.02f sec' % api_cputime_limit))
         if api_read_limit is not None:

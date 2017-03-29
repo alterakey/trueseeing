@@ -23,7 +23,7 @@ try:
       "Programming Language :: Java",
     ],
     author='Takahiro Yoshimura',
-    author_email='altakey@gmail.com',
+    author_email='takahiro_y@monolithworks.co.jp',
     url='https://github.com/taky/trueseeing',
     keywords='android java security pentest hacking',
     install_requires=[
