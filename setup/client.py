@@ -7,20 +7,23 @@ from setuptools import setup, find_packages
 try:
   os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
   shutil.copy(__file__, 'setup.py')
+  shutil.copy(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'README.rst'), 'README.rst')
+  shutil.copy(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'CHANGES.rst'), 'CHANGES.rst')
   sys.argv[0] = 'setup.py'
 
-  README = open(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'README.rst')).read()
-  CHANGES = open(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'CHANGES.rst')).read()
+  README = open('README.rst').read()
+  CHANGES = open('CHANGES.rst').read()
 
   if sys.version_info[0:2] > (3, 4):
     shutil.copy(os.path.join(os.path.dirname(__file__), 'client.cfg'), 'setup.cfg')
     setup(
       name='trueseeing',
       version='2.0.0',
-      description='Trueseeing is Android vulnerability scanner and peneration test framework.',
+      description='Trueseeing is a fast, accurate, and resillient vulnerability scanner for Android apps.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
-        "Programming Language :: Python",
+        "Topic :: Security",
+        "Operating System :: Android",
         "Programming Language :: Java",
       ],
       author='Takahiro Yoshimura',
@@ -43,10 +46,11 @@ try:
     setup(
       name='trueseeing',
       version='2.0.0',
-      description='Trueseeing is Android vulnerability scanner and peneration test framework.',
+      description='Trueseeing is a fast, accurate, and resillient vulnerability scanner for Android apps.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
-        "Programming Language :: Python",
+        "Topic :: Security",
+        "Operating System :: Android",
         "Programming Language :: Java",
       ],
       author='Takahiro Yoshimura',
@@ -67,3 +71,5 @@ try:
 finally:
   os.unlink('setup.py')
   os.unlink('setup.cfg')
+  os.unlink('README.rst')
+  os.unlink('CHANGES.rst')
