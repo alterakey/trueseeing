@@ -92,7 +92,7 @@ def shell():
         if o in ['-p', '--port']:
             if ':' in a:
                 host, port = a.rsplit(':', maxsplit=1)
-                connect_to['host'] = host,
+                connect_to['host'] = host
                 connect_to['port'] = int(port)
             else:
                 connect_to['port'] = int(a)
