@@ -92,6 +92,12 @@ async def entry(websocket, path):
             await protocol.future
         finally:
             transport.close()
+    elif path == '/fingerprint':
+        try:
+            transport, protocol = await loop.subprocess_shell(lambda: TS2Protocol(loop, websocket), 'agent --fingerprint --api%s' % ((' ' + ' '.join(cmdline)) if cmdline else ''))
+            await protocol.future
+        finally:
+            transport.close()
 
 
 def shell():

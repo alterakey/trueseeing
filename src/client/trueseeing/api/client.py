@@ -52,23 +52,25 @@ async def complete_either(a, b):
         if exc is not None:
             raise exc
 
-async def hello(host, port, target):
+async def hello(mode, host, port, target):
+    context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
     if KEY is not None:
         key = {'X-Trueseeing2-Key':KEY}
     else:
         key = None
-    with open(target, 'rb') as f:
-        context = ssl.create_default_context()
-        context.load_verify_locations(cafile=certifi.where())
-        async with websockets.connect('wss://%s:%d/analyze' % (host, port), extra_headers=key, ssl=context) as websocket:
-            m = await websocket.recv()
-            fd, content = int(m[0]), m[1:]
-            if fd == 1:
-                sys.stdout.write(content)
-            elif fd == 2:
-                sys.stderr.write(content)
-            await complete_either(msg(websocket), send(websocket, f))
-            await msg(websocket)
+
+    if mode in ['analyze', 'fingerprint']:
+        with open(target, 'rb') as f:
+            async with websockets.connect('wss://%s:%d/%s' % (host, port, mode), extra_headers=key, ssl=context) as websocket:
+                m = await websocket.recv()
+                fd, content = int(m[0]), m[1:]
+                if fd == 1:
+                    sys.stdout.write(content)
+                elif fd == 2:
+                    sys.stderr.write(content)
+                await complete_either(msg(websocket), send(websocket, f))
+                await msg(websocket)
 
 def shell():
     import sys
@@ -77,18 +79,23 @@ def shell():
     import re
     import configparser
 
+    exploitation_mode = False
+    fingerprint_mode = False
+
     log_level = logging.INFO
     configfile_required = False
     configfile = os.path.join(os.environ['HOME'], '.trueseeing2', 'config')
     connect_to = dict(host='trueseeing.io', port=443)
 
-    opts, targets = getopt.getopt(sys.argv[1:], 'dc:p:', ['debug', 'config=', 'port='])
+    opts, targets = getopt.getopt(sys.argv[1:], 'dW:c:p:', ['debug', 'fingerprint', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'config=', 'port='])
     for o, a in opts:
-        if o in ['-d', '--debug']:
-            debug = logging.DEBUG
         if o in ['-c', '--config']:
             configfile = a
             configfile_required = True
+        if o in ['--fingerprint']:
+            fingerprint_mode = True
+        if o in ['--exploit-resign', '--exploit-unsign', '--exploit-enable-debug', '--exploit-enable-backup']:
+            exploitation_mode = True
         if o in ['-p', '--port']:
             if ':' in a:
                 host, port = a.rsplit(':', maxsplit=1)
@@ -113,7 +120,12 @@ def shell():
     except KeyError:
         pass
 
-    asyncio.get_event_loop().run_until_complete(hello(connect_to['host'], connect_to['port'], targets[0]))
+    if fingerprint_mode:
+        asyncio.get_event_loop().run_until_complete(hello('fingerprint', connect_to['host'], connect_to['port'], targets[0]))
+    elif exploitation_mode:
+        pass
+    else:
+        asyncio.get_event_loop().run_until_complete(hello('analyze', connect_to['host'], connect_to['port'], targets[0]))
 
 if __name__ == '__main__':
     shell()

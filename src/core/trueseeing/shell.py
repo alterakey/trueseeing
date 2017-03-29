@@ -147,7 +147,10 @@ def shell(argv):
           else:
             f.write(sys.stdin.buffer.read())
           f.seek(0)
-          processed(f.name, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format)
+          if fingerprint_mode:
+            print('%s: %s' % (f.name, Context().fingerprint_of(f)))
+          else:
+            processed(f.name, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format)
           return 0
       elif fingerprint_mode:
         for f in files:
