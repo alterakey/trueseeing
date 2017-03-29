@@ -117,7 +117,7 @@ def shell():
         parser = configparser.ConfigParser()
         parser.read(configfile)
         KEY = parser['trueseeing']['key']
-    except KeyError:
+    except (KeyError, configparser.NoSectionError):
         pass
 
     if fingerprint_mode:

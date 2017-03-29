@@ -109,7 +109,7 @@ def shell():
         parser = configparser.ConfigParser()
         parser.read(configfile)
         KEY = parser.get('trueseeing', 'key')
-    except KeyError:
+    except (KeyError, configparser.NoSectionError):
         pass
 
     hello(connect_to['host'], connect_to['port'], targets[0])
