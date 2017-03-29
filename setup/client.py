@@ -18,7 +18,7 @@ try:
     shutil.copy(os.path.join(os.path.dirname(__file__), 'client.cfg'), 'setup.cfg')
     setup(
       name='trueseeing',
-      version='2.0.0',
+      version='2.0.1',
       description='Trueseeing is a fast, accurate, and resillient vulnerability scanner for Android apps.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
@@ -45,7 +45,7 @@ try:
     shutil.copy(os.path.join(os.path.dirname(__file__), 'client_twisted.cfg'), 'setup.cfg')
     setup(
       name='trueseeing',
-      version='2.0.0',
+      version='2.0.1',
       description='Trueseeing is a fast, accurate, and resillient vulnerability scanner for Android apps.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[

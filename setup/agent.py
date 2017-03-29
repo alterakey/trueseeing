@@ -15,7 +15,7 @@ try:
 
   setup(
     name='trueseeing-agent',
-    version='2.0.0',
+    version='2.0.1',
     description='Trueseeing is Android vulnerability scanner and peneration test framework.',
     long_description=README + '\n\n' + CHANGES,
     classifiers=[
