@@ -137,9 +137,12 @@ def shell(argv):
 
         sys.stderr.write('Trueseeing 2.0.0, the app vulnerability scanner\n')
         sys.stderr.write('Copyright (C) 2017 Takahiro Yoshimura <altakey@gmail.com>.  All rights reserved.\n')
-        sys.stderr.write('Maximum CPU time is %s\n' % ('%.02f sec' % api_cputime_limit if api_cputime_limit is not None else 'unlimited'))
-        sys.stderr.write('Maximum input filesize: %s\n' % ('%d bytes' % api_read_limit if api_read_limit is not None else 'unlimited'))
-        sys.stderr.write('Expires at: %s\n' % (api_expires.date().isoformat() if api_expires is not None else 'unlimited'))
+        if api_cputime_limit is not None:
+          sys.stderr.write('Maximum CPU time is %s\n' % ('%.02f sec' % api_cputime_limit))
+        if api_read_limit is not None:
+          sys.stderr.write('Maximum input filesize: %s\n' % ('%d bytes' % api_read_limit))
+        if api_expires is not None:
+          sys.stderr.write('Expires at: %s\n' % (api_expires.date().isoformat()))
         sys.stderr.flush()
         with tempfile.NamedTemporaryFile('w+b') as f:
           if api_read_limit is not None:
