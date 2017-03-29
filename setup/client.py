@@ -9,8 +9,8 @@ try:
   shutil.copy(__file__, 'setup.py')
   sys.argv[0] = 'setup.py'
 
-  README = open('README.md').read()
-  CHANGES = open('CHANGES.md').read()
+  README = open(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'README.rst')).read()
+  CHANGES = open(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'CHANGES.rst')).read()
 
   if sys.version_info[0:2] > (3, 4):
     shutil.copy(os.path.join(os.path.dirname(__file__), 'client.cfg'), 'setup.cfg')
