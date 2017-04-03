@@ -15,6 +15,8 @@ import trueseeing.grab
 from trueseeing.context import Context
 from trueseeing.report import CIReportGenerator, HTMLReportGenerator, NullReporter, ProgressReporter
 
+import pkg_resources
+
 log = logging.getLogger(__name__)
 
 preferences = None
@@ -73,7 +75,7 @@ def shell():
   api_read_limit = None
   api_expires = None
 
-  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output='])
+  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'version'])
   for o, a in opts:
     if o in ['-d']:
       log_level = logging.DEBUG
@@ -99,6 +101,10 @@ def shell():
       inspection_mode = True
     if o in ['--output']:
       output_format = a
+    if o in ['--version']:
+      print('Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing-standalone').version)
+      print('Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>.  All rights reserved.')
+      sys.exit(0)
 
   if not files:
     print("%s: no input files" % sys.argv[0])

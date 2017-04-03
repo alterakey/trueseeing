@@ -14,7 +14,8 @@ import trueseeing.grab
 
 from trueseeing.context import Context
 from trueseeing.report import CIReportGenerator, HTMLReportGenerator, NullReporter, ProgressReporter
-from trueseeing.shell import processed
+
+import pkg_resources
 
 log = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ def shell():
       sys.stderr.write('Your license is expired\n')
       return 1
 
-  sys.stderr.write('Trueseeing 2.0.1, the app vulnerability scanner\n')
+  sys.stderr.write('Trueseeing %s, the app vulnerability scanner\n' % pkg_resources.get_distribution('trueseeingd').version)
   sys.stderr.write('Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>.  All rights reserved.\n')
   if api_cputime_limit is not None:
     sys.stderr.write('Maximum CPU time is %s\n' % ('%.02f sec' % api_cputime_limit))
