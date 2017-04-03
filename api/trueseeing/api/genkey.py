@@ -1,9 +1,10 @@
+import base64
 import datetime
 import getopt
 import sys
 import os
 import configparser
-from api import TS2Key
+from trueseeing.api.server import TS2Key
 
 def shell():
     configfile_required = False
@@ -33,8 +34,7 @@ def shell():
 
     parser = configparser.ConfigParser()
     parser.read(configfile)
-    TS2Key.KEY1 = parser['trueseeingd']['key1']
-    TS2Key.KEY2 = parser['trueseeingd']['key2']
+    TS2Key.PERSONALITY = base64.b64decode(parser['trueseeingd']['personality'])
 
     print('Key is: "%s"' % TS2Key.write(cpulimit=cpulimit, readlimit=readlimit, expires=expires).decode())
 
