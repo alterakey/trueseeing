@@ -29,7 +29,8 @@ setup(
   zip_safe=False,
   install_requires=[
     "lxml",
-    "jinja2"
+    "jinja2",
+    "ipython"
   ],
   setup_requires=[
     "wheel",
