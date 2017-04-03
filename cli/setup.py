@@ -20,21 +20,16 @@ metadata = dict(
 )
 
 try:
-  os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-  shutil.copy(__file__, 'setup.py')
-  shutil.copy(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'README.rst'), 'README.rst')
-  shutil.copy(os.path.join(os.path.dirname(__file__), '..', 'doc', 'client', 'CHANGES.rst'), 'CHANGES.rst')
-  sys.argv[0] = 'setup.py'
+  os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
   README = open('README.rst').read()
-  CHANGES = open('CHANGES.rst').read()
 
   if sys.version_info[0:2] > (3, 4):
-    shutil.copy(os.path.join(os.path.dirname(__file__), 'client.cfg'), 'setup.cfg')
+    shutil.copy(os.path.join(os.path.dirname(__file__), 'asyncio.cfg'), 'setup.cfg')
     setup(
-      long_description=README + '\n\n' + CHANGES,
-      packages=find_packages('src/client'),
-      package_dir={'':'src/client'},
+      long_description=README,
+      packages=find_packages(),
+      python_requires='>=3.5',
       install_requires=[
         "certifi",
         "websockets"
@@ -46,11 +41,10 @@ try:
       **metadata
     )
   else:
-    shutil.copy(os.path.join(os.path.dirname(__file__), 'client_twisted.cfg'), 'setup.cfg')
+    shutil.copy(os.path.join(os.path.dirname(__file__), 'twisted.cfg'), 'setup.cfg')
     setup(
-      long_description=README + '\n\n' + CHANGES,
-      packages=find_packages('src/client'),
-      package_dir={'':'src/client'},
+      long_description=README,
+      packages=find_packages(),
       install_requires=[
         "autobahn",
         "twisted[tls]",
@@ -62,7 +56,4 @@ try:
       **metadata
     )
 finally:
-  os.unlink('setup.py')
   os.unlink('setup.cfg')
-  os.unlink('README.rst')
-  os.unlink('CHANGES.rst')
