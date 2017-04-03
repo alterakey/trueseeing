@@ -26,13 +26,15 @@ try:
     author_email='takahiro_y@monolithworks.co.jp',
     url='https://github.com/taky/trueseeing',
     keywords='android java security pentest hacking',
+    packages=find_packages('src/standalone'),
+    package_dir={'':'src/standalone'},
     install_requires=[
       "trueseeing-core",
     ],
     setup_requires=[
       "wheel",
     ],
-    entry_points = {'console_scripts':['trueseeing = trueseeing.shell:entry']}
+    entry_points = {'console_scripts':['trueseeing = trueseeing.shell:shell']}
   )
 finally:
   os.unlink('setup.py')

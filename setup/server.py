@@ -31,12 +31,12 @@ try:
     install_requires=[
       "pycrypto",
       "websockets",
-      "trueseeing-agent"
+      "trueseeing-core"
     ],
     setup_requires=[
       'wheel'
     ],
-    entry_points = {'console_scripts':['trueseeingd = trueseeing.api.server:shell', 'trueseeing-keygen = trueseeing.api.genkey:shell']}
+    entry_points = {'console_scripts':['trueseeingd = trueseeing.api.server:shell', 'trueseeing-keygen = trueseeing.api.genkey:shell', 'agent = trueseeing.api.agent:shell']}
   )
 finally:
   os.unlink('setup.py')
