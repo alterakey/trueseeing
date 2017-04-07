@@ -10,6 +10,7 @@ import datetime
 
 import trueseeing.signature.base
 import trueseeing.exploit
+import trueseeing.patch
 import trueseeing.grab
 
 from trueseeing.context import Context
@@ -75,7 +76,7 @@ def shell():
   api_read_limit = None
   api_expires = None
 
-  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'version'])
+  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'version', 'patch-all'])
   for o, a in opts:
     if o in ['-d']:
       log_level = logging.DEBUG
@@ -93,6 +94,8 @@ def shell():
       exploitation_mode = 'enable-debug'
     if o in ['--exploit-enable-backup']:
       exploitation_mode = 'enable-backup'
+    if o in ['--patch-all']:
+      exploitation_mode = 'patch-all'
     if o in ['--grab']:
       grab_mode = True
     if o in ['--fingerprint']:
@@ -166,4 +169,8 @@ def shell():
     elif exploitation_mode == 'enable-backup':
       for f in files:
         trueseeing.exploit.ExploitEnableBackup(f, os.path.basename(f).replace('.apk', '-backupable.apk')).exploit()
+      return 0
+    elif exploitation_mode == 'patch-all':
+      for f in files:
+        trueseeing.patch.Patches(f, os.path.basename(f).replace('.apk', '-patched.apk'), [trueseeing.patch.PatchDebuggable(), trueseeing.patch.PatchBackupable()]).apply()
       return 0
