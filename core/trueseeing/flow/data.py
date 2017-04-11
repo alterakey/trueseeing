@@ -155,9 +155,11 @@ class DataFlows:
       for caller in CodeFlows.callers_of(store, from_):
         if store.query().qualname_of(from_) != store.query().qualname_of(caller):
           caller_reg = DataFlows.decoded_registers_of(caller.p[0], type_=list)[index]
-          log.debug("analyze_recent_load_of: retrace: %r <-> %r [stage: %d]" % (from_, caller, stage))
+          log.debug("analyze_recent_load_of: retrace: %r [%s] <-> %r [%s] [stage: %d]" % (from_, reg, caller, caller_reg, stage))
           if stage < 3:
-            return DataFlows.analyze_recent_load_of(store, caller, caller_reg, stage=stage+1)
+            retraced = DataFlows.analyze_recent_load_of(store, caller, caller_reg, stage=stage+1)
+            if retraced:
+              return retraced
       return None
     for o in DataFlows.looking_behind_from(store, from_):
       if o.t == 'id':
