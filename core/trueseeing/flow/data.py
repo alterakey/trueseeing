@@ -173,7 +173,7 @@ class DataFlows:
   @staticmethod
   def analyze_recent_instance_load_of(store, op):
     assert len(op.p) == 3
-    log.debug("analyze_recent_instance_load_of: TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
+    log.debug("analyze_recent_instance_load_of: TBD: instansic trace for %s" % op)
     return None
 
   @staticmethod
