@@ -166,15 +166,24 @@ class DataFlows:
         if reg in DataFlows.analyze_load(store, o):
           return o
 
+  # TBD: tracing on static-array fields
   @staticmethod
   def analyze_recent_array_load_of(store, from_, reg):
     return DataFlows.analyze_recent_load_of(store, from_, reg)
 
+  # TBD: tracing on static-instance fields
   @staticmethod
   def analyze_recent_instance_load_of(store, op):
     assert len(op.p) == 3
-    log.debug("analyze_recent_instance_load_of: TBD: instansic trace for %s" % op)
-    return None
+    assert op.t == 'id' and any(op.v.startswith(x) for x in ['iget-'])
+    target, field = op.p[1].v, op.p[2].v
+    instance_reg = DataFlows.decoded_registers_of(op.p[1], type_=list)[0]
+    for o in DataFlows.looking_behind_from(store, op):
+      if o.t == 'id' and o.v.startswith('iput-') and o.p[2].v == field:
+        if target == o.p[1].v:
+          return o
+        else:
+          log.debug("analyze_recent_instance_load_of: TBD: tracing on instance in possibly renamed register: %r <-> %r" % (op, o))
 
   @staticmethod
   def analyze_recent_invocation(store, from_):
