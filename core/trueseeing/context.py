@@ -69,7 +69,7 @@ class Context:
 
   def parsed_manifest(self):
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:
-      return ET.parse(f)
+      return ET.parse(f, parser=ET.XMLParser(recover=True))
 
   def disassembled_classes(self):
     try:
@@ -125,7 +125,7 @@ class Context:
   def string_resources(self):
     for fn in self.string_resource_files():
       with open(fn, 'rb') as f:
-        yield from ((c.attrib['name'], c.text) for c in ET.parse(f).getroot().xpath('//resources/string') if c.text)
+        yield from ((c.attrib['name'], c.text) for c in ET.parse(f, parser=ET.XMLParser(recover=True)).getroot().xpath('//resources/string') if c.text)
 
   def __enter__(self):
     return self

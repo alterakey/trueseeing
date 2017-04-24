@@ -165,7 +165,7 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
 
       for fn in (n for n in self.context.disassembled_resources() if 'layout' in n):
         with open(fn, 'rb') as f:
-          r = ET.parse(f).getroot()
+          r = ET.parse(f, parser=ET.XMLParser(recover=True)).getroot()
           for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % self.context.class_name_of_dalvik_class_type(c).replace('$', '_')) for c in targets)):
             size = LayoutSizeGuesser().guessed_size(t, fn)
             if size > 0.5:
