@@ -123,8 +123,12 @@ class LayoutSizeGuesser:
         try:
           return float(re.sub(r'di?p$', '', x)) / float(dp)
         except ValueError:
-          log.debug("check_security_arbitrary_webview_overwrite: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
-          return float(re.sub(r'[^0-9-]', '', x)) / float(dp)
+          try:
+            log.debug("check_security_arbitrary_webview_overwrite: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
+            return float(re.sub(r'[^0-9-]', '', x)) / float(dp)
+          except ValueError:
+            log.debug("check_security_arbitrary_webview_overwrite: guessed_size: guessed_dp: warning: ignoring unknown dimension")
+            return 0.0
       else:
         return dp
 
