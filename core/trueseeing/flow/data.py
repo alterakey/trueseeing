@@ -96,26 +96,32 @@ class DataFlows:
     raise Exception('breakpoint')
 
   @staticmethod
-  def analyze(store, op):
+  def analyze(store, op, state=None):
+    if state is None:
+      state = set()
     if op is not None and op.t == 'id':
+      if op._id in state:
+        return None
+      else:
+        state.add(op._id)
       if any(op.v.startswith(x) for x in ['const','new-','move-exception']):
         return op
       elif op.v in ['move', 'array-length']:
-        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_load_of(store, op, k)) for k in DataFlows.decoded_registers_of(op.p[1])}}
+        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_load_of(store, op, k), state) for k in DataFlows.decoded_registers_of(op.p[1])}}
       elif any(op.v.startswith(x) for x in ['aget-']):
         assert len(op.p) == 3
-        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_array_load_of(store, op, k)) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
+        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_array_load_of(store, op, k), state) for k in (DataFlows.decoded_registers_of(op.p[1]) | DataFlows.decoded_registers_of(op.p[2]))}}
       elif any(op.v.startswith(x) for x in ['sget-']):
         assert len(op.p) == 2
-        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_static_load_of(store, op)) for k in DataFlows.decoded_registers_of(op.p[0])}}
+        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_static_load_of(store, op), state) for k in DataFlows.decoded_registers_of(op.p[0])}}
       elif any(op.v.startswith(x) for x in ['iget-']):
         assert len(op.p) == 3
-        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_instance_load_of(store, op)) for k in DataFlows.decoded_registers_of(op.p[0])}}
+        return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_instance_load_of(store, op), state) for k in DataFlows.decoded_registers_of(op.p[0])}}
       elif op.v.startswith('move-result'):
-        return DataFlows.analyze(store, DataFlows.analyze_recent_invocation(store, op))
+        return DataFlows.analyze(store, DataFlows.analyze_recent_invocation(store, op), state)
       else:
         try:
-          return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_load_of(store, op, k)) for k in DataFlows.decoded_registers_of(op.p[0])}}
+          return {op:{k:DataFlows.analyze(store, DataFlows.analyze_recent_load_of(store, op, k), state) for k in DataFlows.decoded_registers_of(op.p[0])}}
         except DataFlows.RegisterDecodeError:
           return None
 
@@ -143,27 +149,41 @@ class DataFlows:
         return frozenset()
 
   @staticmethod
-  def analyze_recent_load_of(store, from_, reg):
+  def analyze_recent_load_of(store, from_, reg, stage=0):
     if reg.startswith('p'):
       index = int(reg.replace('p', ''))
       for caller in CodeFlows.callers_of(store, from_):
-        caller_reg = DataFlows.decoded_registers_of(caller.p[0], type_=list)[index]
-        log.debug("analyze_recent_load_of: TBD: retrace: %s -> %s -> %r (in %r)" % (reg, caller_reg, caller, store.query().qualname_of(caller)))
+        if store.query().qualname_of(from_) != store.query().qualname_of(caller):
+          caller_reg = DataFlows.decoded_registers_of(caller.p[0], type_=list)[index]
+          log.debug("analyze_recent_load_of: retrace: %r [%s] <-> %r [%s] [stage: %d]" % (from_, reg, caller, caller_reg, stage))
+          if stage < 5:
+            retraced = DataFlows.analyze_recent_load_of(store, caller, caller_reg, stage=stage+1)
+            if retraced:
+              return retraced
       return None
     for o in DataFlows.looking_behind_from(store, from_):
       if o.t == 'id':
         if reg in DataFlows.analyze_load(store, o):
           return o
 
+  # TBD: tracing on static-array fields
   @staticmethod
   def analyze_recent_array_load_of(store, from_, reg):
     return DataFlows.analyze_recent_load_of(store, from_, reg)
 
+  # TBD: tracing on static-instance fields
   @staticmethod
   def analyze_recent_instance_load_of(store, op):
     assert len(op.p) == 3
-    log.debug("analyze_recent_instance_load_of: TBD: instansic trace of %s (%s)" % (op.p[1], op.p[2]))
-    return None
+    assert op.t == 'id' and any(op.v.startswith(x) for x in ['iget-'])
+    target, field = op.p[1].v, op.p[2].v
+    instance_reg = DataFlows.decoded_registers_of(op.p[1], type_=list)[0]
+    for o in DataFlows.looking_behind_from(store, op):
+      if o.t == 'id' and o.v.startswith('iput-') and o.p[2].v == field:
+        if target == o.p[1].v:
+          return o
+        else:
+          log.debug("analyze_recent_instance_load_of: TBD: tracing on instance in possibly renamed register: %r <-> %r" % (op, o))
 
   @staticmethod
   def analyze_recent_invocation(store, from_):
