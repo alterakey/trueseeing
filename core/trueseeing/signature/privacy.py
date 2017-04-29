@@ -24,9 +24,12 @@ class PrivacyDeviceIdDetector(Detector):
   def analyzed(self, store, op):
     x = op.p[1].v
     if re.search('Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
-      if DataFlows.solved_constant_data_in_invocation(store, op, 1) == 'android_id':
-        return 'ANDROID_ID'
-      else:
+      try:
+        if DataFlows.solved_constant_data_in_invocation(store, op, 1) == 'android_id':
+          return 'ANDROID_ID'
+        else:
+          return None
+      except DataFlows.NoSuchValueError:
         return None
     elif re.search('Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;', x):
       return 'IMEI'
