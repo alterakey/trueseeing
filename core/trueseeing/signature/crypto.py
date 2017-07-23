@@ -59,7 +59,7 @@ class CryptoStaticKeyDetector(Detector):
   def do_detect_case1(self):
     def looks_like_real_key(k):
       # XXX: silly
-      return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac'))
+      return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', 'Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|Ljavax?.*/MessageDigest;->(update|digest)')):

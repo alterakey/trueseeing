@@ -176,14 +176,11 @@ class DataFlows:
   def analyze_recent_instance_load_of(store, op):
     assert len(op.p) == 3
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['iget-'])
-    target, field = op.p[1].v, op.p[2].v
+    field = op.p[2].v
     instance_reg = DataFlows.decoded_registers_of(op.p[1], type_=list)[0]
-    for o in DataFlows.looking_behind_from(store, op):
+    for o in itertools.chain(DataFlows.looking_behind_from(store, op), store.query().iputs(field)):
       if o.t == 'id' and o.v.startswith('iput-') and o.p[2].v == field:
-        if target == o.p[1].v:
-          return o
-        else:
-          log.debug("analyze_recent_instance_load_of: TBD: tracing on instance in possibly renamed register: %r <-> %r" % (op, o))
+        return o
 
   @staticmethod
   def analyze_recent_invocation(store, from_):

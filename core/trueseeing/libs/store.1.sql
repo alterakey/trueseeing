@@ -64,6 +64,10 @@ create table interests_sputs (op integer primary key, v varchar not null, target
 insert into interests_sputs select op, v, v1 as target from op_vecs where t='id' and v like 'sput%';
 create index interests_sputs_target on interests_sputs (target);
 
+create table interests_iputs (op integer primary key, v varchar not null, target varchar not null) without rowid;
+insert into interests_iputs select op, v, v3 as target from op_vecs where t='id' and v like 'iput%';
+create index interests_iputs_target on interests_iputs (target);
+
 -- analytic reports
 create table analysis_issues (detector varchar not null, summary varchar not null, synopsis varchar, description varchar, seealso varchar, solution varchar, info1 varchar, info2 varchar, info3 varchar, confidence varchar not null, cvss3_score float not null, cvss3_vector varchar not null, source varchar, row varchar, col varchar);
 
