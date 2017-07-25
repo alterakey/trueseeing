@@ -56,42 +56,48 @@ class SecurityTlsInterceptionDetector(Detector):
   cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
 
   def do_detect(self):
-    with self.context.store() as store:
-      marks = []
-
-      pins = set()
-      for m in store.query().methods_in_class('checkServerTrusted', 'X509TrustManager'):
-        if any(store.query().matches_in_method(m, InvocationPattern('throw', ''))):
-          pins.add(m)
-
-      if not pins:
+    if not self.do_detect_plain_pins_x509():
+      if not self.do_detect_plain_pins_hostnameverifier():
         yield Issue(
           detector_id=self.option,
           confidence=IssueConfidence.CERTAIN,
           cvss3_vector=self.cvss,
           summary='insecure TLS connection',
-          info1='pinning X509TrustManagers are not detected'
+          info1='no pinning detected'
         )
-      else:
+
+  def do_detect_plain_pins_x509(self):
+    with self.context.store() as store:
+      pins = set()
+      q = store.query()
+      for m in store.query().methods_in_class('checkServerTrusted', 'X509TrustManager'):
+        if any(q.matches_in_method(m, InvocationPattern('verify', ''))):
+          pins.add(q.class_name_of(q.class_of_method(m)))
+        if any(q.matches_in_method(m, InvocationPattern('throw', ''))):
+          pins.add(q.class_name_of(q.class_of_method(m)))
+
+      if pins:
         # XXX crude detection
-        for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext->init')):
-          if not DataFlows.solved_typeset_in_invocation(store, cl, 2) & pins:
-            yield Issue(
-              detector_id=self.option,
-              confidence=IssueConfidence.FIRM,
-              cvss3_vector=self.cvss,
-              summary='insecure TLS connection',
-              info1='pinning X509TrustManagers are not used',
-              source=store.query().qualname_of(cl)
-            )
+        custom_sslcontext_detected = False
+        for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext;->init')):
+          custom_sslcontext_detected = True
+          pins = DataFlows.solved_typeset_in_invocation(store, cl, 1) & pins
+
+        if not custom_sslcontext_detected:
+          return set()
         else:
-          yield Issue(
-            detector_id=self.option,
-            confidence=IssueConfidence.FIRM,
-            cvss3_vector=self.cvss,
-            summary='insecure TLS connection',
-            info1='use of standard SSLContext'
-          )
+          return pins
+      else:
+        return pins
+
+  def do_detect_plain_pins_hostnameverifier(self):
+    with self.context.store() as store:
+      pins = set()
+      q = store.query()
+      for m in itertools.chain(store.query().methods_in_class('verify(Ljava/lang/String;Ljavax/net/ssl/SSLSession;)Z', 'HostnameVerifier')):
+        if any(q.matches_in_method(m, InvocationPattern('invoke', 'contains|equals|verify|Ljavax/net/ssl/SSLSession;->getPeerCertificates'))):
+          pins.add(q.class_name_of(q.class_of_method(m)))
+      return pins
 
 
 class LayoutSizeGuesser:
