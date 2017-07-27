@@ -156,7 +156,8 @@ class LayoutSizeGuesser:
 
 class SecurityArbitraryWebViewOverwriteDetector(Detector):
   option = 'security-arbitrary-webview-overwrite'
-  cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:C/C:N/I:H/A:N/'
+  cvss1 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:N/I:H/A:N/'
+  cvss2 = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:C/C:N/I:H/A:N/'
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
@@ -182,7 +183,7 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
               yield Issue(
                 detector_id=self.option,
                 confidence=IssueConfidence.TENTATIVE,
-                cvss3_vector=self.cvss,
+                cvss3_vector=self.cvss1,
                 summary='arbitrary WebView content overwrite',
                 info1='{0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size),
                 source=self.context.source_name_of_disassembled_resource(fn)
@@ -196,7 +197,7 @@ class SecurityArbitraryWebViewOverwriteDetector(Detector):
             yield Issue(
               detector_id=self.option,
               confidence=IssueConfidence.FIRM,
-              cvss3_vector=self.cvss,
+              cvss3_vector=self.cvss2,
               summary='arbitrary WebView content overwrite with URL',
               info1=v,
               source=store.query().qualname_of(op)
