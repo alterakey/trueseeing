@@ -1,5 +1,6 @@
 import itertools
 import logging
+import pprint
 
 from .code import CodeFlows
 
@@ -92,8 +93,17 @@ class DataFlows:
     graph = DataFlows.analyze(store, invokation_op)
     reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
     arg = graph[invokation_op][reg]
-    pprint.pprint(graph)
-    raise Exception('breakpoint')
+    def assumed_target_type_of_op(x):
+      assert x.t == 'id'
+      if x.v.startswith('const/4'):
+        return 'Ljava/lang/Integer;'
+      elif x.v.startswith('const-string'):
+        return 'Ljava/lang/String;'
+      elif x.v.startswith('new-array'):
+        return x.p[2].v
+      else:
+        return 'Ljava/lang/Object;'
+    return {assumed_target_type_of_op(x) for x in DataFlows.walk_dict_values(graph[invokation_op][reg]) if x is not None and x.t == 'id'}
 
   @staticmethod
   def analyze(store, op, state=None):
