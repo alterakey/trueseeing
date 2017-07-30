@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 metadata = dict(
   name='trueseeing',
   version='2.0.6',
-  description='Trueseeing is a fast, accurate, and resillient vulnerability scanner for Android apps.',
+  description='Trueseeing is a non-decompiling Android application vulnerability scanner.',
   classifiers=[
     "Topic :: Security",
     "Operating System :: Android",
@@ -15,7 +15,7 @@ metadata = dict(
   ],
   author='Takahiro Yoshimura',
   author_email='takahiro_y@monolithworks.co.jp',
-  url='https://github.com/taky/trueseeing',
+  url='https://github.com/monolithworks/trueseeing',
   keywords='android java security pentest hacking',
 )
 
