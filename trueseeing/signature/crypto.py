@@ -1,11 +1,28 @@
-# Vulnerabilities:
+# -*- coding: utf-8 -*-
+# Trueseeing: Non-decompiling Android application vulnerability scanner
+# Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Issues:
 # * Cryptography: Insecure cryptography: Static keys
 # * Cryptography: Insecure cryptography: ECB
-# * Cryptography: Insecure cryptography: CBC with fixed key/IV
-# * Cryptography: Insecure cryptography: CFB/OFB with fixed key/IV
-# * Cryptography: Insecure cryptography: CTR with same counter and key
+# * Cryptography: Insecure cryptography: CBC with fixed key/IV (WIP)
+# * Cryptography: Insecure cryptography: CFB/OFB with fixed key/IV (WIP)
+# * Cryptography: Insecure cryptography: CTR with same counter and key (WIP)
 # * Cryptography: Insecure cryptography: non-random XOR cipher
-# * Cryptography: Insecure cryptography: implicit trust on non-authenticated data
+# * Cryptography: Insecure cryptography: implicit trust on non-authenticated data (WIP)
 
 import binascii
 import functools
