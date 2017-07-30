@@ -80,3 +80,13 @@ class PatchBackupable:
       e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "false"
     with open(os.path.join(context.wd, 'AndroidManifest.xml'), 'wb') as f:
       f.write(ET.tostring(manifest))
+
+class PatchLoggers:
+  def patch(self, context):
+    for fn in context.disassembled_classes():
+      with open(fn, 'r') as f:
+        content = f.read()
+      with open(fn, 'w') as f:
+        stage0 = re.sub(r'^.*?invoke-static.*?Landroid/util/Log;->.*?\(.*?$', '', content, flags=re.MULTILINE)
+        stage1 = re.sub(r'^.*?invoke-virtual.*?Ljava/io/PrintWriter;->.*?\(.*?$', '', stage0, flags=re.MULTILINE)
+        f.write(stage1)

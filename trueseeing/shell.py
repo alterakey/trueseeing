@@ -189,5 +189,5 @@ def shell():
       return 0
     elif exploitation_mode == 'patch-all':
       for f in files:
-        trueseeing.patch.Patches(f, os.path.basename(f).replace('.apk', '-patched.apk'), [trueseeing.patch.PatchDebuggable(), trueseeing.patch.PatchBackupable()]).apply()
+        trueseeing.patch.Patches(f, os.path.basename(f).replace('.apk', '-patched.apk'), [trueseeing.patch.PatchDebuggable(), trueseeing.patch.PatchBackupable(), trueseeing.patch.PatchLoggers()]).apply()
       return 0
