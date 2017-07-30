@@ -5,8 +5,8 @@ import shutil
 from setuptools import setup, find_packages
 
 metadata = dict(
-  name='trueseeing-core',
-  version='2.0.5',
+  name='trueseeing',
+  version='2.0.6',
   description='Trueseeing is a fast, accurate, and resillient vulnerability scanner for Android apps.',
   classifiers=[
     "Topic :: Security",
