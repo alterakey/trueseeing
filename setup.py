@@ -12,6 +12,7 @@ metadata = dict(
     "Topic :: Security",
     "Operating System :: Android",
     "Programming Language :: Java",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
   ],
   author='Takahiro Yoshimura',
   author_email='takahiro_y@monolithworks.co.jp',
