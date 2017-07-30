@@ -1,27 +1,51 @@
-<!-- mode: markdown; indent-tabs-mode: nil -->
-# README #
+# README
 
-Copyright (C) 2015 Takahiro Yoshimura <altakey@gmail.com>  All rights reserved.
+trueseeing is a fast, accurate and resillient vulnerabilities scanner for Android apps.  It operates on Android Packaging File (APK) and outputs a comprehensive report in HTML.  It doesn't matter if the APK is obfuscated or not.
 
-Trueseeing is a vulnerability scanner and penetration test framework for Android.
+Since it is an early beta stage we provide it as a service; this is the reference API client implementation.  Once it goes stable we will release it with complete implementation -- please look forward to it.
 
-## 0. USAGE ##
+## Capability
 
-    $ trueseeing -ftaint ./target.apk
-    AndroidManifest.xml:1:0: warning: open permissions: android.permission.READ_PHONE_STATE [-Wmanifest-open-permission]
-    AndroidManifest.xml:1:0: warning: open permissions: android.permission.READ_SMS [-Wmanifest-open-permission]
-    AndroidManifest.xml:1:0: warning: missing permissions: android.permission.READ_CONTACTS [-Wmanifest-open-permission]
-    AndroidManifest.xml:1:0: warning: manipulatable Activity: XXXXXXXActivity [-Wmanifest-manip-activity]
-    AndroidManifest.xml:1:0: warning: manipulatable BroadcastReceiver: XXXXXXXReceiver [-Wmanifest-manip-broadcastreceiver]
-    com/gmail/altakey/crypto/Tools.java:5:0: warning: insecure cryptography: static keys: XXXXXX: "XXXXXXXXXXXXXXXXXXXXXXXX" [-Wcrypto-static-keys]
-    com/gmail/altakey/crypto/Tools.java:6:0: warning: insecure cryptography: static keys: XXXXXX: "XXXXXXXXXXXXXXXXXXXXXXXX" [-Wcrypto-static-keys]
-    com/gmail/altakey/ui/WebActivity.java:40:0: warning: arbitrary WebView content overwrite [-Wsecurity-arbitrary-webview-overwrite]
-    com/gmail/altakey/model/DeviceInfo.java:24:0: warning: insecure data flow into file: IMEI/IMSI [-Wsecurity-dataflow-file]
-    com/gmail/altakey/api/ApiClient.java:48:0: warning: insecure data flow on wire: IMEI/IMSI [-Wsecurity-dataflow-wire]
-    ....
+Currently trueseeing can detect the following class of vulnerabilities:
 
+  * Improper Platform Usage (M1)
 
-## 1. BUGS ##
+    * Debuggable
+    * Inadvent publishing of Activities, Services, ContentProviders, BroadcastReceivers
 
-* Slow
-* Insanely hackish
+  * Insecure Data (M2)
+
+    * Backupable (i.e. suspectible to the backup attack)
+    * Insecure file permissions
+    * Logging
+
+  * Insecure Commnications (M3)
+
+    * Lack of pinning (i.e. suspictible to the TLS interception attack)
+    * Use of cleartext HTTP
+    * Tamperable WebViews
+
+  * Insufficient Cryptography (M5)
+
+    * Hardcoded passphrase/secret keys
+    * Vernum ciphers with static keys
+    * Use of the ECB mode
+
+  * Client Code Quality Issues (M7)
+
+    * Reflectable WebViews (i.e. XSSs in such views should be escalatable to remote code executions via JS reflection)
+    * Usage of insecure policy on mixed contents
+
+  * Code Tampering (M8)
+
+    * Hardcoded certificates
+
+  * Reverse Engineering (M9)
+
+    * Lack of obfuscation
+
+## Usage
+
+The following command line is sufficient to scan a APK (target.apk):
+
+    $ trueseeing /path/to/target.apk > report.html
