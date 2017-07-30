@@ -2,8 +2,6 @@
 
 trueseeing is a fast, accurate and resillient vulnerabilities scanner for Android apps.  It operates on Android Packaging File (APK) and outputs a comprehensive report in HTML.  It doesn't matter if the APK is obfuscated or not.
 
-Since it is an early beta stage we provide it as a service; this is the reference API client implementation.  Once it goes stable we will release it with complete implementation -- please look forward to it.
-
 ## Capability
 
 Currently trueseeing can detect the following class of vulnerabilities:
