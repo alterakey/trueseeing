@@ -42,8 +42,20 @@ Currently trueseeing can detect the following class of vulnerabilities:
 
     * Lack of obfuscation
 
+## Installation
+
+    $ pip3 install trueseeing
+
 ## Usage
 
 The following command line is sufficient to scan a APK (target.apk):
 
     $ trueseeing /path/to/target.apk > report.html
+
+To get output in more CI-friendly format:
+
+    $ trueseeing --output=gcc /path/to/target.apk
+
+To fix (not all) problems it catches:
+
+    $ trueseeing --patch-all /path/to/target.apk
