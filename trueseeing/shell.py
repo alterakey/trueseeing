@@ -122,7 +122,7 @@ def shell():
     if o in ['--output']:
       output_format = a
     if o in ['--version']:
-      print('Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing-core').version)
+      print('Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing').version)
       print('Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>.  All rights reserved.')
       sys.exit(0)
 
