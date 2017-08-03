@@ -80,6 +80,12 @@ def selected_signatures_on(switch):
   else:
     return signatures_all
 
+def copyright_string():
+  return [
+    ('Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing').version),
+    ('Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>.  All rights reserved.')
+  ]
+
 def shell():
   log_level = logging.INFO
   signature_selected = signatures_default.copy()
@@ -93,7 +99,7 @@ def shell():
   api_read_limit = None
   api_expires = None
 
-  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'version', 'patch-all'])
+  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'help', 'inspect', 'output=', 'version', 'patch-all'])
   for o, a in opts:
     if o in ['-d']:
       log_level = logging.DEBUG
@@ -122,9 +128,35 @@ def shell():
     if o in ['--output']:
       output_format = a
     if o in ['--version']:
-      print('Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing').version)
-      print('Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>.  All rights reserved.')
+      print('\n'.join(
+        copyright_string()
+      ))
       sys.exit(0)
+    if o in ['--help']:
+      print('\n'.join([
+        *copyright_string(),
+        '',
+        'USAGE: %s [options] <apk>' % sys.argv[0],
+        '',
+        'OPTIONS:',
+        '',
+        '  -d                        Debug mode',
+        '  --exploit-resign          Exploitation mode: re-sign the given APK',
+        '  --exploit-unsign          Exploitation mode: un-sign the given APK',
+        '  --exploit-enable-debug    Exploitation mode: makes the given APK debuggable',
+        '  --exploit-enable-backup   Exploitation mode: makes the given APK full-backupable',
+        '  --fingerprint             Finds the fingerprint of the given APK',
+        '  --grab <package>          Attempt to grab the given package from the connected device',
+        '  --help                    Display the available options',
+        '  --inspect                 Interactive analysis mode',
+        '  --output=<format>         Set the output format: html, gcc',
+        '  --patch-all               Attempt to fix problems found',
+        '  --version                 Shows the version',
+        '  -W<warning>               Enable the given warning',
+        '  -Wno-<warning>            Disable the given warning',
+      ]))
+      sys.exit(0)
+
 
   if not files:
     print("%s: no input files" % sys.argv[0])
