@@ -231,16 +231,19 @@ class SecurityInsecureWebViewDetector(Detector):
 
   def do_detect(self):
     with self.context.store() as store:
-      targets = {'WebView','XWalkView','GeckoView'}
+      targets = set()
+      seeds = {'WebView','XWalkView','GeckoView'}
 
       more = True
       while more:
         more = False
-        for cl in store.query().related_classes('|'.join(targets)):
+        for cl in store.query().related_classes('|'.join(seeds)):
           name = store.query().class_name_of(cl)
           if name not in targets:
             targets.add(name)
             more = True
+      for seed in seeds:
+        targets.add('L.*%s;' % seed)
 
       # XXX: Crude detection
       for p in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')):
