@@ -39,6 +39,7 @@ log = logging.getLogger(__name__)
 
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
+  description = 'Detects device fingerprinting behavior'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:N/A:N/'
 
   def analyzed(self, store, op):
@@ -78,6 +79,7 @@ class PrivacyDeviceIdDetector(Detector):
 
 class PrivacySMSDetector(Detector):
   option = 'privacy-sms'
+  description = 'Detects SMS-related behavior'
   cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N/'
 
   def do_detect(self):

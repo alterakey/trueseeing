@@ -42,6 +42,7 @@ log = logging.getLogger(__name__)
 
 class SecurityFilePermissionDetector(Detector):
   option = 'security-file-permission'
+  description = 'Detects insecure file creation'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
   def do_detect(self):
@@ -63,6 +64,7 @@ class SecurityFilePermissionDetector(Detector):
 
 class SecurityTlsInterceptionDetector(Detector):
   option = 'security-tls-interception'
+  description = 'Detects certificate (non-)pinning'
   cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
 
   def do_detect(self):
@@ -166,6 +168,7 @@ class LayoutSizeGuesser:
 
 class SecurityTamperableWebViewDetector(Detector):
   option = 'security-tamperable-webview'
+  description = 'Detects tamperable WebView'
   cvss1 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:N/I:H/A:N/'
   cvss2 = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:C/C:N/I:H/A:N/'
 
@@ -218,6 +221,7 @@ class SecurityTamperableWebViewDetector(Detector):
 
 class SecurityInsecureWebViewDetector(Detector):
   option = 'security-insecure-webview'
+  description = 'Detects insecure WebView'
   cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:H/'
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
@@ -287,6 +291,7 @@ class SecurityInsecureWebViewDetector(Detector):
 
 class FormatStringDetector(Detector):
   option = 'security-format-string'
+  description = 'Detects format string usages'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def analyzed(self, x):
@@ -319,6 +324,7 @@ class FormatStringDetector(Detector):
 
 class LogDetector(Detector):
   option = 'security-log'
+  description = 'Detects logging activities'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
   def do_detect(self):

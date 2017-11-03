@@ -24,6 +24,7 @@ import math
 
 class Detector:
   option = None
+  description = None
 
   def __init__(self, context):
     self.context = context
