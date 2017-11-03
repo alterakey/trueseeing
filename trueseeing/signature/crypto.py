@@ -44,6 +44,7 @@ log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'
+  description = 'Detects cryptographic function usage with static keys'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
   cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
@@ -166,6 +167,7 @@ Use a device or installation specific information, or obfuscate them.  Especiall
 
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
+  description = 'Detects ECB mode ciphers'
   cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
   def do_detect(self):
@@ -194,6 +196,7 @@ Use CBC or CTR mode.
 
 class CryptoNonRandomXorDetector(Detector):
   option = 'crypto-xor'
+  description = 'Detects Vernum cipher usage with static keys'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
   def do_detect(self):

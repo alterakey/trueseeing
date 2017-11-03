@@ -101,10 +101,11 @@ General:
   -d                        Debug mode
   --version                 Version information
   --help                    Show this text
+  --help-signature          Show signatures
 
 Scan mode:
-  -W<signame>               Enable signature
-  -Wno-<signame>            Disable signature
+  -W<signame>               Enable signature (use --help-signatures to list signatures)
+  -Wno-<signame>            Disable signature (use --help-signatures to list signatures)
   --fingerprint             Print fingerprint
   --grab <package name>     Grab package from device
   --output=html|gcc         Output mode (html: HTML, gcc: Text)
@@ -123,6 +124,18 @@ Misc:
 '''
   ])
 
+def help_signatures(signatures):
+  return '\n'.join([
+    version(),
+    '',
+    #.........................................................................80
+    'SIGNATURES',
+    '',
+  ] + [
+    ('  %-36s%s' % (name, signatures[name].description)) for name in sorted(signatures.keys())
+  ])
+
+
 def shell():
   log_level = logging.INFO
   signature_selected = signatures_default.copy()
@@ -132,7 +145,7 @@ def shell():
   inspection_mode = False
   output_format = None
 
-  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'help', 'inspect', 'output=', 'version', 'patch-all'])
+  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect', 'output=', 'version', 'patch-all'])
   for o, a in opts:
     if o in ['-d']:
       log_level = logging.DEBUG
@@ -165,6 +178,9 @@ def shell():
       return 0
     if o in ['--help']:
       print(help_())
+      return 2
+    if o in ['--help-signatures']:
+      print(help_signatures(signatures))
       return 2
 
   global preferences

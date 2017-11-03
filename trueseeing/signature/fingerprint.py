@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 
 class LibraryDetector(Detector):
   option = 'detect-library'
+  description = 'Detects libraries'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def package_name_of(self, path):
@@ -100,6 +101,7 @@ class LibraryDetector(Detector):
 
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
+  description = 'Detects obfuscators'
   cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
@@ -121,6 +123,7 @@ class FakeToken:
 
 class UrlLikeDetector(Detector):
   option = 'detect-url'
+  description = 'Detects URL-like strings'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def __init__(self, context):

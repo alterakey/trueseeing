@@ -39,6 +39,7 @@ log = logging.getLogger(__name__)
 
 class ManifestOpenPermissionDetector(Detector):
   option = 'manifest-open-permission'
+  description = 'Detects declarated permissions'
   cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
 
   def do_detect(self):
@@ -57,6 +58,7 @@ class ManifestOpenPermissionDetector(Detector):
 
 class ManifestMissingPermissionDetector(Detector):
   option = 'manifest-missing-permission'
+  description = 'Detects missing permissions'
   cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def do_detect(self):
@@ -77,6 +79,7 @@ class ComponentNamePolicy:
 
 class ManifestManipActivity(Detector):
   option = 'manifest-manip-activity'
+  description = 'Detects exported Activity'
   cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
@@ -117,6 +120,7 @@ class ManifestManipActivity(Detector):
 
 class ManifestManipBroadcastReceiver(Detector):
   option = 'manifest-manip-broadcastreceiver'
+  description = 'Detects exported BroadcastReceiver'
   cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
@@ -157,6 +161,7 @@ class ManifestManipBroadcastReceiver(Detector):
 
 class ManifestManipContentProvider(Detector):
   option = 'manifest-manip-contentprovider'
+  description = 'Detects exported ContentProvider'
   cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
@@ -207,6 +212,7 @@ class ManifestManipContentProvider(Detector):
 
 class ManifestManipBackup(Detector):
   option = 'manifest-manip-backup'
+  description = 'Detects enabled backup bit'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/'
 
   def do_detect(self):
@@ -228,6 +234,7 @@ android:allowBackup="false"
 
 class ManifestDebuggable(Detector):
   option = 'manifest-debuggable'
+  description = 'Detects enabled debug bits'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/'
 
   def do_detect(self):
