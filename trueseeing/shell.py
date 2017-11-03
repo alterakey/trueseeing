@@ -80,6 +80,49 @@ def selected_signatures_on(switch):
   else:
     return signatures_all
 
+def version():
+  return '\n'.join([
+    'Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing').version,
+    #.........................................................................80
+    '''\
+Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>
+All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.'''
+  ])
+
+def help_():
+  return '\n'.join([
+    version(),
+    '',
+    #.........................................................................80
+    '''\
+OPTIONS
+
+General:
+  -d                        Debug mode
+  --version                 Version information
+  --help                    Show this text
+
+Scan mode:
+  -W<signame>               Enable signature
+  -Wno-<signame>            Disable signature
+  --fingerprint             Print fingerprint
+  --grab <package name>     Grab package from device
+  --output=html|gcc         Output mode (html: HTML, gcc: Text)
+
+Exploitation mode:
+  --exploit-resign          Exploit mode: Replace signature
+  --exploit-unsign          Exploit mode: Remove signature
+  --exploit-enable-debug    Exploit mode: Enable debug bit
+  --exploit-enable-backup   Exploit mode: Enable backup bit
+
+Patch mode:
+  --patch-all               Patch mode: apply fix
+
+Misc:
+  --inspect                 Interactive mode
+'''
+  ])
+
 def shell():
   log_level = logging.INFO
   signature_selected = signatures_default.copy()
@@ -88,12 +131,8 @@ def shell():
   grab_mode = False
   inspection_mode = False
   output_format = None
-  api_mode = False
-  api_cputime_limit = None
-  api_read_limit = None
-  api_expires = None
 
-  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'inspect', 'output=', 'version', 'patch-all'])
+  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'help', 'inspect', 'output=', 'version', 'patch-all'])
   for o, a in opts:
     if o in ['-d']:
       log_level = logging.DEBUG
@@ -122,22 +161,21 @@ def shell():
     if o in ['--output']:
       output_format = a
     if o in ['--version']:
-      print('Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing-core').version)
-      print('Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>.  All rights reserved.')
-      sys.exit(0)
+      print(version())
+      return 0
+    if o in ['--help']:
+      print(help_())
+      return 2
 
-  if not files:
-    print("%s: no input files" % sys.argv[0])
-    return 2
-  else:
-    global preferences
-    preferences = configparser.ConfigParser()
-    preferences.read('.trueseeingrc')
+  global preferences
+  preferences = configparser.ConfigParser()
+  preferences.read('.trueseeingrc')
 
-    logging.basicConfig(level=log_level, format="%(msg)s")
+  logging.basicConfig(level=log_level, format="%(msg)s")
 
-    if not exploitation_mode:
-      if not any([fingerprint_mode, grab_mode, inspection_mode, api_mode]):
+  if not exploitation_mode:
+    if not any([fingerprint_mode, grab_mode, inspection_mode]):
+      if files:
         error_found = False
         for f in files:
           if processed(f, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format):
@@ -146,48 +184,51 @@ def shell():
           return 0
         else:
           return 1
-      elif fingerprint_mode:
-        for f in files:
-          print('%s: %s' % (f, Context().fingerprint_of(f)))
-      elif grab_mode:
-        if files:
-          for pkg in files:
-            if trueseeing.grab.Grab(pkg).exploit():
-              print('%s: package saved: %s.apk' % (sys.argv[0], pkg))
-              return 0
-            else:
-              print('%s: package not found' % sys.argv[0])
-              return 1
-        else:
-          print('%s: listing packages' % sys.argv[0])
-          for p in sorted(trueseeing.grab.Grab(None).list_()):
-            print(p)
-          return 0
-      elif inspection_mode:
-        f = files[0]
-        with Context() as context:
-          print("inspection mode; analyzing %s" % f)
-          context.analyze(f)
-          print("analyzed, context in 'context'")
-          from IPython import embed
-          embed()
-    elif exploitation_mode == 'resign':
+      else:
+        print("%s: no input files" % sys.argv[0])
+        return 2
+    elif fingerprint_mode:
       for f in files:
-        trueseeing.exploit.ExploitResign(f, os.path.basename(f).replace('.apk', '-resigned.apk')).exploit()
-      return 0
-    elif exploitation_mode == 'unsign':
-      for f in files:
-        trueseeing.exploit.ExploitUnsign(f, os.path.basename(f).replace('.apk', '-unsigned.apk')).exploit()
-      return 0
-    elif exploitation_mode == 'enable-debug':
-      for f in files:
-        trueseeing.exploit.ExploitEnableDebug(f, os.path.basename(f).replace('.apk', '-debuggable.apk')).exploit()
-      return 0
-    elif exploitation_mode == 'enable-backup':
-      for f in files:
-        trueseeing.exploit.ExploitEnableBackup(f, os.path.basename(f).replace('.apk', '-backupable.apk')).exploit()
-      return 0
-    elif exploitation_mode == 'patch-all':
-      for f in files:
-        trueseeing.patch.Patches(f, os.path.basename(f).replace('.apk', '-patched.apk'), [trueseeing.patch.PatchDebuggable(), trueseeing.patch.PatchBackupable(), trueseeing.patch.PatchLoggers()]).apply()
-      return 0
+        print('%s: %s' % (f, Context().fingerprint_of(f)))
+    elif grab_mode:
+      if files:
+        for pkg in files:
+          if trueseeing.grab.Grab(pkg).exploit():
+            print('%s: package saved: %s.apk' % (sys.argv[0], pkg))
+            return 0
+          else:
+            print('%s: package not found' % sys.argv[0])
+            return 1
+      else:
+        print('%s: listing packages' % sys.argv[0])
+        for p in sorted(trueseeing.grab.Grab(None).list_()):
+          print(p)
+        return 0
+    elif inspection_mode:
+      f = files[0]
+      with Context() as context:
+        print("inspection mode; analyzing %s" % f)
+        context.analyze(f)
+        print("analyzed, context in 'context'")
+        from IPython import embed
+        embed()
+  elif exploitation_mode == 'resign':
+    for f in files:
+      trueseeing.exploit.ExploitResign(f, os.path.basename(f).replace('.apk', '-resigned.apk')).exploit()
+    return 0
+  elif exploitation_mode == 'unsign':
+    for f in files:
+      trueseeing.exploit.ExploitUnsign(f, os.path.basename(f).replace('.apk', '-unsigned.apk')).exploit()
+    return 0
+  elif exploitation_mode == 'enable-debug':
+    for f in files:
+      trueseeing.exploit.ExploitEnableDebug(f, os.path.basename(f).replace('.apk', '-debuggable.apk')).exploit()
+    return 0
+  elif exploitation_mode == 'enable-backup':
+    for f in files:
+      trueseeing.exploit.ExploitEnableBackup(f, os.path.basename(f).replace('.apk', '-backupable.apk')).exploit()
+    return 0
+  elif exploitation_mode == 'patch-all':
+    for f in files:
+      trueseeing.patch.Patches(f, os.path.basename(f).replace('.apk', '-patched.apk'), [trueseeing.patch.PatchDebuggable(), trueseeing.patch.PatchBackupable(), trueseeing.patch.PatchLoggers()]).apply()
+    return 0
