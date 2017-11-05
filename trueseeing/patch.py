@@ -42,6 +42,7 @@ class SigningKey:
       os.system('keytool -genkey -v -keystore %(path)s -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000' % dict(path=path))
       return path
 
+# TBD: Restore wc after package (i.e. do not accumulate patches between shell sessions)
 class Patches:
   def __init__(self, apk, out, chain):
     self.apk = os.path.realpath(apk)
