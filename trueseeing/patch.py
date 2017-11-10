@@ -88,5 +88,5 @@ class PatchLoggers:
         content = f.read()
       with open(fn, 'w') as f:
         stage0 = re.sub(r'^.*?invoke-static.*?Landroid/util/Log;->.*?\(.*?$', '', content, flags=re.MULTILINE)
-        stage1 = re.sub(r'^.*?invoke-virtual.*?Ljava/io/PrintWriter;->.*?\(.*?$', '', stage0, flags=re.MULTILINE)
+        stage1 = re.sub(r'^.*?invoke-virtual.*?Ljava/io/Print(Writer|Stream);->.*?\(.*?$', '', stage0, flags=re.MULTILINE)
         f.write(stage1)
