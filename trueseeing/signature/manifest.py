@@ -73,7 +73,7 @@ class ComponentNamePolicy:
   def looks_public(self, name):
     if '.' in name:
       gtld = name.split('.')[0]
-      return gtld == 'android' or self.re_tlds.search(gtld)
+      return gtld == 'android' or '.intent.action.' in name or self.re_tlds.search(gtld)
     else:
       return False
 
