@@ -161,8 +161,18 @@ class LayoutSizeGuesser:
 
     dps = dps_from_modifiers(modifiers_in(path))
     for e in self_and_containers_of(t):
-      if any(is_bound(x) for x in (width_of(e), height_of(e))):
-        return guessed_dp(width_of(e), dps[0]) * guessed_dp(height_of(e), dps[1])
+      try:
+        width, height = width_of(e), height_of(e)
+      except KeyError:
+        try:
+          log.warning('layout_guesser: guessed_size: ignoring improper webview declaration ({0})'.format(e.attrib['{0}id'.format(self.xmlns_android)]))
+          return 0.0
+        except KeyError:
+          log.warning('layout_guesser: guessed_size: ignoring improper webview declaration')
+          return 0.0
+      else:
+        if any(is_bound(x) for x in (width_of(e), height_of(e))):
+          return guessed_dp(width_of(e), dps[0]) * guessed_dp(height_of(e), dps[1])
     else:
       return 1.0
 
