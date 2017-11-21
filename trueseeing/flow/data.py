@@ -177,6 +177,10 @@ class DataFlows:
 
   @staticmethod
   def analyze_recent_load_of(store, from_, reg, stage=0):
+    for o in DataFlows.looking_behind_from(store, from_):
+      if o.t == 'id':
+        if reg in DataFlows.analyze_load(store, o):
+          return o
     if reg.startswith('p'):
       index = int(reg.replace('p', ''))
       for caller in CodeFlows.callers_of(store, from_):
@@ -188,10 +192,6 @@ class DataFlows:
             if retraced:
               return retraced
       return None
-    for o in DataFlows.looking_behind_from(store, from_):
-      if o.t == 'id':
-        if reg in DataFlows.analyze_load(store, o):
-          return o
 
   # TBD: tracing on static-array fields
   @staticmethod
