@@ -71,7 +71,7 @@ class Context:
           if not os.path.exists(os.path.join(self.wd, 'target.apk')):
             shutil.copyfile(self.apk, os.path.join(self.wd, 'target.apk'))
           # XXX insecure
-          subprocess.run("java -jar %(apktool)s d -f %(skipresflag)s -o %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('-r' if skip_resources else '')), shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          subprocess.check_output("java -jar %(apktool)s d -f %(skipresflag)s -o %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('-r' if skip_resources else '')), shell=True, stderr=subprocess.STDOUT)
           trueseeing.code.parse.SmaliAnalyzer(self.store()).analyze(open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
           with open(os.path.join(self.wd, '.done'), 'w'):
             pass
