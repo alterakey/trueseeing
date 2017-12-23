@@ -40,14 +40,17 @@ def invoked(as_, expected_codes=None):
     raise ProcessError("process exited with unexpected exit codes (%d): %s", code, as_)
 
 def version_of_default_device():
-  code, out, err = invoked("adb shell cat /system/build.prop", expected_codes=0)
   try:
+    code, out, err = invoked("adb shell cat /system/build.prop", expected_codes=0)
     return float(re.search(r'ro.build.version.release=(.+?)', out.decode('utf-8')).group(1))
-  except ValueError:
-    return 7.0
+  except (ValueError, ProcessError):
+    return 8.0
 
 def path_from(package):
-  if version_of_default_device() >= 4.4:
+  version = version_of_default_device()
+  if version >= 8.0:
+    return path_from_dump(package)
+  elif version >= 4.4:
     return path_from_multidex(package)
   else:
     return path_from_premultidex(package)
@@ -59,6 +62,10 @@ def path_from_premultidex(package):
 def path_from_multidex(package):
   for i in range(1, 16):
     yield '/data/app/%s-%d/base.apk' % (package, i), '%s.apk' % package
+
+def path_from_dump(package):
+  code, out, err = invoked('adb shell pm dump "%s"' % package, expected_codes=0)
+  yield os.path.join(re.search('codePath=(/data/app/%s-.+)' % package, out.decode('utf-8')).group(1), 'base.apk'), '%s.apk' % package
 
 class Grab:
   def __init__(self, package):
