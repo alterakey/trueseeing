@@ -115,7 +115,7 @@ Exploitation mode:
   --exploit-unsign          Exploit mode: Remove signature
   --exploit-enable-debug    Exploit mode: Enable debug bit
   --exploit-enable-backup   Exploit mode: Enable backup bit
-  --exploit-enable-backup   Exploit mode: Disable TLS Pinning (>=API 24)
+  --exploit-disable-pinning Exploit mode: Disable TLS Pinning (>=API 24)
 
 Patch mode:
   --patch-all               Patch mode: apply fix
