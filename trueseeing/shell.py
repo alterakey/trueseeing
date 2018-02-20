@@ -115,6 +115,7 @@ Exploitation mode:
   --exploit-unsign          Exploit mode: Remove signature
   --exploit-enable-debug    Exploit mode: Enable debug bit
   --exploit-enable-backup   Exploit mode: Enable backup bit
+  --exploit-enable-backup   Exploit mode: Disable TLS Pinning (>=API 24)
 
 Patch mode:
   --patch-all               Patch mode: apply fix
@@ -145,7 +146,7 @@ def shell():
   inspection_mode = False
   output_format = None
 
-  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect', 'output=', 'version', 'patch-all'])
+  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect', 'output=', 'version', 'patch-all'])
   for o, a in opts:
     if o in ['-d']:
       log_level = logging.DEBUG
@@ -163,6 +164,8 @@ def shell():
       exploitation_mode = 'enable-debug'
     if o in ['--exploit-enable-backup']:
       exploitation_mode = 'enable-backup'
+    if o in ['--exploit-disable-pinning']:
+      exploitation_mode = 'disable-pinning'
     if o in ['--patch-all']:
       exploitation_mode = 'patch-all'
     if o in ['--grab']:
@@ -243,6 +246,10 @@ def shell():
   elif exploitation_mode == 'enable-backup':
     for f in files:
       trueseeing.exploit.ExploitEnableBackup(f, os.path.basename(f).replace('.apk', '-backupable.apk')).exploit()
+    return 0
+  elif exploitation_mode == 'disable-pinning':
+    for f in files:
+      trueseeing.exploit.ExploitDisablePinning(f, os.path.basename(f).replace('.apk', '-unpinned.apk')).exploit()
     return 0
   elif exploitation_mode == 'patch-all':
     for f in files:
