@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 metadata = dict(
   name='trueseeing',
-  version='2.0.9',
+  version='2.0.10',
   description='Trueseeing is a non-decompiling Android application vulnerability scanner.',
   classifiers=[
     "Topic :: Security",
