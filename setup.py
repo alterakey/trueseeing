@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 metadata = dict(
   name='trueseeing',
-  version='2.0.10',
+  version='2.0.11',
   description='Trueseeing is a non-decompiling Android application vulnerability scanner.',
   classifiers=[
     "Topic :: Security",
@@ -36,6 +36,7 @@ setup(
   setup_requires=[
     "wheel",
   ],
-  entry_points = {'console_scripts':['trueseeing = trueseeing.shell:shell']},
-  **metadata
+  entry_points={'console_scripts':['trueseeing = trueseeing.shell:shell']},
+  **metadata,
+  python_requires='>=3'
 )
