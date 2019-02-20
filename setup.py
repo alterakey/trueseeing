@@ -1,12 +1,8 @@
-import os
-import sys
-import shutil
-
 from setuptools import setup, find_packages
 
 metadata = dict(
   name='trueseeing',
-  version='2.0.10',
+  version='2.0.11',
   description='Trueseeing is a non-decompiling Android application vulnerability scanner.',
   classifiers=[
     "Topic :: Security",
@@ -25,7 +21,7 @@ README = open('README.rst').read()
 setup(
   long_description=README,
   packages=find_packages(),
-  package_data={'trueseeing':['libs/*.jar', 'libs/*.txt', 'libs/*.sql', 'template/*']},
+  package_data={'trueseeing': ['libs/*.jar', 'libs/*.txt', 'libs/*.sql', 'template/*']},
   include_package_data=True,
   zip_safe=False,
   install_requires=[
@@ -36,6 +32,7 @@ setup(
   setup_requires=[
     "wheel",
   ],
-  entry_points = {'console_scripts':['trueseeing = trueseeing.shell:shell']},
+  entry_points={'console_scripts': ['trueseeing = trueseeing._dummy:shell']},
+  python_requires='>=3',
   **metadata
 )
