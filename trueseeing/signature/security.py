@@ -203,14 +203,17 @@ class SecurityTamperableWebViewDetector(Detector):
           for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % self.context.class_name_of_dalvik_class_type(c).replace('$', '_')) for c in targets)):
             size = LayoutSizeGuesser().guessed_size(t, fn)
             if size > 0.5:
-              yield Issue(
-                detector_id=self.option,
-                confidence=IssueConfidence.TENTATIVE,
-                cvss3_vector=self.cvss1,
-                summary='tamperable webview',
-                info1='{0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size),
-                source=self.context.source_name_of_disassembled_resource(fn)
-              )
+              try:
+                yield Issue(
+                  detector_id=self.option,
+                  confidence=IssueConfidence.TENTATIVE,
+                  cvss3_vector=self.cvss1,
+                  summary='tamperable webview',
+                  info1='{0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size),
+                  source=self.context.source_name_of_disassembled_resource(fn)
+                )
+              except KeyError as e:
+                log.warning('SecurityTamperableWebViewDetector.do_detect: missing key {0}'.format(e))
 
       # XXX: crude detection
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
