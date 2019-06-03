@@ -18,12 +18,8 @@
 import os
 import sys
 import getopt
-import configparser
 import logging
-import resource
 import collections
-import tempfile
-import datetime
 
 import trueseeing.signature.base
 import trueseeing.exploit
@@ -31,14 +27,14 @@ import trueseeing.patch
 import trueseeing.grab
 
 from trueseeing.context import Context
-from trueseeing.report import CIReportGenerator, HTMLReportGenerator, NullReporter, ProgressReporter
+from trueseeing.report import CIReportGenerator, HTMLReportGenerator, ProgressReporter
 
 import pkg_resources
 
 log = logging.getLogger(__name__)
 
-preferences = None
-signatures = collections.OrderedDict([cl.as_signature() for cl in trueseeing.signature.base.SignatureClasses().extracted()])
+signatures = collections.OrderedDict(
+  [cl.as_signature() for cl in trueseeing.signature.base.SignatureClasses().extracted()])
 
 signatures_all = set(signatures.keys())
 signatures_default = signatures_all.copy()
@@ -51,7 +47,6 @@ def processed(apkfilename, chain, output_format=None):
       db.execute('delete from analysis_issues')
 
     found = False
-    sigs_done = 0
     sigs_total = len(chain)
 
     if output_format == 'gcc':
@@ -146,7 +141,10 @@ def shell():
   inspection_mode = False
   output_format = None
 
-  opts, files = getopt.getopt(sys.argv[1:], 'dW:', ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup', 'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect', 'output=', 'version', 'patch-all'])
+  opts, files = getopt.getopt(sys.argv[1:], 'dW:',
+                              ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
+                               'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect',
+                               'output=', 'version', 'patch-all'])
   for o, a in opts:
     if o in ['-d']:
       log_level = logging.DEBUG
@@ -185,10 +183,6 @@ def shell():
     if o in ['--help-signatures']:
       print(help_signatures(signatures))
       return 2
-
-  global preferences
-  preferences = configparser.ConfigParser()
-  preferences.read('.trueseeingrc')
 
   logging.basicConfig(level=log_level, format="%(msg)s")
 

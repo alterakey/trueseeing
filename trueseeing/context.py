@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-import tempfile
 import os
 import lxml.etree as ET
 import shutil
@@ -32,6 +31,8 @@ import trueseeing.code.parse
 import trueseeing.store
 
 class Context:
+  TARGET_APK = 'target.apk'
+
   def __init__(self):
     self.notes = []
     self.apk = None
@@ -48,9 +49,10 @@ class Context:
     return trueseeing.store.Store(self.wd)
 
   def fingerprint(self):
-    return fingerprint_of(self.apk)
+    return self.fingerprint_of(self.apk)
 
-  def fingerprint_of(self, apk):
+  @staticmethod
+  def fingerprint_of(apk):
     with zipfile.ZipFile(apk, 'r') as f:
       return hashlib.sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
 
@@ -68,21 +70,33 @@ class Context:
           sys.stderr.write('\ranalyze: disassembling... ')
           sys.stderr.flush()
           os.makedirs(self.wd, mode=0o700)
-          if not os.path.exists(os.path.join(self.wd, 'target.apk')):
-            shutil.copyfile(self.apk, os.path.join(self.wd, 'target.apk'))
-          # XXX insecure
-          subprocess.check_output("java -jar %(apktool)s d -f %(skipresflag)s -o %(wd)s %(apk)s" % dict(apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd, apk=self.apk, skipresflag=('-r' if skip_resources else '')), shell=True, stderr=subprocess.STDOUT)
-          trueseeing.code.parse.SmaliAnalyzer(self.store()).analyze(open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
+          self.copy_target()
+          self.decode_apk(skip_resources)
+
+          trueseeing.code.parse.SmaliAnalyzer(self.store()).analyze(
+            open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
+
           with open(os.path.join(self.wd, '.done'), 'w'):
             pass
+
           sys.stderr.write('\ranalyze: disassembling... done.\n')
           sys.stderr.flush()
       finally:
-        if os.path.exists(self.wd) and not os.path.exists(os.path.join(self.wd, 'target.apk')):
-          shutil.copyfile(self.apk, os.path.join(self.wd, 'target.apk'))
+        if os.path.exists(self.wd):
+          self.copy_target()
 
     else:
       raise ValueError('analyzed once')
+
+  def decode_apk(self, skip_resources):
+    # XXX insecure
+    subprocess.check_output("java -jar %(apktool)s d -f %(skipresflag)s -o %(wd)s %(apk)s" % dict(
+      apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd,
+      apk=self.apk, skipresflag=('-r' if skip_resources else '')), shell=True, stderr=subprocess.STDOUT)
+
+  def copy_target(self):
+    if not os.path.exists(os.path.join(self.wd, self.TARGET_APK)):
+      shutil.copyfile(self.apk, os.path.join(self.wd, self.TARGET_APK))
 
   def parsed_manifest(self):
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:

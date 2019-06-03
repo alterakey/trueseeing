@@ -50,7 +50,10 @@ class SignatureDiscoverer:
     pass
 
   def discovered(self):
-    return sorted([os.path.basename(r).replace('.py', '') for r in glob.glob(pkg_resources.resource_filename(__name__, os.path.join('*'))) if re.match(r'^[^_].*\.py$', os.path.basename(r)) and not re.match('^base.py$', os.path.basename(r))], key=self.key)
+    return sorted([os.path.basename(r).replace('.py', '') for r in
+                   glob.glob(pkg_resources.resource_filename(__name__, os.path.join('*'))) if
+                   re.match(r'^[^_].*\.py$', os.path.basename(r)) and not re.match(r'^base\.py$', os.path.basename(r))],
+                  key=self.key)
 
   def key(self, k):
     try:
@@ -62,7 +65,8 @@ class SignatureClasses:
   def __init__(self):
     pass
 
-  def extracted(self):
+  @staticmethod
+  def extracted():
     mods = [importlib.import_module('trueseeing.signature.%s' % s) for s in SignatureDiscoverer().discovered()]
     for m in mods:
       for attr in dir(m):
