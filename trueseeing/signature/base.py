@@ -20,7 +20,6 @@ import re
 import glob
 import importlib
 import pkg_resources
-import math
 
 class Detector:
   option = None

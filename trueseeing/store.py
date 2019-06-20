@@ -16,12 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-import random
-import hashlib
 import os.path
 import sqlite3
-import itertools
-import pkg_resources
 import trueseeing.literalquery
 import trueseeing.code.model
 

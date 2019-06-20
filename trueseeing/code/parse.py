@@ -16,19 +16,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-import collections
-import itertools
-
-import pprint
-import traceback
-from .model import *
-from trueseeing.store import Store
-
 import logging
 import time
 import sys
 
+from .model import *
+
 log = logging.getLogger(__name__)
+
 
 class SmaliAnalyzer:
   def __init__(self, store):

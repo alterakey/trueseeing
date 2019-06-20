@@ -191,7 +191,7 @@ def shell():
       if files:
         error_found = False
         for f in files:
-          if processed(f, [v for k,v in signatures.items() if k in signature_selected], output_format=output_format):
+          if processed(f, [v for k, v in signatures.items() if k in signature_selected], output_format=output_format):
             error_found = True
         if not error_found:
           return 0
@@ -247,5 +247,7 @@ def shell():
     return 0
   elif exploitation_mode == 'patch-all':
     for f in files:
-      trueseeing.patch.Patches(f, os.path.basename(f).replace('.apk', '-patched.apk'), [trueseeing.patch.PatchDebuggable(), trueseeing.patch.PatchBackupable(), trueseeing.patch.PatchLoggers()]).apply()
+      trueseeing.patch.Patches(f, os.path.basename(f).replace('.apk', '-patched.apk'),
+                               [trueseeing.patch.PatchDebuggable(), trueseeing.patch.PatchBackupable(),
+                                trueseeing.patch.PatchLoggers()]).apply()
     return 0
