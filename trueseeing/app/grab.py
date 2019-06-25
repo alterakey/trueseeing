@@ -18,6 +18,27 @@
 import re
 import os
 import subprocess
+import sys
+
+class GrabMode:
+  def __init__(self, packages):
+    self._packages = packages
+
+  def invoke(self):
+    if self._packages:
+      for pkg in self._packages:
+        if Grab(pkg).exploit():
+          print('%s: package saved: %s.apk' % (sys.argv[0], pkg))
+          return 0
+        else:
+          print('%s: package not found' % sys.argv[0])
+          return 1
+    else:
+      print('%s: listing packages' % sys.argv[0])
+      for p in sorted(Grab(None).list_()):
+        print(p)
+      return 0
+
 
 class ProcessError(Exception):
   pass

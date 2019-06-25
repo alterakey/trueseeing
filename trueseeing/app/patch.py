@@ -15,55 +15,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import glob
 import os
 import re
-import tempfile
 import logging
-import shutil
 
-import pkg_resources
 import lxml.etree as ET
 
-from trueseeing.context import Context
+from trueseeing.core.patch import Patcher
 
 log = logging.getLogger(__name__)
 
-class SigningKey:
-  def __init__(self):
-    pass
-  def key(self):
-    path = os.path.join(os.environ['HOME'], '.android', 'debug.keystore')
-    if os.path.exists(path):
-      return path
-    else:
-      os.makedirs(os.dirname(path))
-      log.info("generating key for repackaging")
-      os.system('keytool -genkey -v -keystore %(path)s -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000' % dict(path=path))
-      return path
+class PatchMode:
+  def __init__(self, files):
+    self._files = files
 
-class Patches:
-  def __init__(self, apk, out, chain):
-    self.apk = os.path.realpath(apk)
-    self.out = out
-    self.chain = chain
-
-  def apply(self):
-    with Context() as context:
-      context.analyze(self.apk)
-      log.info("%s -> %s" % (self.apk, context.wd))
-      for p in self.chain:
-          p.patch(context)
-
-      # XXX
-      sigfile = 'CERT'
-
-      # XXX insecure
-      with tempfile.TemporaryDirectory() as d:
-        os.system("(mkdir -p %(root)s/)" % dict(root=d, apk=self.apk))
-        os.system("(cd %(wd)s && java -jar %(apktool)s b -o %(root)s/patched.apk .)" % dict(root=d, apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=context.wd))
-        os.system("(cd %(root)s && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore %(keystore)s -storepass android -keypass android -sigfile %(sigfile)s patched.apk androiddebugkey)" % dict(root=d, keystore=SigningKey().key(), sigfile=sigfile))
-        shutil.copyfile(os.path.join(d, 'patched.apk'), self.out)
+  def invoke(self, mode):
+    for f in self._files:
+      if mode == 'all':
+        Patcher(f, os.path.basename(f).replace('.apk', '-patched.apk')).apply_multi([
+          PatchDebuggable(),
+          PatchBackupable(),
+          PatchLoggers()
+        ])
+    return 0
 
 class PatchDebuggable:
   def patch(self, context):

@@ -14,21 +14,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-import re
 import collections
-import itertools
-
-import pprint
-import traceback
-from .model import *
-from trueseeing.store import Store
-
+import re
 import logging
 import time
 import sys
 
+from .model import *
+
 log = logging.getLogger(__name__)
+
 
 class SmaliAnalyzer:
   def __init__(self, store):
@@ -62,7 +57,7 @@ class SmaliAnalyzer:
         if reg2 is not None:
           reg2.append(t)
 
-        if t.t == 'directive' and t.v == 'class':
+        if t.eq('directive', 'class'):
           if reg1 is not None:
             reg1.pop()
             self.store.op_mark_class(reg1, reg1[0])
@@ -70,10 +65,10 @@ class SmaliAnalyzer:
             analyzed_classes = analyzed_classes + 1
           else:
             reg1 = [t]
-        elif t.t == 'directive' and t.v == 'method':
+        elif t.eq('directive', 'method'):
           if reg2 is None:
             reg2 = [t]
-        elif t.t == 'directive' and t.v == 'end' and t.p[0].v == 'method':
+        elif t.eq('directive', 'end') and t.p[0].v == 'method':
           if reg2 is not None:
             self.store.op_mark_method(reg2, reg2[0])
             reg2 = None
@@ -106,7 +101,7 @@ class P:
       l = q.popleft()
       if l:
         t = P.parsed_as_op(l)
-        if t.t == 'directive' and t.v == 'annotation':
+        if t.eq('directive', 'annotation'):
           yield Annotation(t.v, t.p, P.parsed_as_annotation_content(q))
         else:
           yield t
@@ -118,7 +113,7 @@ class P:
 
   @staticmethod
   def parsed_as_annotation_content(q):
-    content = Program()
+    content = []
     try:
       while '.end annotation' not in q[0]:
         content.append(q.popleft())

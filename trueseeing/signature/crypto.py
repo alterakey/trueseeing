@@ -25,20 +25,16 @@
 # * Cryptography: Insecure cryptography: implicit trust on non-authenticated data (WIP)
 
 import binascii
-import functools
 import itertools
-import lxml.etree as ET
-import shutil
 import re
 import math
 import base64
-import os
 import logging
 
-from trueseeing.flow.code import InvocationPattern
-from trueseeing.flow.data import DataFlows
+from trueseeing.core.flow.code import InvocationPattern
+from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
-from trueseeing.issue import IssueConfidence, Issue
+from trueseeing.core.issue import IssueConfidence, Issue
 
 log = logging.getLogger(__name__)
 

@@ -31,7 +31,7 @@ import re
 import os
 
 from trueseeing.signature.base import Detector
-from trueseeing.issue import IssueConfidence, Issue
+from trueseeing.core.issue import IssueConfidence, Issue
 
 import pkg_resources
 

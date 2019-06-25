@@ -14,15 +14,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 import logging
+
+from trueseeing.core.context import Context
+
 log = logging.getLogger(__name__)
 
-def noneif(x, defaulter):
-    if x is not None:
-        return x
-    else:
-        if callable(defaulter):
-            return defaulter()
-        else:
-            return defaulter
+class FingerprintMode:
+  def __init__(self, files):
+    self._files = files
+
+  def invoke(self):
+    for f in self._files:
+      print('%s: %s' % (f, Context().fingerprint_of(f)))
+    return 0

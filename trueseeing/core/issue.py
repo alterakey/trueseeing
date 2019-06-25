@@ -14,9 +14,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import attr
 
-from trueseeing.cvss import CVSS3Scoring
-from trueseeing.tools import noneif
+from trueseeing.core.cvss import CVSS3Scoring
+from trueseeing.core.tools import noneif
 
 class IssueSeverity:
   CRITICAL = 'critical'
@@ -30,23 +31,27 @@ class IssueConfidence:
   FIRM = 'firm'
   TENTATIVE = 'tentative'
 
+@attr.s
 class Issue:
-  def __init__(self, detector_id=None, confidence=None, cvss3_vector=None, source=None, summary=None, synopsis=None, description=None, seealso=None, solution=None, info1=None, info2=None, info3=None, row=None, col=None, cvss3_score=None):
-    self.detector_id = detector_id
-    self.confidence = confidence
-    self.cvss3_vector = CVSS3Scoring.temporalified(cvss3_vector, confidence)
-    self.source = source
-    self.summary = summary
-    self.synopsis = synopsis
-    self.description = description
-    self.seealso = seealso
-    self.solution = solution
-    self.info1 = info1
-    self.info2 = info2
-    self.info3 = info3
-    self.row = row
-    self.col = col
-    self.cvss3_score = noneif(cvss3_score, lambda: CVSS3Scoring.score_of(self.cvss3_vector))
+  detector_id = attr.ib(default=None)
+  confidence = attr.ib(default=None)
+  cvss3_vector = attr.ib(default=None)
+  source = attr.ib(default=None)
+  summary = attr.ib(default=None)
+  synopsis = attr.ib(default=None)
+  description = attr.ib(default=None)
+  seealso = attr.ib(default=None)
+  solution = attr.ib(default=None)
+  info1 = attr.ib(default=None)
+  info2 = attr.ib(default=None)
+  info3 = attr.ib(default=None)
+  row = attr.ib(default=None)
+  col = attr.ib(default=None)
+  cvss3_score = attr.ib(default=None)
+
+  def __attrs_post_init__(self):
+    self.cvss3_vector = CVSS3Scoring.temporalified(self.cvss3_vector, self.confidence)
+    self.cvss3_score = noneif(self.cvss3_score, lambda: CVSS3Scoring.score_of(self.cvss3_vector))
 
   @staticmethod
   def from_analysis_issues_row(row):

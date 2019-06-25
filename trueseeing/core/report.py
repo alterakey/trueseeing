@@ -14,16 +14,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 import os
 import sys
 import logging
 import jinja2
-import json
+import pkg_resources
 
-from trueseeing.issue import Issue
-from trueseeing.cvss import CVSS3Scoring
-from trueseeing.tools import noneif
+from trueseeing.core.issue import Issue
+from trueseeing.core.cvss import CVSS3Scoring
+from trueseeing.core.tools import noneif
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +96,7 @@ class CIReportGenerator(ReportGenerator):
 class HTMLReportGenerator(ReportGenerator):
   def __init__(self, context, progress):
     super().__init__(context, progress)
-    self._template = jinja2.Environment(loader=jinja2.PackageLoader('trueseeing', 'template'), autoescape=True).get_template('report.html')
+    self._template = jinja2.Environment(loader=jinja2.FileSystemLoader(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
 
   def generate(self):
     super().generate()
