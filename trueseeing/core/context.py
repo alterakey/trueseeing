@@ -27,17 +27,16 @@ import glob
 import sys
 import subprocess
 
-import trueseeing.code.parse
-import trueseeing.store
+import trueseeing.core.code.parse
+import trueseeing.core.store
+import functools
 
 class Context:
   TARGET_APK = 'target.apk'
 
   def __init__(self):
-    self.notes = []
     self.apk = None
     self.wd = None
-    self.state = {}
 
   def workdir_of(self, apk):
     hashed = self.fingerprint_of(apk)
@@ -46,7 +45,7 @@ class Context:
 
   def store(self):
     assert self.wd is not None
-    return trueseeing.store.Store(self.wd)
+    return trueseeing.core.store.Store(self.wd)
 
   def fingerprint(self):
     return self.fingerprint_of(self.apk)
@@ -73,7 +72,7 @@ class Context:
           self.copy_target()
           self.decode_apk(skip_resources)
 
-          trueseeing.code.parse.SmaliAnalyzer(self.store()).analyze(
+          trueseeing.core.code.parse.SmaliAnalyzer(self.store()).analyze(
             open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
 
           with open(os.path.join(self.wd, '.done'), 'w'):
@@ -91,7 +90,7 @@ class Context:
   def decode_apk(self, skip_resources):
     # XXX insecure
     subprocess.check_output("java -jar %(apktool)s d -f %(skipresflag)s -o %(wd)s %(apk)s" % dict(
-      apktool=pkg_resources.resource_filename(__name__, os.path.join('libs', 'apktool.jar')), wd=self.wd,
+      apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=self.wd,
       apk=self.apk, skipresflag=('-r' if skip_resources else '')), shell=True, stderr=subprocess.STDOUT)
 
   def copy_target(self):
@@ -102,32 +101,26 @@ class Context:
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:
       return ET.parse(f, parser=ET.XMLParser(recover=True))
 
+  @functools.lru_cache(maxsize=1)
   def disassembled_classes(self):
-    try:
-      return self.state['ts2.context.disassembled_classes']
-    except KeyError:
-      self.state['ts2.context.disassembled_classes'] = []
-      for root, dirs, files in itertools.chain(*(os.walk(p) for p in glob.glob(os.path.join(self.wd, 'smali*/')))):
-        self.state['ts2.context.disassembled_classes'].extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
-      return self.disassembled_classes()
+    o = []
+    for root, dirs, files in itertools.chain(*(os.walk(p) for p in glob.glob(os.path.join(self.wd, 'smali*/')))):
+      o.extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
+    return o
 
+  @functools.lru_cache(maxsize=1)
   def disassembled_resources(self):
-    try:
-      return self.state['ts2.context.disassembled_resources']
-    except KeyError:
-      self.state['ts2.context.disassembled_resources'] = []
-      for root, dirs, files in os.walk(os.path.join(self.wd, 'res')):
-        self.state['ts2.context.disassembled_resources'].extend(os.path.join(root, f) for f in files if f.endswith('.xml'))
-      return self.disassembled_resources()
+    o = []
+    for root, dirs, files in os.walk(os.path.join(self.wd, 'res')):
+      o.extend(os.path.join(root, f) for f in files if f.endswith('.xml'))
+    return o
 
+  @functools.lru_cache(maxsize=1)
   def disassembled_assets(self):
-    try:
-      return self.state['ts2.context.disassembled_assets']
-    except KeyError:
-      self.state['ts2.context.disassembled_assets'] = []
-      for root, dirs, files in os.walk(os.path.join(self.wd, 'assets')):
-        self.state['ts2.context.disassembled_assets'].extend(os.path.join(root, f) for f in files)
-      return self.disassembled_assets()
+    o = []
+    for root, dirs, files in os.walk(os.path.join(self.wd, 'assets')):
+      o.extend(os.path.join(root, f) for f in files)
+    return o
 
   def source_name_of_disassembled_class(self, fn):
     return os.path.join(*os.path.relpath(fn, self.wd).split(os.sep)[1:])
@@ -144,14 +137,12 @@ class Context:
   def permissions_declared(self):
     yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
 
+  @functools.lru_cache(maxsize=1)
   def string_resource_files(self):
-    try:
-      return self.state['ts2.context.string_resource_files']
-    except KeyError:
-      self.state['ts2.context.string_resource_files'] = []
-      for root, dirs, files in os.walk(os.path.join(self.wd, 'res', 'values')):
-        self.state['ts2.context.string_resource_files'].extend(os.path.join(root, f) for f in files if 'strings' in f)
-      return self.string_resource_files()
+    o = []
+    for root, dirs, files in os.walk(os.path.join(self.wd, 'res', 'values')):
+      o.extend(os.path.join(root, f) for f in files if 'strings' in f)
+    return o
 
   def string_resources(self):
     for fn in self.string_resource_files():

@@ -1,9 +1,9 @@
 import unittest
 import io
-from trueseeing.store import Store
-from trueseeing.code.parse import SmaliAnalyzer
-from trueseeing.flow import data
-from trueseeing.code.model import Op
+from trueseeing.core.store import Store
+from trueseeing.core.code.parse import SmaliAnalyzer
+from trueseeing.core.flow import data
+from trueseeing.core.code.op import Op
 
 class DataFlowTest(unittest.TestCase):
     def test_000(self):

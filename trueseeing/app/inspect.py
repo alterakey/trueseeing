@@ -14,3 +14,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from trueseeing.core.context import Context
+
+
+class InspectMode:
+  def __init__(self, files):
+    self._files = files
+
+  def invoke(self):
+    f = self._files[0]
+    with Context() as context:
+      print("inspection mode; analyzing %s" % f)
+      context.analyze(f)
+      print("analyzed, context in 'context'")
+      from IPython import embed
+      embed()

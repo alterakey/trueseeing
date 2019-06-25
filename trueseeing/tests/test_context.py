@@ -1,5 +1,5 @@
 import unittest
-from trueseeing.context import Context
+from trueseeing.core.context import Context
 
 
 class TestContext(unittest.TestCase):

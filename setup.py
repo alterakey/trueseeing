@@ -27,12 +27,13 @@ setup(
   install_requires=[
     "lxml",
     "jinja2",
-    "ipython"
+    "ipython",
+    "attrs"
   ],
   setup_requires=[
     "wheel",
   ],
-  entry_points={'console_scripts': ['trueseeing = trueseeing._dummy:shell']},
+  entry_points={'console_scripts': ['trueseeing = trueseeing.app._dummy:invoke']},
   python_requires='>=3',
   **metadata
 )

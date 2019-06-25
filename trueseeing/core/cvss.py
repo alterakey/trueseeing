@@ -21,7 +21,7 @@ import math
 class CVSS3Scoring:
   @staticmethod
   def severity_of(score):
-    from trueseeing.issue import IssueSeverity
+    from trueseeing.core.issue import IssueSeverity
     if score <= 0.0:
       return IssueSeverity.INFO
     elif score < 4.0:
@@ -35,7 +35,7 @@ class CVSS3Scoring:
 
   @staticmethod
   def temporalified(vec, confidence):
-    from trueseeing.issue import IssueConfidence
+    from trueseeing.core.issue import IssueConfidence
     return '%sRC:%s/' % (vec, {IssueConfidence.CERTAIN:'C',IssueConfidence.FIRM:'R',IssueConfidence.TENTATIVE:'U'}[confidence])
 
   @staticmethod
