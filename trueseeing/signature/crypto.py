@@ -136,7 +136,7 @@ Possible cryptographic constants has been found in the application binary.
           source=store.query().qualname_of(cl),
           synopsis='Traces of X.509 certificates has been found the application binary.',
           description='''\
-Traces of X.509 certificates has been found in the application binary.  X.509 ceritificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
+Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
 ''',
           solution='''\
 Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
@@ -153,7 +153,7 @@ Use a device or installation specific information, or obfuscate them.  Especiall
             source='R.string.%s' % name,
             synopsis='Traces of X.509 certificates has been found the application binary.',
             description='''\
-Traces of X.509 certificates has been found in the application binary.  X.509 ceritificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
+Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
 ''',
             solution='''\
 Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
