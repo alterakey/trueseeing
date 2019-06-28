@@ -18,6 +18,7 @@
 import re
 import os
 import lxml.etree as ET
+import yaml
 import shutil
 import pkg_resources
 import hashlib
@@ -100,6 +101,10 @@ class Context:
   def parsed_manifest(self):
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:
       return ET.parse(f, parser=ET.XMLParser(recover=True))
+
+  def parsed_apktool_yml(self):
+    with open(os.path.join(self.wd, 'apktool.yml'), 'r') as f:
+      return yaml.safe_load(re.sub(r'!!brut\.androlib\.meta\.MetaInfo', '', f.read()))
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self):
