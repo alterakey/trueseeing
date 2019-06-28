@@ -52,7 +52,7 @@ class SecurityFilePermissionDetector(Detector):
               confidence=IssueConfidence.CERTAIN,
               cvss3_vector=self.cvss,
               summary='insecure file permission',
-              info1={1:'MODE_WORLD_READABLE', 2:'MODE_WORLD_WRITABLE'}[target_val],
+              info1={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
               source=store.query().qualname_of(cl)
             )
         except (DataFlows.NoSuchValueError):
