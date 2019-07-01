@@ -26,6 +26,7 @@ setup(
   zip_safe=False,
   install_requires=[
     "lxml",
+    "pyyaml",
     "jinja2",
     "ipython",
     "attrs"
