@@ -65,7 +65,7 @@ class SecurityTlsInterceptionDetector(Detector):
   cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
 
   def do_detect(self):
-    if int(self.context.parsed_apktool_yml()['sdkInfo']['minSdkVersion']) >= 24:
+    if self.context.get_min_sdk_version() >= 24:
       return
     if not self.do_detect_plain_pins_x509():
       if not self.do_detect_plain_pins_hostnameverifier():
