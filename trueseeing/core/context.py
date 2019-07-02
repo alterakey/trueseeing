@@ -58,7 +58,7 @@ class Context:
 
   def analyze(self, skip_resources=False):
     if os.path.exists(os.path.join(self.wd, '.done')):
-      log.info('analyzed once')
+      log.debug('analyzed once')
     else:
       if os.path.exists(self.wd):
         sys.stderr.write('analyze: removing leftover\n')
