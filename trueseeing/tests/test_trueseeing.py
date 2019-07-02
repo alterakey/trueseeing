@@ -2,14 +2,14 @@ import sys
 import os
 import unittest
 
-import trueseeing.app.shell
+from trueseeing.app.shell import Shell
 
 
 class TestTrueseeing(unittest.TestCase):
   def test_trueseeing(self):
     os.chdir(os.path.dirname(__file__))
     sys.argv.append('libs/Android-InsecureBankv2/InsecureBankv2.apk')
-    trueseeing.app.shell.shell()
+    Shell().invoke()
 
     # TODO assert count of severity
 
