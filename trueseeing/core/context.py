@@ -27,20 +27,24 @@ import itertools
 import glob
 import sys
 import subprocess
+import logging
 
 import trueseeing.core.code.parse
 import trueseeing.core.store
 import functools
 
+log = logging.getLogger(__name__)
+
+
 class Context:
   TARGET_APK = 'target.apk'
 
-  def __init__(self):
-    self.apk = None
-    self.wd = None
+  def __init__(self, apk):
+    self.apk = apk
+    self.wd = self.workdir_of()
 
-  def workdir_of(self, apk):
-    hashed = self.fingerprint_of(apk)
+  def workdir_of(self):
+    hashed = self.fingerprint_of()
     dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
     return dirname
 
@@ -48,45 +52,33 @@ class Context:
     assert self.wd is not None
     return trueseeing.core.store.Store(self.wd)
 
-  def fingerprint(self):
-    return self.fingerprint_of(self.apk)
-
-  @staticmethod
-  def fingerprint_of(apk):
-    with zipfile.ZipFile(apk, 'r') as f:
+  def fingerprint_of(self):
+    with zipfile.ZipFile(self.apk, 'r') as f:
       return hashlib.sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
 
-  def analyze(self, apk, skip_resources=False):
-    if self.wd is None:
-      self.apk = apk
-      self.wd = self.workdir_of(apk)
-      try:
-        if not os.path.exists(os.path.join(self.wd, '.done')):
-          if os.path.exists(self.wd):
-            sys.stderr.write('analyze: removing leftover\n')
-            sys.stderr.flush()
-            shutil.rmtree(self.wd)
-
-          sys.stderr.write('\ranalyze: disassembling... ')
-          sys.stderr.flush()
-          os.makedirs(self.wd, mode=0o700)
-          self.copy_target()
-          self.decode_apk(skip_resources)
-
-          trueseeing.core.code.parse.SmaliAnalyzer(self.store()).analyze(
-            open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
-
-          with open(os.path.join(self.wd, '.done'), 'w'):
-            pass
-
-          sys.stderr.write('\ranalyze: disassembling... done.\n')
-          sys.stderr.flush()
-      finally:
-        if os.path.exists(self.wd):
-          self.copy_target()
-
+  def analyze(self, skip_resources=False):
+    if os.path.exists(os.path.join(self.wd, '.done')):
+      log.info('analyzed once')
     else:
-      raise ValueError('analyzed once')
+      if os.path.exists(self.wd):
+        sys.stderr.write('analyze: removing leftover\n')
+        sys.stderr.flush()
+        shutil.rmtree(self.wd)
+
+      sys.stderr.write('\ranalyze: disassembling... ')
+      sys.stderr.flush()
+      os.makedirs(self.wd, mode=0o700)
+      self.copy_target()
+      self.decode_apk(skip_resources)
+
+      trueseeing.core.code.parse.SmaliAnalyzer(self.store()).analyze(
+        open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
+
+      with open(os.path.join(self.wd, '.done'), 'w'):
+        pass
+
+      sys.stderr.write('\ranalyze: disassembling... done.\n')
+      sys.stderr.flush()
 
   def decode_apk(self, skip_resources):
     # XXX insecure
@@ -105,6 +97,9 @@ class Context:
   def parsed_apktool_yml(self):
     with open(os.path.join(self.wd, 'apktool.yml'), 'r') as f:
       return yaml.safe_load(re.sub(r'!!brut\.androlib\.meta\.MetaInfo', '', f.read()))
+
+  def get_min_sdk_version(self):
+    return int(self.parsed_apktool_yml()['sdkInfo']['minSdkVersion'])
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self):

@@ -20,11 +20,12 @@ from trueseeing.core.context import Context
 
 log = logging.getLogger(__name__)
 
+
 class FingerprintMode:
   def __init__(self, files):
     self._files = files
 
   def invoke(self):
     for f in self._files:
-      print('%s: %s' % (f, Context().fingerprint_of(f)))
+      print('%s: %s' % (f, Context(f).fingerprint_of()))
     return 0

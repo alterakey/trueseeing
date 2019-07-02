@@ -42,14 +42,15 @@ class ScanMode:
       print("%s: no input files" % sys.argv[0])
       return 2
 
+
 class AnalyzeSession:
   def __init__(self, chain, ci_mode=False):
     self._ci_mode = ci_mode
     self._chain = chain
 
   def invoke(self, apkfilename):
-    with Context() as context:
-      context.analyze(apkfilename)
+    with Context(apkfilename) as context:
+      context.analyze()
       log.info("%s -> %s" % (apkfilename, context.wd))
       with context.store().db as db:
         db.execute('delete from analysis_issues')
