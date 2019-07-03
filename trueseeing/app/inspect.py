@@ -23,9 +23,9 @@ class InspectMode:
 
   def invoke(self):
     f = self._files[0]
-    with Context() as context:
+    with Context(f) as context:
       print("inspection mode; analyzing %s" % f)
-      context.analyze(f)
+      context.analyze()
       print("analyzed, context in 'context'")
       from IPython import embed
       embed()

@@ -23,8 +23,8 @@ class Patcher:
     return self.apply_multi([patch])
 
   def apply_multi(self, patches):
-    with Context() as context:
-      context.analyze(self.apk)
+    with Context(self.apk) as context:
+      context.analyze()
       log.info("%s -> %s" % (self.apk, context.wd))
       for p in patches:
           p.apply(context)

@@ -65,17 +65,16 @@ class SecurityTlsInterceptionDetector(Detector):
   cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
 
   def do_detect(self):
-    if int(self.context.parsed_apktool_yml()['sdkInfo']['minSdkVersion']) >= 24:
-      return
-    if not self.do_detect_plain_pins_x509():
-      if not self.do_detect_plain_pins_hostnameverifier():
-        yield Issue(
-          detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
-          cvss3_vector=self.cvss,
-          summary='insecure TLS connection',
-          info1='no pinning detected'
-        )
+    if self.context.get_min_sdk_version() <= 23:
+      if not self.do_detect_plain_pins_x509():
+        if not self.do_detect_plain_pins_hostnameverifier():
+          yield Issue(
+            detector_id=self.option,
+            confidence=IssueConfidence.CERTAIN,
+            cvss3_vector=self.cvss,
+            summary='insecure TLS connection',
+            info1='no pinning detected'
+          )
 
   def do_detect_plain_pins_x509(self):
     with self.context.store() as store:
@@ -262,44 +261,48 @@ class SecurityInsecureWebViewDetector(Detector):
         targets.add('L.*%s;' % seed)
 
       # XXX: Crude detection
-      for p in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')):
-        try:
-          if DataFlows.solved_constant_data_in_invocation(store, p, 0):
-            for target in targets:
-              for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', '%s->addJavascriptInterface' % target)):
-                try:
-                  if DataFlows.solved_constant_data_in_invocation(store, q, 0):
-                    yield Issue(
-                      detector_id=self.option,
-                      confidence=IssueConfidence.FIRM,
-                      cvss3_vector=self.cvss,
-                      summary='insecure Javascript interface',
-                      source=store.query().qualname_of(q)
-                    )
-                except (DataFlows.NoSuchValueError):
-                    yield Issue(
-                      detector_id=self.option,
-                      confidence=IssueConfidence.TENTATIVE,
-                      cvss3_vector=self.cvss,
-                      summary='insecure Javascript interface',
-                      source=store.query().qualname_of(q)
-                    )
-        except (DataFlows.NoSuchValueError):
-          pass
-
-        for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
+      # https://developer.android.com/reference/android/webkit/WebView.html#addJavascriptInterface(java.lang.Object,%2520java.lang.String)
+      if self.context.get_min_sdk_version() <= 16:
+        for p in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')):
           try:
-            val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
-            if val == 0:
-              yield Issue(
-                detector_id=self.option,
-                confidence=IssueConfidence.FIRM,
-                cvss3_vector=self.cvss,
-                summary='insecure mixed content mode',
-                info1='MIXED_CONTENT_ALWAYS_ALLOW',
-                source=store.query().qualname_of(q))
+            if DataFlows.solved_constant_data_in_invocation(store, p, 0):
+              for target in targets:
+                for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', '%s->addJavascriptInterface' % target)):
+                  try:
+                    if DataFlows.solved_constant_data_in_invocation(store, q, 0):
+                      yield Issue(
+                        detector_id=self.option,
+                        confidence=IssueConfidence.FIRM,
+                        cvss3_vector=self.cvss,
+                        summary='insecure Javascript interface',
+                        source=store.query().qualname_of(q)
+                      )
+                  except (DataFlows.NoSuchValueError):
+                      yield Issue(
+                        detector_id=self.option,
+                        confidence=IssueConfidence.TENTATIVE,
+                        cvss3_vector=self.cvss,
+                        summary='insecure Javascript interface',
+                        source=store.query().qualname_of(q)
+                      )
           except (DataFlows.NoSuchValueError):
             pass
+
+        # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
+        if self.context.get_min_sdk_version() <= 20:
+          for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
+            try:
+              val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
+              if val == 0:
+                yield Issue(
+                  detector_id=self.option,
+                  confidence=IssueConfidence.FIRM,
+                  cvss3_vector=self.cvss,
+                  summary='insecure mixed content mode',
+                  info1='MIXED_CONTENT_ALWAYS_ALLOW',
+                  source=store.query().qualname_of(q))
+            except (DataFlows.NoSuchValueError):
+              pass
 
 class FormatStringDetector(Detector):
   option = 'security-format-string'
