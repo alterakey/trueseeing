@@ -13,6 +13,12 @@ class TestTrueseeing(unittest.TestCase):
 
     # TODO assert count of severity
 
+  def test_exploit(self):
+    os.chdir(os.path.dirname(__file__))
+    sys.argv.append('--exploit-enable-backup')
+    sys.argv.append('libs/Android-InsecureBankv2/InsecureBankv2.apk')
+    Shell().invoke()
+
 
 if __name__ == '__main__':
     unittest.main()
