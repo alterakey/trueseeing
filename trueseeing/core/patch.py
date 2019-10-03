@@ -11,7 +11,7 @@ from trueseeing.core.context import Context
 log = logging.getLogger(__name__)
 
 class Patch:
-  def apply(self):
+  def apply(self, context):
     pass
 
 class Patcher:
