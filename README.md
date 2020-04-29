@@ -52,13 +52,13 @@ The following command line is sufficient to scan a APK (target.apk):
 
     $ trueseeing /path/to/target.apk > report.html
 
+To get a JSON format:
+
+    $ trueseeing --output=json /path/to/target.apk  > report.json
+
 To get output in more CI-friendly format:
 
     $ trueseeing --output=gcc /path/to/target.apk
-
-To get a JSON format:
-
-    $ trueseeing --output=json /path/to/target.apk
 
 To fix (not all) problems it catches:
 
