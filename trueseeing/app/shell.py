@@ -88,7 +88,7 @@ Scan mode:
   -Wno-<signame>            Disable signature (use --help-signatures to list signatures)
   --fingerprint             Print fingerprint
   --grab <package name>     Grab package from device
-  --output=html|gcc         Output mode (html: HTML, gcc: Text)
+  --output=html|gcc|json    Output mode (html: HTML, gcc: Text, json: JSON)
 
 Exploitation mode:
   --exploit-resign          Exploit mode: Replace signature
@@ -160,7 +160,7 @@ Misc:
       if o in ['--inspect']:
         inspection_mode = True
       if o in ['--output']:
-        ci_mode = (a == 'gcc')
+        ci_mode = a
       if o in ['--version']:
         print(Shell.version())
         return 0

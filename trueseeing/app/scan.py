@@ -18,7 +18,7 @@
 import logging
 import sys
 
-from trueseeing.core.report import CIReportGenerator, HTMLReportGenerator, ProgressReporter
+from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
 from trueseeing.core.context import Context
 
 log = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class ScanMode:
 
 
 class AnalyzeSession:
-  def __init__(self, chain, ci_mode=False):
+  def __init__(self, chain, ci_mode="html"):
     self._ci_mode = ci_mode
     self._chain = chain
 
@@ -58,8 +58,10 @@ class AnalyzeSession:
       found = False
       sigs_total = len(self._chain)
 
-      if self._ci_mode:
+      if self._ci_mode == 'gcc':
         reporter = CIReportGenerator(context)
+      elif self._ci_mode == 'json':
+        reporter = JSONReportGenerator(context, ProgressReporter(sigs_total))
       else:
         reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
 
