@@ -1,6 +1,6 @@
 # README
 
-trueseeing is a fast, accurate and resillient vulnerabilities scanner for Android apps.  It operates on Android Packaging File (APK) and outputs a comprehensive report in HTML.  It doesn't matter if the APK is obfuscated or not.
+trueseeing is a fast, accurate and resillient vulnerabilities scanner for Android apps.  It operates on Android Packaging File (APK) and outputs a comprehensive report in HTML, JSON or a CI-friendly format.  It doesn't matter if the APK is obfuscated or not.
 
 ## Capability
 
@@ -51,6 +51,10 @@ Currently trueseeing can detect the following class of vulnerabilities:
 The following command line is sufficient to scan a APK (target.apk):
 
     $ trueseeing /path/to/target.apk > report.html
+
+To get a JSON format:
+
+    $ trueseeing --output=json /path/to/target.apk  > report.json
 
 To get output in more CI-friendly format:
 
