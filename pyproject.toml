@@ -22,7 +22,7 @@ dependencies = [
     "ipython",
     "attrs"
 ]
-requires-python = ">=3"
+requires-python = ">=3.7"
 dynamic = ['version', 'description']
 
 [project.urls]
