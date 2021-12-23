@@ -1,9 +1,6 @@
-*.egg-info
-*.pyo
-*.pyc
 .DS_Store
-.hypothesis
 __pycache__
 build
 dist
-.eggs
+.venv
+.idea
