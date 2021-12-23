@@ -14,6 +14,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import collections
 import re
 import logging
@@ -22,20 +25,29 @@ import sys
 
 from .model import *
 
+if TYPE_CHECKING:
+  from typing import Iterable, ContextManager, Optional, Type, TextIO, List, Tuple, TypeVar
+  from types import TracebackType
+  from trueseeing.core.code.op import Token, Op
+  from trueseeing.core.store import Store
+
+  T = TypeVar('T')
+
 log = logging.getLogger(__name__)
 
 
 class SmaliAnalyzer:
-  def __init__(self, store):
+  store: Store
+  def __init__(self, store: Store) -> None:
     self.store = store
 
-  def __enter__(self):
+  def __enter__(self) -> SmaliAnalyzer:
     return self
 
-  def __exit__(self, exc_type, exc_value, traceback):
+  def __exit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
     pass
 
-  def analyze(self, fs):
+  def analyze(self, fs: Iterable[TextIO]) -> None:
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0
@@ -88,14 +100,14 @@ class SmaliAnalyzer:
 
 class P:
   @staticmethod
-  def head_and_tail(xs):
+  def head_and_tail(xs: List[T]) -> Tuple[T, Optional[List[T]]]:
     try:
       return xs[0], xs[1:]
     except IndexError:
       return xs[0], None
 
   @staticmethod
-  def parsed_flat(s):
+  def parsed_flat(s: str) -> Iterable[Op]:
     q = collections.deque(re.split(r'\n+', s))
     while q:
       l = q.popleft()
@@ -107,12 +119,12 @@ class P:
           yield t
 
   @staticmethod
-  def parsed_as_op(l):
+  def parsed_as_op(l: str) -> Op:
     x, xs = P.head_and_tail(list(P.lexed_as_smali(l)))
     return Op(x.t, x.v, xs)
 
   @staticmethod
-  def parsed_as_annotation_content(q):
+  def parsed_as_annotation_content(q: collections.deque[str]) -> List[str]:
     content = []
     try:
       while '.end annotation' not in q[0]:
@@ -122,7 +134,7 @@ class P:
     return content
 
   @staticmethod
-  def lexed_as_smali(l):
+  def lexed_as_smali(l: str) -> Iterable[Token]:
     for m in re.finditer(r':(?P<label>[a-z0-9_-]+)|{\s*(?P<multilabel>(?::[a-z0-9_-]+(?: .. )*)+\s*)}|\.(?P<directive>[a-z0-9_-]+)|"(?P<string>.*)"|(?P<reg>[vp][0-9]+)|{(?P<multireg>[vp0-9,. ]+)}|(?P<id>[a-z][a-z/-]*[a-z0-9/-]*)|(?P<reflike>[A-Za-z_0-9/;$()<>\[-]+(?::[A-Za-z_0-9/;$()<>\[-]+)?)|#(?P<comment>.*)', l):
       key = m.lastgroup
       value = m.group(key)

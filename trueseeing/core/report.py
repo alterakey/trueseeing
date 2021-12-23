@@ -14,6 +14,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import os
 import sys
 import logging
@@ -25,86 +29,95 @@ from trueseeing.core.issue import Issue
 from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
 
+if TYPE_CHECKING:
+  from typing import List, Protocol, Any, Dict
+  from trueseeing.core.context import Context
+
+  class Reporter(Protocol):
+    def issue(self, issue: Issue) -> None: ...
+    def progress(self) -> None: ...
+    def done(self) -> None: ...
+
 log = logging.getLogger(__name__)
 
 class NullReporter:
-  def __init__(self):
+  def __init__(self) -> None:
     pass
 
-  def issue(self, issue):
+  def issue(self, issue: Issue) -> None:
     pass
 
-  def progress(self):
+  def progress(self) -> None:
     pass
 
-  def done(self):
+  def done(self) -> None:
     pass
 
 class ProgressReporter:
-  def __init__(self, total_sigs):
+  def __init__(self, total_sigs: int) -> None:
     self._sigs_done = 0
     self._sigs_total = total_sigs
     self._issues = dict(critical=0, high=0, medium=0, low=0, info=0, progress=0.0)
 
-  def issue(self, issue):
+  def issue(self, issue: Issue) -> None:
     self._issues[issue.severity()] += 1
     self._report()
 
-  def progress(self):
+  def progress(self) -> None:
     self._sigs_done += 1
     self._issues['progress'] = 100.0 * (self._sigs_done / float(self._sigs_total))
     self._report()
 
-  def _report(self):
+  def _report(self) -> None:
     sys.stderr.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d' % self._issues)
     sys.stderr.flush()
 
-  def done(self):
+  def done(self) -> None:
     sys.stderr.write('\n')
     sys.stderr.flush()
 
 class ReportGenerator:
-  def __init__(self, context, progress):
+  def __init__(self, context: Context, progress: Reporter):
     self._progress = progress
     self._context = context
 
-  def progress(self):
+  def progress(self) -> Reporter:
     return self._progress
 
-  def note(self, issue):
+  def note(self, issue: Issue) -> None:
     self._progress.issue(issue)
 
-  def generate(self):
+  def generate(self) -> None:
     self._progress.done()
 
-  def return_(self, found):
+  def return_(self, found: Any) -> Any:
     return found
 
 class CIReportGenerator(ReportGenerator):
-  def __init__(self, context):
+  def __init__(self, context: Context):
     super().__init__(context, NullReporter())
 
-  def note(self, issue):
+  def note(self, issue: Issue) -> None:
     super().note(issue)
     self._write(self._formatted(issue))
 
-  def _write(self, x):
+  def _write(self, x: str) -> None:
     log.error(x)
 
-  def _formatted(self, issue):
+  def _formatted(self, issue: Issue) -> str:
     return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=noneif(issue.source, '(global)'), row=noneif(issue.row, 0), col=noneif(issue.col, 0), severity=issue.severity(), confidence=issue.confidence, description=issue.brief_description(), detector_id=issue.detector_id)
 
 class HTMLReportGenerator(ReportGenerator):
-  def __init__(self, context, progress):
+  def __init__(self, context: Context, progress: Reporter):
     super().__init__(context, progress)
     self._template = jinja2.Environment(loader=jinja2.FileSystemLoader(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
 
-  def generate(self):
+  def generate(self) -> None:
     super().generate()
     with self._context.store().db as db:
       issues = []
       for row, no in zip(db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc'), range(1, 2**32)):
-        instances = []
+        instances: List[Dict[str, Any]] = []
         issues.append(dict(no=no, detector=row[0], summary=row[1].title(), synopsis=row[2], description=row[3], seealso=row[4], solution=row[5], cvss3_score=row[6], cvss3_vector=row[7], severity=CVSS3Scoring.severity_of(row[6]).title(), instances=instances, severity_panel_style={'critical':'panel-danger', 'high':'panel-warning', 'medium':'panel-warning', 'low':'panel-success', 'info':'panel-info'}[CVSS3Scoring.severity_of(row[6])]))
         for m in db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', {v:row[k] for k,v in {0:'detector', 1:'summary', 6:'cvss3_score'}.items()}):
           issue = Issue.from_analysis_issues_row(m)
@@ -121,20 +134,20 @@ class HTMLReportGenerator(ReportGenerator):
       )
       self._write(self._template.render(app=app, issues=issues))
 
-  def _write(self, x):
+  def _write(self, x: str) -> None:
     sys.stdout.write(x)
     sys.stdout.flush()
 
 class JSONReportGenerator(ReportGenerator):
-  def __init__(self, context, progress):
+  def __init__(self, context: Context, progress: Reporter):
     super().__init__(context, progress)
 
-  def generate(self):
+  def generate(self) -> None:
     super().generate()
     with self._context.store().db as db:
       issues = []
       for row, no in zip(db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc'), range(1, 2**32)):
-        instances = []
+        instances: List[Dict[str, Any]]= []
         issues.append(dict(
           no=no,
           detector=row[0],
@@ -162,6 +175,6 @@ class JSONReportGenerator(ReportGenerator):
       )
       self._write(json.dumps({"app": app, "issues": issues}, indent=2))
 
-  def _write(self, x):
+  def _write(self, x: str) -> None:
     sys.stdout.write(x)
     sys.stdout.flush()

@@ -25,6 +25,8 @@
 # * Privacy: Getting device ID
 # * Privacy: Accessing SMS functionality
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
 import logging
 
@@ -35,6 +37,11 @@ from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import IssueConfidence, Issue
 
+if TYPE_CHECKING:
+  from typing import Iterable, Optional
+  from trueseeing.core.store import Store
+  from trueseeing.core.code.op import Op
+
 log = logging.getLogger(__name__)
 
 class PrivacyDeviceIdDetector(Detector):
@@ -42,7 +49,7 @@ class PrivacyDeviceIdDetector(Detector):
   description = 'Detects device fingerprinting behavior'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:N/A:N/'
 
-  def analyzed(self, store, op):
+  def analyzed(self, store: Store, op: Op) -> Optional[str]:
     x = op.p[1].v
     if re.search('Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
       try:
@@ -63,7 +70,7 @@ class PrivacyDeviceIdDetector(Detector):
     elif re.search('Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)', x):
       return 'L2 address (Wi-Fi)'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         val_type = self.analyzed(store, op)
@@ -82,7 +89,7 @@ class PrivacySMSDetector(Detector):
   description = 'Detects SMS-related behavior'
   cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N/'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
         try:

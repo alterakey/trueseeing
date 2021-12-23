@@ -14,6 +14,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
 import os
 import re
@@ -23,13 +25,18 @@ import lxml.etree as ET
 
 from trueseeing.core.patch import Patcher
 
+if TYPE_CHECKING:
+  from typing import List
+  from trueseeing.core.context import Context
+
 log = logging.getLogger(__name__)
 
 class PatchMode:
-  def __init__(self, files):
+  _files: List[str]
+  def __init__(self, files: List[str]):
     self._files = files
 
-  def invoke(self, mode):
+  def invoke(self, mode: str) -> int:
     for f in self._files:
       if mode == 'all':
         Patcher(f, os.path.basename(f).replace('.apk', '-patched.apk')).apply_multi([
@@ -40,7 +47,7 @@ class PatchMode:
     return 0
 
 class PatchDebuggable:
-  def patch(self, context):
+  def patch(self, context: Context) -> None:
     manifest = context.parsed_manifest()
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "false"
@@ -48,7 +55,7 @@ class PatchDebuggable:
       f.write(ET.tostring(manifest))
 
 class PatchBackupable:
-  def patch(self, context):
+  def patch(self, context: Context) -> None:
     manifest = context.parsed_manifest()
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "false"
@@ -56,7 +63,7 @@ class PatchBackupable:
       f.write(ET.tostring(manifest))
 
 class PatchLoggers:
-  def patch(self, context):
+  def patch(self, context: Context) -> None:
     for fn in context.disassembled_classes():
       with open(fn, 'r') as f:
         content = f.read()

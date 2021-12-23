@@ -15,11 +15,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import itertools
 import logging
 import pprint
 
 from .code import CodeFlows
+
+if TYPE_CHECKING:
+  from typing import List, Callable, TypeVar, Type, Any, Iterable, Mapping, Set, Optional, FrozenSet
+  from trueseeing.core.store import Store
+  from trueseeing.core.code.op import Op
 
 log = logging.getLogger(__name__)
 
@@ -31,15 +39,15 @@ class DataFlows:
     pass
 
   @staticmethod
-  def likely_calling_in(store, ops):
+  def likely_calling_in(store: Store, ops: List[Op]) -> None:
     pass
 
   @staticmethod
-  def into(store, o):
+  def into(store: Store, o: Op) -> Optional[Mapping[Op, Any]]:
     return DataFlows.analyze(store, o)
 
   @staticmethod
-  def decoded_registers_of(ref, type_=frozenset):
+  def decoded_registers_of(ref: Op, type_: Any = frozenset) -> Any:
     if ref.t == 'multireg':
       regs = ref.v
       if ' .. ' in regs:
@@ -57,7 +65,7 @@ class DataFlows:
 
   # TBD: pack as SQL function
   @staticmethod
-  def looking_behind_from(store, op):
+  def looking_behind_from(store: Store, op: Op) -> Iterable[Op]:
     focus = None
     for o in store.query().reversed_insns_in_method(op):
       if focus is None:
@@ -73,7 +81,7 @@ class DataFlows:
           focus = None
 
   @staticmethod
-  def solved_constant_data_in_invocation(store, invokation_op, index):
+  def solved_constant_data_in_invocation(store: Store, invokation_op: Op, index: int) -> str:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(store, invokation_op)
     try:
@@ -90,7 +98,7 @@ class DataFlows:
       raise DataFlows.NoSuchValueError('not a compile-time constant: %r' % arg)
 
   @staticmethod
-  def walk_dict_values(d):
+  def walk_dict_values(d: Mapping[Any, Any]) -> Iterable[Any]:
     try:
       for v in d.values():
         yield from DataFlows.walk_dict_values(v)
@@ -98,19 +106,19 @@ class DataFlows:
       yield d
 
   @staticmethod
-  def solved_possible_constant_data_in_invocation(store, invokation_op, index):
+  def solved_possible_constant_data_in_invocation(store: Store, invokation_op: Op, index: int) -> Set[str]:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(store, invokation_op)
     reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
     return {x.p[1].v for x in DataFlows.walk_dict_values(graph[invokation_op][reg]) if x is not None and x.t == 'id' and x.v.startswith('const')}
 
   @staticmethod
-  def solved_typeset_in_invocation(store, invokation_op, index):
+  def solved_typeset_in_invocation(store: Store, invokation_op: Op, index: int) -> Set[Any]:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
     graph = DataFlows.analyze(store, invokation_op)
     reg = DataFlows.decoded_registers_of(invokation_op.p[0], type_=list)[index + (0 if ('-static' in invokation_op.v) else 1)]
     arg = graph[invokation_op][reg]
-    def assumed_target_type_of_op(x):
+    def assumed_target_type_of_op(x: Op) -> str:
       assert x.t == 'id'
       if x.v.startswith('const/4'):
         return 'Ljava/lang/Integer;'
@@ -123,7 +131,7 @@ class DataFlows:
     return {assumed_target_type_of_op(x) for x in DataFlows.walk_dict_values(graph[invokation_op][reg]) if x is not None and x.t == 'id'}
 
   @staticmethod
-  def analyze(store, op, state=None):
+  def analyze(store: Store, op: Op, state:Any=None) -> Optional[Mapping[Op, Any]]:
     if state is None:
       state = set()
     if op is not None and op.t == 'id':
@@ -153,7 +161,7 @@ class DataFlows:
           return None
 
   @staticmethod
-  def analyze_recent_static_load_of(store, op):
+  def analyze_recent_static_load_of(store: Store, op: Op) -> Optional[Op]:
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['sget-'])
     target = op.p[1].v
     for o in itertools.chain(DataFlows.looking_behind_from(store, op), store.query().sputs(target)):
@@ -165,7 +173,7 @@ class DataFlows:
       return None
 
   @staticmethod
-  def analyze_load(store, op):
+  def analyze_load(store: Store, op: Op) -> FrozenSet[Op]:
     if op.t == 'id':
       if any(op.v.startswith(x) for x in ['const','new-','move','array-length','aget-','sget-','iget-']):
         return DataFlows.decoded_registers_of(op.p[0])
@@ -176,7 +184,7 @@ class DataFlows:
         return frozenset()
 
   @staticmethod
-  def analyze_recent_load_of(store, from_, reg, stage=0):
+  def analyze_recent_load_of(store: Store, from_: Op, reg: str, stage: int = 0) -> Optional[Op]:
     for o in DataFlows.looking_behind_from(store, from_):
       if o.t == 'id':
         if reg in DataFlows.analyze_load(store, o):
@@ -195,12 +203,12 @@ class DataFlows:
 
   # TBD: tracing on static-array fields
   @staticmethod
-  def analyze_recent_array_load_of(store, from_, reg):
+  def analyze_recent_array_load_of(store: Store, from_: Op, reg: str) -> Optional[Op]:
     return DataFlows.analyze_recent_load_of(store, from_, reg)
 
   # TBD: tracing on static-instance fields
   @staticmethod
-  def analyze_recent_instance_load_of(store, op):
+  def analyze_recent_instance_load_of(store: Store, op: Op) -> Optional[Op]:
     assert len(op.p) == 3
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['iget-'])
     field = op.p[2].v
@@ -210,7 +218,7 @@ class DataFlows:
         return o
 
   @staticmethod
-  def analyze_recent_invocation(store, from_):
+  def analyze_recent_invocation(store: Store, from_: Op) -> Optional[Op]:
     for o in DataFlows.looking_behind_from(store, from_):
       if o.t == 'id' and o.v.startswith('invoke'):
         return o

@@ -15,6 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import sys
 import getopt
 import logging
@@ -30,24 +33,29 @@ from trueseeing.app.scan import ScanMode
 
 import pkg_resources
 
+if TYPE_CHECKING:
+  from typing import List, Mapping, Type
+  from trueseeing.signature.base import Detector
+
 log = logging.getLogger(__name__)
 
 class Signatures:
-  def __init__(self):
+  _corpse: Mapping[str, Type[Detector]]
+  def __init__(self) -> None:
     self._corpse = collections.OrderedDict(
       [cl.as_signature() for cl in trueseeing.signature.base.SignatureClasses().extracted()]
     )
 
-  def content(self):
+  def content(self) -> Mapping[str, Type[Detector]]:
     return self._corpse
 
-  def all(self):
+  def all(self) -> Set[str]:
     return set(self._corpse.keys())
 
-  def default(self):
+  def default(self) -> Set[str]:
     return self.all().copy()
 
-  def selected_on(self, switch):
+  def selected_on(self, switch: str) -> Set[str]:
     if switch != 'all':
       if not switch.endswith('-all'):
         return set([switch])
@@ -59,7 +67,7 @@ class Signatures:
 
 class Shell:
   @staticmethod
-  def version():
+  def version() -> str:
     return '\n'.join([
     'Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing').version,
     #.........................................................................80
@@ -69,7 +77,7 @@ All rights reserved.  Licensed under the terms of GNU General Public License Ver
     ])
 
   @staticmethod
-  def help_():
+  def help_() -> str:
     return '\n'.join([
       Shell.version(),
       '',
@@ -106,7 +114,7 @@ Misc:
     ])
 
   @staticmethod
-  def help_signatures(signatures):
+  def help_signatures(signatures: Mapping[str, Type[Detector]]) -> str:
     return '\n'.join([
       Shell.version(),
       '',
@@ -117,7 +125,7 @@ Misc:
       ('  %-36s%s' % (name, signatures[name].description)) for name in sorted(signatures.keys())
     ])
 
-  def invoke(self):
+  def invoke(self) -> int:
     sigs = Signatures()
     log_level = logging.INFO
     signature_selected = sigs.default().copy()
