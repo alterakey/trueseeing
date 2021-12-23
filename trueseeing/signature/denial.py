@@ -20,6 +20,9 @@
 # * DoS: Crashable Preferences
 # * DoS: Crashable code path
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import logging
 
 log = logging.getLogger(__name__)

@@ -15,19 +15,27 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import logging
 import sys
 
 from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
 from trueseeing.core.context import Context
 
+if TYPE_CHECKING:
+  from typing import List
+  from trueseeing.signature.base import Detector
+
 log = logging.getLogger(__name__)
 
 class ScanMode:
-  def __init__(self, files):
+  _files: List[str]
+  def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self, ci_mode, signatures):
+  def invoke(self, ci_mode: str, signatures: List[Detector]) -> int:
     if self._files:
       error_found = False
       session = AnalyzeSession(signatures, ci_mode=ci_mode)
@@ -44,11 +52,13 @@ class ScanMode:
 
 
 class AnalyzeSession:
-  def __init__(self, chain, ci_mode="html"):
+  _chain: List[Detector]
+  _ci_mode: str
+  def __init__(self, chain: List[Detector], ci_mode: str = "html"):
     self._ci_mode = ci_mode
     self._chain = chain
 
-  def invoke(self, apkfilename):
+  def invoke(self, apkfilename: str) -> bool:
     with Context(apkfilename) as context:
       context.analyze()
       log.info("%s -> %s" % (apkfilename, context.wd))
@@ -78,4 +88,3 @@ class AnalyzeSession:
       else:
         reporter.generate()
       return reporter.return_(found)
-

@@ -22,6 +22,9 @@
 # * Security: Insecure permissions
 # * Security: Insecure libraries
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import functools
 import itertools
 import lxml.etree as ET
@@ -34,6 +37,10 @@ from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import IssueConfidence, Issue
 
+if TYPE_CHECKING:
+  from typing import Iterable, Optional, Set, Tuple, Any, List, Union, TypeVar, Dict
+  T = TypeVar('T')
+
 log = logging.getLogger(__name__)
 
 class SecurityFilePermissionDetector(Detector):
@@ -41,7 +48,7 @@ class SecurityFilePermissionDetector(Detector):
   description = 'Detects insecure file creation'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
         try:
@@ -64,7 +71,7 @@ class SecurityTlsInterceptionDetector(Detector):
   description = 'Detects certificate (non-)pinning'
   cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     if self.context.get_min_sdk_version() <= 23:
       if not self.do_detect_plain_pins_x509():
         if not self.do_detect_plain_pins_hostnameverifier():
@@ -76,7 +83,7 @@ class SecurityTlsInterceptionDetector(Detector):
             info1='no pinning detected'
           )
 
-  def do_detect_plain_pins_x509(self):
+  def do_detect_plain_pins_x509(self) -> Set[str]:
     with self.context.store() as store:
       pins = set()
       q = store.query()
@@ -100,7 +107,7 @@ class SecurityTlsInterceptionDetector(Detector):
       else:
         return pins
 
-  def do_detect_plain_pins_hostnameverifier(self):
+  def do_detect_plain_pins_hostnameverifier(self) -> Set[str]:
     with self.context.store() as store:
       pins = set()
       q = store.query()
@@ -114,8 +121,8 @@ class LayoutSizeGuesser:
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
   table = {'small':(320.0, 426.0), 'normal':(320.0, 470.0), 'large':(480.0, 640.0), 'xlarge':(720.0, 960.0)}
 
-  def guessed_size(self, t, path):
-    def dps_from_modifiers(mods):
+  def guessed_size(self, t: Any, path: str) -> float:
+    def dps_from_modifiers(mods: Set[str]) -> Tuple[float, float]:
       try:
         x, y = self.table[list(mods & self.table.keys())[0]]
       except (IndexError, KeyError):
@@ -125,16 +132,16 @@ class LayoutSizeGuesser:
       else:
         return (x, y)
 
-    def width_of(e):
+    def width_of(e: Any) -> Union[float, str]:
       return e.attrib['{0}layout_width'.format(self.xmlns_android)]
 
-    def height_of(e):
+    def height_of(e: Any) -> Union[float, str]:
       return e.attrib['{0}layout_height'.format(self.xmlns_android)]
 
-    def is_bound(x):
+    def is_bound(x: Union[float, str]) -> bool:
       return x not in ('fill_parent', 'match_parent', 'wrap_content')
 
-    def guessed_dp(x, dp):
+    def guessed_dp(x: Union[float, str], dp: float) -> float:
       if is_bound(x):
         try:
           return float(re.sub(r'di?p$', '', x)) / float(dp)
@@ -148,13 +155,13 @@ class LayoutSizeGuesser:
       else:
         return dp
 
-    def self_and_containers_of(e):
+    def self_and_containers_of(e: Any) -> Iterable[Any]:
       yield e
       e = e.getparent()
       if e is not None:
         self_and_containers_of(e)
 
-    def modifiers_in(path):
+    def modifiers_in(path: str) -> Set[str]:
       return [set(c.split('-')) for c in path.split(os.sep) if 'layout' in c][0]
 
     dps = dps_from_modifiers(modifiers_in(path))
@@ -182,7 +189,7 @@ class SecurityTamperableWebViewDetector(Detector):
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       targets = {'WebView','XWalkView','GeckoView'}
 
@@ -237,14 +244,15 @@ class SecurityInsecureWebViewDetector(Detector):
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
+  # FIXME: Come up with something more right
   @staticmethod
-  def first(xs, default=None):
+  def first(xs: Iterable[T], default: Optional[T] = None) -> Optional[T]:
     try:
       return list(itertools.islice(xs, 1))[0]
     except IndexError:
       return default
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       targets = set()
       seeds = {'WebView','XWalkView','GeckoView'}
@@ -309,12 +317,12 @@ class FormatStringDetector(Detector):
   description = 'Detects format string usages'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def analyzed(self, x):
+  def analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
     if re.search(r'%s', x):
       if re.search(r'(://|[<>/&?])', x):
         yield dict(confidence=IssueConfidence.FIRM, value=x)
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'%s')):
         for t in self.analyzed(cl.p[1].v):
@@ -342,7 +350,7 @@ class LogDetector(Detector):
   description = 'Detects logging activities'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         if 'print' not in cl.p[1].v:

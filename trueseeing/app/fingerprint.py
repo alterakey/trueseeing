@@ -14,18 +14,24 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import logging
 
 from trueseeing.core.context import Context
 
+if TYPE_CHECKING:
+  from typing import List
+
 log = logging.getLogger(__name__)
 
-
 class FingerprintMode:
-  def __init__(self, files):
+  _files: List[str]
+  def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self):
+  def invoke(self) -> int:
     for f in self._files:
       print('%s: %s' % (f, Context(f).fingerprint_of()))
     return 0

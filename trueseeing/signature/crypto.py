@@ -24,6 +24,9 @@
 # * Cryptography: Insecure cryptography: non-random XOR cipher
 # * Cryptography: Insecure cryptography: implicit trust on non-authenticated data (WIP)
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import binascii
 import itertools
 import re
@@ -36,6 +39,11 @@ from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import IssueConfidence, Issue
 
+if TYPE_CHECKING:
+  from typing import Dict, Iterable
+  from trueseeing.core.code.op import Op
+  from trueseeing.core.store import Store
+
 log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
@@ -44,9 +52,9 @@ class CryptoStaticKeyDetector(Detector):
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
   cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def entropy_of(self, string):
+  def entropy_of(self, string: str) -> float:
     o = 0.0
-    m = dict()
+    m: Dict[str, int] = dict()
     for c in string:
       m[c] = m.get(c, 0) + 1
     for cnt in m.values():
@@ -54,24 +62,24 @@ class CryptoStaticKeyDetector(Detector):
       o -= freq * (math.log(freq) / math.log(2))
     return o
 
-  def assumed_randomness_of(self, string):
+  def assumed_randomness_of(self, string: str) -> float:
     try:
       return self.entropy_of(string) / float(math.log(len(string)) / math.log(2))
     except ValueError:
       return 0
 
-  def important_args_on_invocation(self, k):
+  def important_args_on_invocation(self, k: Op) -> Iterable[int]:
     method_name = k.p[1].v
     if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>|L.*/MessageDigest;->update', method_name):
       yield 0
     else:
       yield from range(len(DataFlows.decoded_registers_of(k.p[0])))
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     yield from itertools.chain(self.do_detect_case1(), self.do_detect_case2())
 
-  def do_detect_case1(self):
-    def looks_like_real_key(k):
+  def do_detect_case1(self) -> Iterable[Issue]:
+    def looks_like_real_key(k: str) -> bool:
       # XXX: silly
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
@@ -118,9 +126,9 @@ Possible cryptographic constants has been found in the application binary.
         except IndexError:
           pass
 
-  def do_detect_case2(self):
+  def do_detect_case2(self) -> Iterable[Issue]:
     # XXX: Crude detection
-    def should_be_secret(store, k, val):
+    def should_be_secret(store: Store, k: Op, val: str) -> bool:
       return any(x in store.query().qualname_of(k).lower() for x in ['inapp','billing','iab','sku','store','key'])
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
@@ -166,7 +174,7 @@ class CryptoEcbDetector(Detector):
   description = 'Detects ECB mode ciphers'
   cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         try:
@@ -195,7 +203,7 @@ class CryptoNonRandomXorDetector(Detector):
   description = 'Detects Vernum cipher usage with static keys'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().ops_of('xor-int/lit8'):
         target_val = int(cl.p[2].v, 16)

@@ -19,6 +19,9 @@
 # * Fingerprinting libraries
 # * Fingerprinting obfuscators
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import collections
 import os
 import re
@@ -29,6 +32,10 @@ from trueseeing.core.issue import IssueConfidence, Issue
 
 import pkg_resources
 
+if TYPE_CHECKING:
+  from typing import Iterable, Optional, List, Dict, Any
+  from trueseeing.core.context import Context
+
 log = logging.getLogger(__name__)
 
 class LibraryDetector(Detector):
@@ -36,10 +43,10 @@ class LibraryDetector(Detector):
   description = 'Detects libraries'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def package_name_of(self, path):
+  def package_name_of(self, path: str) -> str:
     return os.path.dirname(path).replace('/', '.')
 
-  def package_family_of(self, p):
+  def package_family_of(self, p: str) -> Optional[str]:
     f = collections.OrderedDict([
       (r'javax\..*', None),
       (r'(android\.support\.v[0-9]+)\..*', r'\1'),
@@ -57,7 +64,7 @@ class LibraryDetector(Detector):
     else:
       return p
 
-  def shared_package_of(self, c1, c2):
+  def shared_package_of(self, c1: str, c2: str) -> Optional[List[str]]:
     o = []
     try:
       for a,b in zip(c1.split('.'), c2.split('.')):
@@ -68,13 +75,13 @@ class LibraryDetector(Detector):
     finally:
       return o
 
-  def is_kind_of(self, c1, c2):
+  def is_kind_of(self, c1: str, c2: str) -> bool:
     return True if self.shared_package_of(c1, c2) else False
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     package = self.context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
-    packages = dict()
+    packages: Dict[str, List[str]] = dict()
     for fn in (self.context.source_name_of_disassembled_class(r) for r in self.context.disassembled_classes()):
       family = self.package_family_of(self.package_name_of(fn))
       if family is not None:
@@ -103,10 +110,10 @@ class ProGuardDetector(Detector):
   cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
-  def class_name_of(self, path):
+  def class_name_of(self, path: str) -> str:
     return path.replace('.smali', '').replace('/', '.')
 
-  def detect(self):
+  def detect(self) -> Iterable[Issue]:
     for c in (self.class_name_of(self.context.source_name_of_disassembled_class(r)) for r in self.context.disassembled_classes()):
       if re.search('(?:^|\.)a$', c):
         yield Issue(detector_id=self.option, confidence=IssueConfidence.CERTAIN, cvss3_vector=self.cvss_true, summary='detected obfuscator', info1='ProGuard')
@@ -115,7 +122,9 @@ class ProGuardDetector(Detector):
       yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss_false, summary='lack of obfuscation')
 
 class FakeToken:
-  def __init__(self, v, p):
+  v: Any
+  p: Any
+  def __init__(self, v: Any, p: Any):
     self.v = v
     self.p = p
 
@@ -124,11 +133,12 @@ class UrlLikeDetector(Detector):
   description = 'Detects URL-like strings'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def __init__(self, context):
+  re_tlds: Optional[re.Pattern[str]]
+  def __init__(self, context: Context):
     super().__init__(context)
     self.re_tlds = None
 
-  def analyzed(self, x):
+  def analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
     if '://' in x:
       yield dict(type_='URL', value=re.findall(r'\S+://\S+', x))
     elif re.search(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x):
@@ -142,7 +152,7 @@ class UrlLikeDetector(Detector):
         if not re.search(r'^android\.(intent|media)\.', hostlike):
           yield dict(type_='possible FQDN', value=[hostlike])
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
       self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
 

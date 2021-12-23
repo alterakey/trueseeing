@@ -15,10 +15,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import logging
+
+if TYPE_CHECKING:
+  from typing import Any
+
 log = logging.getLogger(__name__)
 
-def noneif(x, defaulter):
+def noneif(x: Any, defaulter: Any) -> Any:
   if x is not None:
     return x
   else:

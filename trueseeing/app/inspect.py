@@ -14,14 +14,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from trueseeing.core.context import Context
 
+if TYPE_CHECKING:
+  from typing import List
 
 class InspectMode:
-  def __init__(self, files):
+  _files: List[str]
+  def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self):
+  def invoke(self) -> None:
     f = self._files[0]
     with Context(f) as context:
       print("inspection mode; analyzing %s" % f)

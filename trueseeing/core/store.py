@@ -15,6 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import re
 import os.path
 import sqlite3
@@ -22,8 +25,11 @@ import trueseeing.core.literalquery
 import trueseeing.core.code.model
 from trueseeing.core.literalquery import Query
 
+if TYPE_CHECKING:
+  from typing import Optional, List
+
 class Store:
-  def __init__(self, path):
+  def __init__(self, path: str) -> None:
     self.path = os.path.join(path, 'store.db')
     is_creating = not os.path.exists(self.path)
     self.db = sqlite3.connect(self.path)
@@ -33,26 +39,27 @@ class Store:
       trueseeing.core.literalquery.StorePrep(self.db).stage1()
 
   @staticmethod
-  def _re_fn(expr, item):
+  def _re_fn(expr: str, item: Any) -> bool:
     if item is not None:
       return re.compile(expr).search(item) is not None
     else:
       return False
 
-  def __enter__(self):
+  def __enter__(self) -> Store:
     return self
 
-  def __exit__(self, exc_type, exc_value, traceback):
+  def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
     pass
 
-  def op_finalize(self):
+  def op_finalize(self) -> None:
     trueseeing.core.literalquery.StorePrep(self.db).stage2()
 
-  def op_get(self, k):
+  def op_get(self, k: int) -> Optional[Token]:
     for t,v in self.db.execute('select t,v from ops where op=?', (k)):
       return Token(t, v)
+    return None
 
-  def op_append(self, op):
+  def op_append(self, op: Token) -> None:
     unused_id = None
     for r in self.db.execute('select max(op) from ops'):
       if r[0] is not None:
@@ -66,15 +73,14 @@ class Store:
     self.db.executemany('insert into ops(op,t,v) values (?,?,?)', ((t._id, t.t, t.v) for t in vec))
     self.db.executemany('insert into ops_p(op, idx, p) values (?,?,?)', ((op._id, t._idx, t._id) for t in vec))
 
-  def op_mark_method(self, ops, method):
+  def op_mark_method(self, ops: List[Token], method: Token) -> None:
     self.db.executemany('insert into ops_method(op,method) values (?,?)', ((str(o._id), str(method._id)) for o in ops))
 
-  def op_mark_class(self, ops, class_, ignore_dupes=False):
+  def op_mark_class(self, ops: List[Token], class_: Token, ignore_dupes: bool = False) -> None:
     if not ignore_dupes:
       self.db.executemany('insert into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
     else:
       self.db.executemany('insert or ignore into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
 
-  def query(self):
+  def query(self) -> Query:
     return Query(self)
-

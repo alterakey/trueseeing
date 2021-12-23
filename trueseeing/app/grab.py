@@ -15,16 +15,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import re
 import os
 import subprocess
 import sys
 
+if TYPE_CHECKING:
+  from typing import List, Iterable, TypeVar, Optional, Tuple
+  T = TypeVar('T')
+
 class GrabMode:
-  def __init__(self, packages):
+  _packages: List[str]
+  def __init__(self, packages: List[str]) -> None:
     self._packages = packages
 
-  def invoke(self):
+  def invoke(self) -> int:
     if self._packages:
       for pkg in self._packages:
         if Grab(pkg).exploit():
@@ -43,13 +51,13 @@ class GrabMode:
 class ProcessError(Exception):
   pass
 
-def listifyed(v):
+def listifyed(v: T) -> Iterable[T]:
   if not (isinstance(v, list) or isinstance(v, tuple)):
     return [v]
   else:
     return v
 
-def invoked(as_, expected_codes=None):
+def invoked(as_: str, expected_codes: Optional[Iterable[int]]=None) -> Tuple[int, bytes, bytes]:
   expected_codes = (expected_codes)
 
   p = subprocess.Popen(as_, shell=True, stdout=subprocess.PIPE)
@@ -60,14 +68,14 @@ def invoked(as_, expected_codes=None):
   else:
     raise ProcessError("process exited with unexpected exit codes (%d): %s", code, as_)
 
-def version_of_default_device():
+def version_of_default_device() -> float:
   try:
     code, out, err = invoked("adb shell cat /system/build.prop", expected_codes=0)
     return float(re.search(r'ro.build.version.release=(.+?)', out.decode('utf-8')).group(1))
   except (ValueError, ProcessError):
     return 8.0
 
-def path_from(package):
+def path_from(package: str) -> Iterable[Tuple[str, str]]:
   version = version_of_default_device()
   if version >= 8.0:
     return path_from_dump(package)
@@ -76,23 +84,24 @@ def path_from(package):
   else:
     return path_from_premultidex(package)
 
-def path_from_premultidex(package):
+def path_from_premultidex(package: str) -> Iterable[Tuple[str, str]]:
   for i in range(1, 16):
     yield '/data/app/%s-%d.apk' % (package, i), '%s.apk' % package
 
-def path_from_multidex(package):
+def path_from_multidex(package: str) -> Iterable[Tuple[str, str]]:
   for i in range(1, 16):
     yield '/data/app/%s-%d/base.apk' % (package, i), '%s.apk' % package
 
-def path_from_dump(package):
+def path_from_dump(package: str) -> Iterable[Tuple[str, str]]:
   code, out, err = invoked('adb shell pm dump "%s"' % package, expected_codes=0)
   yield os.path.join(re.search('codePath=(/data/app/%s-.+)' % package, out.decode('utf-8')).group(1), 'base.apk'), '%s.apk' % package
 
 class Grab:
-  def __init__(self, package):
+  package: str
+  def __init__(self, package: str) -> None:
     self.package = package
 
-  def exploit(self):
+  def exploit(self) -> bool:
     import sys
     for from_, to_ in path_from(self.package):
       code, _, _ = invoked("adb pull %s %s 2>/dev/null" % (from_, to_))
@@ -103,6 +112,6 @@ class Grab:
     else:
       return False
 
-  def list_(self):
+  def list_(self) -> Iterable[str]:
     _, stdout, _ = invoked("adb shell pm list packages", expected_codes=0)
     return (l.replace('package:', '') for l in filter(None, stdout.decode().split('\n')))

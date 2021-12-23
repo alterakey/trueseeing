@@ -15,12 +15,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import re
 import math
 
+if TYPE_CHECKING:
+  from trueseeing.core.issue import IssueSeverity
+
 class CVSS3Scoring:
   @staticmethod
-  def severity_of(score):
+  def severity_of(score: float) -> str:
     from trueseeing.core.issue import IssueSeverity
     if score <= 0.0:
       return IssueSeverity.INFO
@@ -34,31 +40,31 @@ class CVSS3Scoring:
       return IssueSeverity.CRITICAL
 
   @staticmethod
-  def temporalified(vec, confidence):
+  def temporalified(vec: str, confidence: str) -> str:
     from trueseeing.core.issue import IssueConfidence
     return '%sRC:%s/' % (vec, {IssueConfidence.CERTAIN:'C',IssueConfidence.FIRM:'R',IssueConfidence.TENTATIVE:'U'}[confidence])
 
   @staticmethod
-  def score_of(vec):
+  def score_of(vec: str) -> float:
     m = re.match(r'CVSS:3.0/AV:(?P<AV>[NALP])/AC:(?P<AC>[LH])/PR:(?P<PR>[NLH])/UI:(?P<UI>[NR])/S:(?P<S>[CU])/C:(?P<C>[HLN])/I:(?P<I>[HLN])/A:(?P<A>[HLN])(?:/RC:(?P<RC>[XCRU]))?/', vec)
     if m:
-      def score(m):
+      def score(m: re.Match[str]) -> float:
         return temporal_score(m)
 
-      def temporal_score(m):
+      def temporal_score(m: re.Match[str]) -> float:
         return roundup(base_score(m) * exploit_code_maturity_score(m) * remediation_level_score(m) * report_confidence_score(m))
 
-      def exploit_code_maturity_score(m):
+      def exploit_code_maturity_score(m: re.Match[str]) -> float:
         return 1
 
-      def remediation_level_score(m):
+      def remediation_level_score(m: re.Match[str]) -> float:
         return 1
 
-      def report_confidence_score(m):
+      def report_confidence_score(m: re.Match[str]) -> float:
         M = dict(X=1.0, C=1.0, R=0.96, U=0.92)
         return M[m.group('RC')]
 
-      def base_score(m):
+      def base_score(m: re.Match[str]) -> float:
         impact, exploitability = subscore_impact(m), subscore_exploitability(m)
         if impact <= 0:
           return 0
@@ -68,19 +74,19 @@ class CVSS3Scoring:
           else:
             return roundup(min(1.08 * (impact + exploitability), 10))
 
-      def subscore_impact(m):
+      def subscore_impact(m: re.Match[str]) -> float:
         base = subscore_impact_base(m)
         if not scope_changed(m):
           return 6.42 * base
         else:
           return 7.52*(base-0.029) - 3.25*(base-0.02)**15
 
-      def subscore_impact_base(m):
+      def subscore_impact_base(m: re.Match[str]) -> float:
         M = dict(N=0, L=0.22, H=0.56)
         C, I, A = M[m.group('C')], M[m.group('I')], M[m.group('A')]
         return 1 - ((1-C) * (1-I) * (1-A))
 
-      def subscore_exploitability(m):
+      def subscore_exploitability(m: re.Match[str]) -> float:
         M_AV = dict(N=0.85, A=0.62, L=0.55, P=0.2)
         M_AC = dict(L=0.77, H=0.44)
         M_PR = dict(N=0.85, L=0.68 if scope_changed(m) else 0.62, H=0.50 if scope_changed(m) else 0.27)
@@ -89,10 +95,10 @@ class CVSS3Scoring:
 
         return 8.22 * AV * AC * PR * UI
 
-      def scope_changed(m):
+      def scope_changed(m: re.Match[str]) -> bool:
         return (m.group('S') == 'C')
 
-      def roundup(v):
+      def roundup(v: float) -> float:
         return math.ceil(v * 10.0) / 10.0
 
       return score(m)

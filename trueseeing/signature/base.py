@@ -15,57 +15,59 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import os
 import re
 import glob
 import importlib
 import pkg_resources
 
-class Detector:
-  option = None
-  description = None
+if TYPE_CHECKING:
+  from typing import Type, Tuple, Any, Iterable, Optional
+  from trueseeing.core.context import Context
+  from trueseeing.core.issue import Issue
 
-  def __init__(self, context):
+class Detector:
+  option: Optional[str] = None
+  description: Optional[str] = None
+
+  def __init__(self, context: Context) -> None:
     self.context = context
 
   @classmethod
-  def as_signature(cls):
+  def as_signature(cls: Type[Detector]) -> Tuple[Optional[str], Type[Detector]]:
     return (cls.option, cls)
 
-  def detect(self):
+  def detect(self) -> Iterable[Issue]:
     res = self.do_detect()
     if res is not None:
       yield from res
     else:
       yield from []
 
-  def do_detect(self):
+  def do_detect(self) -> Iterable[Issue]:
     pass
 
 class SignatureDiscoverer:
   PRIORITY = ['fingerprint', 'manifest', 'security']
 
-  def __init__(self):
-    pass
-
-  def discovered(self):
+  def discovered(self) -> Iterable[str]:
     return sorted([os.path.basename(r).replace('.py', '') for r in
                    glob.glob(pkg_resources.resource_filename(__name__, os.path.join('*'))) if
                    re.match(r'^[^_].*\.py$', os.path.basename(r)) and not re.match(r'^base\.py$', os.path.basename(r))],
                   key=self.key)
 
-  def key(self, k):
+  def key(self, k: str) -> int:
     try:
       return self.PRIORITY.index(k)
     except ValueError:
       return 31337
 
 class SignatureClasses:
-  def __init__(self):
-    pass
-
   @staticmethod
-  def extracted():
+  def extracted() -> Iterable[Type[Detector]]:
     mods = [importlib.import_module('trueseeing.signature.%s' % s) for s in SignatureDiscoverer().discovered()]
     for m in mods:
       for attr in dir(m):
