@@ -1,0 +1,35 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = 'trueseeing'
+authors = [
+  {name='Takahiro Yoshimura', email='takahiro_y@monolithworks.co.jp'}
+]
+classifiers = [
+    "Topic :: Security",
+    "Operating System :: Android",
+    "Programming Language :: Java",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
+]
+readme = "README.md"
+keywords = ['android', 'java', 'security', 'pentest', 'hacking']
+dependencies = [
+    "lxml",
+    "pyyaml",
+    "jinja2",
+    "ipython",
+    "attrs"
+]
+requires-python = ">=3"
+dynamic = ['version', 'description']
+
+[project.urls]
+Source = "https://github.com/monolithworks/trueseeing"
+
+[tool.flit.sdist]
+include=['trueseeing/libs/*.jar', 'trueseeing/libs/*.txt', 'trueseeing/libs/*.sql', 'trueseeing/template/*']
+
+[project.scripts]
+trueseeing = "trueseeing.app._dummy:invoke"
