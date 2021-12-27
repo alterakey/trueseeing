@@ -34,7 +34,7 @@ from trueseeing.app.scan import ScanMode
 import pkg_resources
 
 if TYPE_CHECKING:
-  from typing import List, Mapping, Type
+  from typing import List, Mapping, Type, Set
   from trueseeing.signature.base import Detector
 
 log = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ Misc:
     fingerprint_mode = False
     grab_mode = False
     inspection_mode = False
-    ci_mode = False
+    ci_mode = 'html'
 
     opts, files = getopt.getopt(sys.argv[1:], 'dW:',
                                 ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',

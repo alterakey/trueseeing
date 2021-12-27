@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 import logging
 import sys
 
-from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
+from trueseeing.core.report import ReportGenerator, CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
 from trueseeing.core.context import Context
 
 if TYPE_CHECKING:
-  from typing import List
+  from typing import List, Type
   from trueseeing.signature.base import Detector
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class ScanMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self, ci_mode: str, signatures: List[Detector]) -> int:
+  def invoke(self, ci_mode: str, signatures: List[Type[Detector]]) -> int:
     if self._files:
       error_found = False
       session = AnalyzeSession(signatures, ci_mode=ci_mode)
@@ -52,9 +52,9 @@ class ScanMode:
 
 
 class AnalyzeSession:
-  _chain: List[Detector]
+  _chain: List[Type[Detector]]
   _ci_mode: str
-  def __init__(self, chain: List[Detector], ci_mode: str = "html"):
+  def __init__(self, chain: List[Type[Detector]], ci_mode: str = "html"):
     self._ci_mode = ci_mode
     self._chain = chain
 
@@ -68,6 +68,7 @@ class AnalyzeSession:
       found = False
       sigs_total = len(self._chain)
 
+      reporter: ReportGenerator
       if self._ci_mode == 'gcc':
         reporter = CIReportGenerator(context)
       elif self._ci_mode == 'json':

@@ -47,7 +47,7 @@ class PatchMode:
     return 0
 
 class PatchDebuggable:
-  def patch(self, context: Context) -> None:
+  def apply(self, context: Context) -> None:
     manifest = context.parsed_manifest()
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "false"
@@ -55,7 +55,7 @@ class PatchDebuggable:
       f.write(ET.tostring(manifest))
 
 class PatchBackupable:
-  def patch(self, context: Context) -> None:
+  def apply(self, context: Context) -> None:
     manifest = context.parsed_manifest()
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "false"
@@ -63,7 +63,7 @@ class PatchBackupable:
       f.write(ET.tostring(manifest))
 
 class PatchLoggers:
-  def patch(self, context: Context) -> None:
+  def apply(self, context: Context) -> None:
     for fn in context.disassembled_classes():
       with open(fn, 'r') as f:
         content = f.read()

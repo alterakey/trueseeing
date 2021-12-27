@@ -40,11 +40,11 @@ class IssueConfidence:
 
 @attr.s(auto_attribs=True)
 class Issue:
-  detector_id: Optional[str] = None
-  confidence: Optional[str] = None
-  cvss3_vector: Optional[str] = None
+  detector_id: str
+  confidence: str
+  cvss3_vector: str
+  summary: str
   source: Optional[str] = None
-  summary: Optional[str] = None
   synopsis: Optional[str] = None
   description: Optional[str] = None
   seealso: Optional[str] = None
@@ -54,7 +54,7 @@ class Issue:
   info3: Optional[str] = None
   row: Optional[str] = None
   col: Optional[str] = None
-  cvss3_score: Optional[str] = None
+  cvss3_score: Optional[float] = None
 
   def __attrs_post_init__(self) -> None:
     self.cvss3_vector = CVSS3Scoring.temporalified(self.cvss3_vector, self.confidence)
@@ -82,6 +82,7 @@ class Issue:
     return Issue(**{k:row[map_.index(k)] for k in map_})
 
   def severity(self) -> str:
+    assert self.cvss3_score is not None
     return CVSS3Scoring.severity_of(self.cvss3_score)
 
   def brief_description(self) -> str:

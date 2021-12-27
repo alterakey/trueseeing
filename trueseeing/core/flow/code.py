@@ -23,15 +23,17 @@ import re
 import logging
 
 if TYPE_CHECKING:
-  from typing import Iterable, List, Mapping, Any
+  from typing import Iterable, List, Mapping, Any, Optional, Reversible
   from trueseeing.core.store import Store
-  from trueseeing.core.code.model import Method
-  from trueseeing.core.code.op import Op
+  from trueseeing.core.code.op import Op, Token
 
 log = logging.getLogger(__name__)
 
 class InvocationPattern:
-  def __init__(self, insn, value, i=None) -> None:
+  insn: str
+  value: str
+  i: Optional[int]
+  def __init__(self, insn: str, value: str, i: Optional[int] = None) -> None:
     self.insn = insn
     self.value = value
     self.i = i
@@ -47,12 +49,3 @@ class CodeFlows:
     for m in CodeFlows.callers_of(store, method):
       o[m] = CodeFlows.callstacks_of(store, m)
     return o
-
-  @staticmethod
-  def method_of(op: Op, ops: Iterable[Op]) -> None:
-    for o in reversed(ops):
-      pass
-
-  @staticmethod
-  def invocations_in(ops: Iterable[Op]) -> Iterable[Op]:
-    return (o for o in ops if o.t == 'id' and 'invoke' in o.v)

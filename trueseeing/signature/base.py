@@ -22,33 +22,30 @@ import os
 import re
 import glob
 import importlib
+from abc import ABC, abstractmethod
+
 import pkg_resources
 
 if TYPE_CHECKING:
-  from typing import Type, Tuple, Any, Iterable, Optional
+  from typing import Type, Tuple, Any, Iterable, Optional, ClassVar
   from trueseeing.core.context import Context
   from trueseeing.core.issue import Issue
 
-class Detector:
-  option: Optional[str] = None
-  description: Optional[str] = None
+class Detector(ABC):
+  option: ClassVar[str]
+  description: ClassVar[str]
+
+  context: Context
 
   def __init__(self, context: Context) -> None:
     self.context = context
 
   @classmethod
-  def as_signature(cls: Type[Detector]) -> Tuple[Optional[str], Type[Detector]]:
+  def as_signature(cls: Type[Detector]) -> Tuple[str, Type[Detector]]:
     return (cls.option, cls)
 
-  def detect(self) -> Iterable[Issue]:
-    res = self.do_detect()
-    if res is not None:
-      yield from res
-    else:
-      yield from []
-
-  def do_detect(self) -> Iterable[Issue]:
-    pass
+  @abstractmethod
+  def detect(self) -> Iterable[Issue]: ...
 
 class SignatureDiscoverer:
   PRIORITY = ['fingerprint', 'manifest', 'security']
@@ -73,7 +70,7 @@ class SignatureClasses:
       for attr in dir(m):
         i = getattr(m, attr)
         try:
-          if issubclass(i, Detector) and i.option:
+          if issubclass(i, Detector) and hasattr(i, 'option'):
             yield i
         except TypeError:
           pass

@@ -47,19 +47,19 @@ class LibraryDetector(Detector):
     return os.path.dirname(path).replace('/', '.')
 
   def package_family_of(self, p: str) -> Optional[str]:
-    f = collections.OrderedDict([
-      (r'javax\..*', None),
-      (r'(android\.support\.v[0-9]+)\..*', r'\1'),
-      (r'(com\.google\.android\.gms)\..*', r'\1'),
-      (r'(.*?)\.internal(?:\..*)?$', r'\1'),
-      (r'(.*?)(?:\.[a-z]{,4})+$', r'\1'),
-      (r'([a-z0-9_]{5,}(?:\.[a-z0-9_]{2,})+?)\..*', r'\1'),
-    ])
+    f = {
+      r'javax\..*': None,
+      r'(android\.support\.v[0-9]+)\..*': r'\1',
+      r'(com\.google\.android\.gms)\..*': r'\1',
+      r'(.*?)\.internal(?:\..*)?$': r'\1',
+      r'(.*?)(?:\.[a-z]{,4})+$': r'\1',
+      r'([a-z0-9_]{5,}(?:\.[a-z0-9_]{2,})+?)\..*': r'\1',
+    }
     for k, v in f.items():
       if re.match(k, p):
-        try:
+        if v is not None:
           return re.sub(k, v, p)
-        except TypeError:
+        else:
           return None
     else:
       return p
@@ -78,7 +78,7 @@ class LibraryDetector(Detector):
   def is_kind_of(self, c1: str, c2: str) -> bool:
     return True if self.shared_package_of(c1, c2) else False
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     package = self.context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
     packages: Dict[str, List[str]] = dict()
@@ -138,30 +138,33 @@ class UrlLikeDetector(Detector):
     super().__init__(context)
     self.re_tlds = None
 
-  def analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
+  def _analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
+    assert self.re_tlds is not None
     if '://' in x:
       yield dict(type_='URL', value=re.findall(r'\S+://\S+', x))
     elif re.search(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x):
       yield dict(type_='path component', value=re.findall(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x))
     elif re.search(r'^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$', x):
-      hostlike = re.search(r'^([^:/]+)', x).group(1)
-      components = hostlike.split('.')
-      if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components):
-        yield dict(type_='possible IPv4 address', value=[hostlike])
-      elif self.re_tlds.search(components[-1]):
-        if not re.search(r'^android\.(intent|media)\.', hostlike):
-          yield dict(type_='possible FQDN', value=[hostlike])
+      m = re.search(r'^([^:/]+)', x)
+      if m:
+        hostlike = m.group(1)
+        components = hostlike.split('.')
+        if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components):
+          yield dict(type_='possible IPv4 address', value=[hostlike])
+        elif self.re_tlds.search(components[-1]):
+          if not re.search(r'^android\.(intent|media)\.', hostlike):
+            yield dict(type_='possible FQDN', value=[hostlike])
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
       self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
 
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
-        for match in self.analyzed(cl.p[1].v):
+        for match in self._analyzed(cl.p[1].v):
           for v in match['value']:
             yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary='detected %s' % match['type_'], info1=v, source=store.query().qualname_of(cl))
       for name, val in self.context.string_resources():
-        for match in self.analyzed(val):
+        for match in self._analyzed(val):
           for v in match['value']:
             yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary='detected %s' % match['type_'], info1=v, source='R.string.%s' % name)

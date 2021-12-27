@@ -55,7 +55,7 @@ class Query:
       yield Op(r[1], r[2], [Op(o[1], o[2], [], id_=o[0]) for o in (r[x:x + 3] for x in range(3, 30, 3)) if o[0] is not None], id_=r[0])
 
   @staticmethod
-  def _cond_as_sql(param: Dict[str, str], t: Optional[str], v: Optional[str]) -> Tuple[Dict[str, str], Dict[str, str]]:
+  def _cond_as_sql(param: Dict[str, Any], t: Optional[str], v: Optional[str]) -> Tuple[Dict[str, str], Dict[str, Any]]:
     cond = dict(cond='1')
     if t is not None or v is not None:
       cond.update(dict(cond=' and '.join(['t=:t' if t is not None else '1', 'v like :v' if v is not None else '1'])))
@@ -107,14 +107,16 @@ class Query:
     for r in self.db.execute('select op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from op_vecs where op in (select class from classes_implements_name join methods_class using (class) join method_method_name using (method) where method_name regexp \'%(expr1)s\' and implements_name regexp \'%(expr2)s\')' % dict(expr1=method, expr2=implements)):
       yield Op(r[1], r[2], [Op(o[1], o[2], [], id_=o[0]) for o in (r[x:x + 3] for x in range(3, 30, 3)) if o[0] is not None], id_=r[0])
 
-  def qualname_of(self, op: Op) -> Optional[str]:
-    for o, in self.db.execute('select qualname from method_qualname join ops_method using (method) where op=:op', dict(op=op._id)):
-      return o # type: ignore[no-any-return]
+  def qualname_of(self, op: Optional[Op]) -> Optional[str]:
+    if op:
+      for o, in self.db.execute('select qualname from method_qualname join ops_method using (method) where op=:op', dict(op=op._id)):
+        return o # type: ignore[no-any-return]
     return None
 
-  def class_name_of(self, op: Op) -> Optional[str]:
-    for o, in self.db.execute('select class_name from class_class_name join ops_class using (class) where op=:op', dict(op=op._id)):
-      return o # type: ignore[no-any-return]
+  def class_name_of(self, op: Optional[Op]) -> Optional[str]:
+    if op:
+      for o, in self.db.execute('select class_name from class_class_name join ops_class using (class) where op=:op', dict(op=op._id)):
+        return o # type: ignore[no-any-return]
     return None
 
   def callers_of(self, op: Op) -> Iterable[Op]:

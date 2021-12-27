@@ -73,9 +73,9 @@ class CryptoStaticKeyDetector(Detector):
     if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>|L.*/MessageDigest;->update', method_name):
       yield 0
     else:
-      yield from range(len(DataFlows.decoded_registers_of(k.p[0])))
+      yield from range(len(DataFlows.decoded_registers_of_set(k.p[0])))
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     yield from itertools.chain(self.do_detect_case1(), self.do_detect_case2())
 
   def do_detect_case1(self) -> Iterable[Issue]:
@@ -129,7 +129,11 @@ Possible cryptographic constants has been found in the application binary.
   def do_detect_case2(self) -> Iterable[Issue]:
     # XXX: Crude detection
     def should_be_secret(store: Store, k: Op, val: str) -> bool:
-      return any(x in store.query().qualname_of(k).lower() for x in ['inapp','billing','iab','sku','store','key'])
+      name = store.query().qualname_of(k)
+      if name:
+        return name.lower() in ['inapp','billing','iab','sku','store','key']
+      else:
+        return False
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
     with self.context.store() as store:
@@ -174,7 +178,7 @@ class CryptoEcbDetector(Detector):
   description = 'Detects ECB mode ciphers'
   cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         try:
@@ -203,7 +207,7 @@ class CryptoNonRandomXorDetector(Detector):
   description = 'Detects Vernum cipher usage with static keys'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().ops_of('xor-int/lit8'):
         target_val = int(cl.p[2].v, 16)
