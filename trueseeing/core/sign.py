@@ -18,8 +18,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import glob
 import logging
 import os
+import re
 import shutil
 import tempfile
 
@@ -31,7 +33,7 @@ class SigningKey:
     if os.path.exists(path):
       return path
     else:
-      os.makedirs(os.dirname(path))
+      os.makedirs(os.path.dirname(path))
       log.info("generating key for repackaging")
       os.system('keytool -genkey -v -keystore %(path)s -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000' % dict(path=path))
       return path

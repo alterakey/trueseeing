@@ -90,7 +90,7 @@ class ReportGenerator:
   def generate(self) -> None:
     self._progress.done()
 
-  def return_(self, found: Any) -> Any:
+  def return_(self, found: bool) -> bool:
     return found
 
 class CIReportGenerator(ReportGenerator):

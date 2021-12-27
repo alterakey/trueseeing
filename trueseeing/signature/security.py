@@ -48,7 +48,7 @@ class SecurityFilePermissionDetector(Detector):
   description = 'Detects insecure file creation'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
         try:
@@ -71,7 +71,7 @@ class SecurityTlsInterceptionDetector(Detector):
   description = 'Detects certificate (non-)pinning'
   cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     if self.context.get_min_sdk_version() <= 23:
       if not self.do_detect_plain_pins_x509():
         if not self.do_detect_plain_pins_hostnameverifier():
@@ -85,13 +85,17 @@ class SecurityTlsInterceptionDetector(Detector):
 
   def do_detect_plain_pins_x509(self) -> Set[str]:
     with self.context.store() as store:
-      pins = set()
+      pins: Set[str] = set()
       q = store.query()
       for m in store.query().methods_in_class('checkServerTrusted', 'X509TrustManager'):
         if any(q.matches_in_method(m, InvocationPattern('verify', ''))):
-          pins.add(q.class_name_of(q.class_of_method(m)))
+          classname = q.class_name_of(q.class_of_method(m))
+          if classname:
+            pins.add(classname)
         if any(q.matches_in_method(m, InvocationPattern('throw', ''))):
-          pins.add(q.class_name_of(q.class_of_method(m)))
+          classname = q.class_name_of(q.class_of_method(m))
+          if classname:
+            pins.add(classname)
 
       if pins:
         # XXX crude detection
@@ -109,11 +113,13 @@ class SecurityTlsInterceptionDetector(Detector):
 
   def do_detect_plain_pins_hostnameverifier(self) -> Set[str]:
     with self.context.store() as store:
-      pins = set()
+      pins: Set[str] = set()
       q = store.query()
       for m in itertools.chain(store.query().methods_in_class('verify(Ljava/lang/String;Ljavax/net/ssl/SSLSession;)Z', 'HostnameVerifier')):
         if any(q.matches_in_method(m, InvocationPattern('invoke', 'contains|equals|verify|Ljavax/net/ssl/SSLSession;->getPeerCertificates'))):
-          pins.add(q.class_name_of(q.class_of_method(m)))
+          classname = q.class_name_of(q.class_of_method(m))
+          if classname:
+            pins.add(classname)
       return pins
 
 
@@ -132,16 +138,16 @@ class LayoutSizeGuesser:
       else:
         return (x, y)
 
-    def width_of(e: Any) -> Union[float, str]:
-      return e.attrib['{0}layout_width'.format(self.xmlns_android)]
+    def width_of(e: Any) -> str:
+      return e.attrib['{0}layout_width'.format(self.xmlns_android)] # type:ignore[no-any-return]
 
-    def height_of(e: Any) -> Union[float, str]:
-      return e.attrib['{0}layout_height'.format(self.xmlns_android)]
+    def height_of(e: Any) -> str:
+      return e.attrib['{0}layout_height'.format(self.xmlns_android)] # type:ignore[no-any-return]
 
-    def is_bound(x: Union[float, str]) -> bool:
+    def is_bound(x: str) -> bool:
       return x not in ('fill_parent', 'match_parent', 'wrap_content')
 
-    def guessed_dp(x: Union[float, str], dp: float) -> float:
+    def guessed_dp(x: str, dp: float) -> float:
       if is_bound(x):
         try:
           return float(re.sub(r'di?p$', '', x)) / float(dp)
@@ -189,7 +195,7 @@ class SecurityTamperableWebViewDetector(Detector):
 
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       targets = {'WebView','XWalkView','GeckoView'}
 
@@ -198,7 +204,7 @@ class SecurityTamperableWebViewDetector(Detector):
         more = False
         for cl in store.query().related_classes('|'.join(targets)):
           name = store.query().class_name_of(cl)
-          if name not in targets:
+          if name is not None and name not in targets:
             targets.add(name)
             more = True
 
@@ -252,7 +258,7 @@ class SecurityInsecureWebViewDetector(Detector):
     except IndexError:
       return default
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       targets = set()
       seeds = {'WebView','XWalkView','GeckoView'}
@@ -322,7 +328,7 @@ class FormatStringDetector(Detector):
       if re.search(r'(://|[<>/&?])', x):
         yield dict(confidence=IssueConfidence.FIRM, value=x)
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'%s')):
         for t in self.analyzed(cl.p[1].v):
@@ -350,7 +356,7 @@ class LogDetector(Detector):
   description = 'Detects logging activities'
   cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         if 'print' not in cl.p[1].v:

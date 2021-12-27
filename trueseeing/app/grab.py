@@ -21,11 +21,12 @@ from typing import TYPE_CHECKING
 import re
 import os
 import subprocess
-import sys
 
 if TYPE_CHECKING:
   from typing import List, Iterable, TypeVar, Optional, Tuple
   T = TypeVar('T')
+
+FALLBACK_VERSION = 8.0
 
 class GrabMode:
   _packages: List[str]
@@ -33,47 +34,41 @@ class GrabMode:
     self._packages = packages
 
   def invoke(self) -> int:
+    import sys
+    me = sys.argv[0]
     if self._packages:
       for pkg in self._packages:
         if Grab(pkg).exploit():
-          print('%s: package saved: %s.apk' % (sys.argv[0], pkg))
+          print(f'{me}: package saved: {pkg}.apk')
           return 0
-        else:
-          print('%s: package not found' % sys.argv[0])
-          return 1
+      else:
+        print(f'{me}: package not found')
+        return 1
     else:
-      print('%s: listing packages' % sys.argv[0])
-      for p in sorted(Grab(None).list_()):
+      print(f'{me}: listing packages')
+      for p in sorted(Grab.list_()):
         print(p)
       return 0
 
+def invoked(as_: str) -> str:
+  return subprocess.run(as_, shell=True, check=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
 
-class ProcessError(Exception):
-  pass
-
-def listifyed(v: T) -> Iterable[T]:
-  if not (isinstance(v, list) or isinstance(v, tuple)):
-    return [v]
-  else:
-    return v
-
-def invoked(as_: str, expected_codes: Optional[Iterable[int]]=None) -> Tuple[int, bytes, bytes]:
-  expected_codes = (expected_codes)
-
-  p = subprocess.Popen(as_, shell=True, stdout=subprocess.PIPE)
-  out, err = p.communicate()
-  code = p.wait()
-  if expected_codes is None or code in listifyed(expected_codes):
-    return (code, out, err)
-  else:
-    raise ProcessError("process exited with unexpected exit codes (%d): %s", code, as_)
+def invoke_tried(as_: str) -> Optional[str]:
+  try:
+    return invoked(as_)
+  except subprocess.CalledProcessError:
+    return None
 
 def version_of_default_device() -> float:
   try:
-    code, out, err = invoked("adb shell cat /system/build.prop", expected_codes=0)
-    return float(re.search(r'ro.build.version.release=(.+?)', out.decode('utf-8')).group(1))
-  except (ValueError, ProcessError):
-    return 8.0
+    out = invoked("adb shell cat /system/build.prop")
+    m = re.search(r'ro.build.version.release=(.+?)', out)
+    if m:
+      return float(m.group(1))
+    else:
+      return FALLBACK_VERSION
+  except (ValueError, subprocess.CalledProcessError):
+    return FALLBACK_VERSION
 
 def path_from(package: str) -> Iterable[Tuple[str, str]]:
   version = version_of_default_device()
@@ -86,15 +81,19 @@ def path_from(package: str) -> Iterable[Tuple[str, str]]:
 
 def path_from_premultidex(package: str) -> Iterable[Tuple[str, str]]:
   for i in range(1, 16):
-    yield '/data/app/%s-%d.apk' % (package, i), '%s.apk' % package
+    yield f'/data/app/{package}-{i}.apk', f'{package}.apk'
 
 def path_from_multidex(package: str) -> Iterable[Tuple[str, str]]:
   for i in range(1, 16):
-    yield '/data/app/%s-%d/base.apk' % (package, i), '%s.apk' % package
+    yield f'/data/app/{package}-{i}/base.apk', f'{package}.apk'
 
 def path_from_dump(package: str) -> Iterable[Tuple[str, str]]:
-  code, out, err = invoked('adb shell pm dump "%s"' % package, expected_codes=0)
-  yield os.path.join(re.search('codePath=(/data/app/%s-.+)' % package, out.decode('utf-8')).group(1), 'base.apk'), '%s.apk' % package
+  out = invoked('adb shell pm dump "%s"' % package)
+  m = re.search('codePath=(/data/app/%s-.+)' % package, out)
+  if m:
+    yield os.path.join(m.group(1), 'base.apk'), f'{package}.apk'
+  else:
+    raise RuntimeError('pm dump does not return codePath')
 
 class Grab:
   package: str
@@ -102,16 +101,17 @@ class Grab:
     self.package = package
 
   def exploit(self) -> bool:
-    import sys
     for from_, to_ in path_from(self.package):
-      code, _, _ = invoked("adb pull %s %s 2>/dev/null" % (from_, to_))
-      if code != 0:
-        code, _, _ = invoked("adb shell 'cat %s 2>/dev/null' > %s" % (from_, to_))
-      if code == 0 and os.path.getsize(to_) > 0:
-        return True
-    else:
-      return False
+      out = invoke_tried("adb pull %s %s 2>/dev/null" % (from_, to_))
+      if out is not None:
+        out = invoke_tried("adb shell 'cat %s 2>/dev/null' > %s" % (from_, to_))
+        if out is not None and os.path.getsize(to_) > 0:
+          return True
+        else:
+          return False
+    return True
 
-  def list_(self) -> Iterable[str]:
-    _, stdout, _ = invoked("adb shell pm list packages", expected_codes=0)
-    return (l.replace('package:', '') for l in filter(None, stdout.decode().split('\n')))
+  @classmethod
+  def list_(cls) -> Iterable[str]:
+    out = invoked("adb shell pm list packages")
+    return (l.replace('package:', '') for l in filter(None, out.split('\n')))

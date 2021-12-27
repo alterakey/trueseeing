@@ -49,7 +49,7 @@ class ManifestOpenPermissionDetector(Detector):
   description = 'Detects declarated permissions'
   cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     # TBD: compare with actual permission needs
     yield from (
       Issue(
@@ -68,9 +68,9 @@ class ManifestMissingPermissionDetector(Detector):
   description = 'Detects missing permissions'
   cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     # TBD: compare with actual permission needs
-    pass
+    return []
 
 class ComponentNamePolicy:
   def __init__(self) -> None:
@@ -80,7 +80,7 @@ class ComponentNamePolicy:
   def looks_public(self, name: str) -> bool:
     if '.' in name:
       gtld = name.split('.')[0]
-      return gtld == 'android' or '.intent.action.' in name or self.re_tlds.search(gtld)
+      return (gtld == 'android') or ('.intent.action.' in name) or bool(self.re_tlds.search(gtld))
     else:
       return False
 
@@ -90,7 +90,7 @@ class ManifestManipActivity(Detector):
   cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -131,7 +131,7 @@ class ManifestManipBroadcastReceiver(Detector):
   cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -172,7 +172,7 @@ class ManifestManipContentProvider(Detector):
   cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -222,7 +222,7 @@ class ManifestManipBackup(Detector):
   description = 'Detects enabled backup bit'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     if self.context.parsed_manifest().getroot().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       yield Issue(
         detector_id=self.option,
@@ -244,7 +244,7 @@ class ManifestDebuggable(Detector):
   description = 'Detects enabled debug bits'
   cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     if self.context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       yield Issue(
         detector_id=self.option,

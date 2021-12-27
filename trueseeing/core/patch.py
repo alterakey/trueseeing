@@ -29,13 +29,12 @@ from trueseeing.core.sign import SigningKey
 from trueseeing.core.context import Context
 
 if TYPE_CHECKING:
-  from typing import List
+  from typing import List, Protocol
 
+  class Patch(Protocol):
+    def apply(self, context: Context) -> None: ...
+  
 log = logging.getLogger(__name__)
-
-class Patch:
-  def apply(self, context: Context) -> None:
-    pass
 
 class Patcher:
   def __init__(self, apk: str, out: str) -> None:

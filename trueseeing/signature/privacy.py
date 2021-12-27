@@ -69,8 +69,9 @@ class PrivacyDeviceIdDetector(Detector):
       return 'L2 address (Bluetooth)'
     elif re.search('Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)', x):
       return 'L2 address (Wi-Fi)'
+    return None
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         val_type = self.analyzed(store, op)
@@ -89,7 +90,7 @@ class PrivacySMSDetector(Detector):
   description = 'Detects SMS-related behavior'
   cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N/'
 
-  def do_detect(self) -> Iterable[Issue]:
+  def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
         try:
