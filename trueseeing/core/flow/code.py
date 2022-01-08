@@ -20,14 +20,11 @@ from typing import TYPE_CHECKING
 
 import itertools
 import re
-import logging
 
 if TYPE_CHECKING:
   from typing import Iterable, List, Mapping, Any, Optional, Reversible
   from trueseeing.core.store import Store
   from trueseeing.core.code.op import Op, Token
-
-log = logging.getLogger(__name__)
 
 class InvocationPattern:
   insn: str

@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 import sys
 import getopt
-import logging
 import collections
 
 import trueseeing.signature.base
@@ -30,14 +29,13 @@ from trueseeing.app.grab import GrabMode
 from trueseeing.app.inspect import InspectMode
 from trueseeing.app.patch import PatchMode
 from trueseeing.app.scan import ScanMode
+from trueseeing.core.ui import ui
 
 import pkg_resources
 
 if TYPE_CHECKING:
   from typing import List, Mapping, Type, Set
   from trueseeing.signature.base import Detector
-
-log = logging.getLogger(__name__)
 
 class Signatures:
   _corpse: Mapping[str, Type[Detector]]
@@ -127,7 +125,7 @@ Misc:
 
   def invoke(self) -> int:
     sigs = Signatures()
-    log_level = logging.INFO
+    log_level = ui.INFO
     signature_selected = sigs.default().copy()
     exploitation_mode = ''
     patch_mode = ''
@@ -142,7 +140,7 @@ Misc:
                                  'output=', 'version', 'patch-all'])
     for o, a in opts:
       if o in ['-d']:
-        log_level = logging.DEBUG
+        log_level = ui.DEBUG
       if o in ['-W']:
         if a.startswith('no-'):
           signature_selected.difference_update(sigs.selected_on(a[3:]))
@@ -170,16 +168,16 @@ Misc:
       if o in ['--output']:
         ci_mode = a
       if o in ['--version']:
-        print(Shell.version())
+        ui.stderr(Shell.version())
         return 0
       if o in ['--help']:
-        print(Shell.help_())
+        ui.stderr(Shell.help_())
         return 2
       if o in ['--help-signatures']:
-        print(Shell.help_signatures(sigs.content()))
+        ui.stderr(Shell.help_signatures(sigs.content()))
         return 2
 
-    logging.basicConfig(level=log_level, format="%(msg)s")
+    ui.level = log_level
 
     if exploitation_mode:
       return ExploitMode(files).invoke(exploitation_mode)

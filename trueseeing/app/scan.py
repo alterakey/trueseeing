@@ -18,17 +18,15 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import logging
 import sys
 
 from trueseeing.core.report import ReportGenerator, CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
 from trueseeing.core.context import Context
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List, Type
   from trueseeing.signature.base import Detector
-
-log = logging.getLogger(__name__)
 
 class ScanMode:
   _files: List[str]
@@ -47,7 +45,7 @@ class ScanMode:
       else:
         return 1
     else:
-      print("%s: no input files" % sys.argv[0])
+      ui.critical("%s: no input files" % sys.argv[0])
       return 2
 
 
@@ -61,7 +59,7 @@ class AnalyzeSession:
   def invoke(self, apkfilename: str) -> bool:
     with Context(apkfilename) as context:
       context.analyze()
-      log.info("%s -> %s" % (apkfilename, context.wd))
+      ui.info("%s -> %s" % (apkfilename, context.wd))
       with context.store().db as db:
         db.execute('delete from analysis_issues')
 

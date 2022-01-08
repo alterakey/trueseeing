@@ -29,7 +29,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import itertools
-import logging
 import re
 import os
 
@@ -41,8 +40,6 @@ import pkg_resources
 if TYPE_CHECKING:
   from typing import Iterable
   from trueseeing.core.issue import Issue
-
-log = logging.getLogger(__name__)
 
 class ManifestOpenPermissionDetector(Detector):
   option = 'manifest-open-permission'

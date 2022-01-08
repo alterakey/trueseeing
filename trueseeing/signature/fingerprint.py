@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 import collections
 import os
 import re
-import logging
 from trueseeing.core.flow.code import InvocationPattern
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import IssueConfidence, Issue
@@ -35,8 +34,6 @@ import pkg_resources
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any
   from trueseeing.core.context import Context
-
-log = logging.getLogger(__name__)
 
 class LibraryDetector(Detector):
   option = 'detect-library'

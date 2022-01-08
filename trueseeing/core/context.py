@@ -31,17 +31,15 @@ import itertools
 import glob
 import sys
 import subprocess
-import logging
 
 import trueseeing.core.code.parse
 import trueseeing.core.store
 import functools
 
+from trueseeing.core.ui import ui
+
 if TYPE_CHECKING:
   from typing import ClassVar, List, Any, Iterable, Tuple
-
-log = logging.getLogger(__name__)
-
 
 class Context:
   TARGET_APK: ClassVar[str] = 'target.apk'
@@ -67,7 +65,7 @@ class Context:
 
   def analyze(self, skip_resources: bool = False) -> None:
     if os.path.exists(os.path.join(self.wd, '.done')):
-      log.debug('analyzed once')
+      ui.debug('analyzed once')
     else:
       if os.path.exists(self.wd):
         sys.stderr.write('analyze: removing leftover\n')

@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from trueseeing.core.context import Context
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List
@@ -30,9 +31,9 @@ class InspectMode:
   def invoke(self) -> int:
     f = self._files[0]
     with Context(f) as context:
-      print("inspection mode; analyzing %s" % f)
+      ui.info("inspection mode; analyzing %s" % f)
       context.analyze()
-      print("analyzed, context in 'context'")
+      ui.info("analyzed, context in 'context'")
       from IPython import embed
       embed()
       return 0

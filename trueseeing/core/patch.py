@@ -18,7 +18,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import logging
 import os
 import shutil
 import tempfile
@@ -27,6 +26,7 @@ import pkg_resources
 
 from trueseeing.core.sign import SigningKey
 from trueseeing.core.context import Context
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List, Protocol
@@ -34,8 +34,6 @@ if TYPE_CHECKING:
   class Patch(Protocol):
     def apply(self, context: Context) -> None: ...
   
-log = logging.getLogger(__name__)
-
 class Patcher:
   def __init__(self, apk: str, out: str) -> None:
     self.apk = os.path.realpath(apk)
@@ -47,7 +45,7 @@ class Patcher:
   def apply_multi(self, patches: List[Patch]) -> None:
     with Context(self.apk) as context:
       context.analyze()
-      log.info("%s -> %s" % (self.apk, context.wd))
+      ui.info("%s -> %s" % (self.apk, context.wd))
       for p in patches:
           p.apply(context)
 

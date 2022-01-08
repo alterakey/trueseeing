@@ -19,17 +19,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import itertools
-import logging
 import pprint
 
-from .code import CodeFlows
+from trueseeing.core.flow.code import CodeFlows
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List, Callable, TypeVar, Type, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union
   from trueseeing.core.store import Store
   from trueseeing.core.code.op import Op, Token
-
-log = logging.getLogger(__name__)
 
 class DataFlows:
   class NoSuchValueError(Exception):
@@ -193,7 +191,7 @@ class DataFlows:
         if o.p[1].v == target:
           return o
     else:
-      log.debug("analyze_recent_static_load_of: failed static trace: %r" % op)
+      ui.debug("analyze_recent_static_load_of: failed static trace: %r" % op)
       return None
 
   @staticmethod
@@ -217,7 +215,7 @@ class DataFlows:
       for caller in CodeFlows.callers_of(store, from_):
         if store.query().qualname_of(from_) != store.query().qualname_of(caller):
           caller_reg = DataFlows.decoded_registers_of_list(caller.p[0])[index]
-          log.debug("analyze_recent_load_of: retrace: %r [%s] <-> %r [%s] [stage: %d]" % (from_, reg, caller, caller_reg, stage))
+          ui.debug("analyze_recent_load_of: retrace: %r [%s] <-> %r [%s] [stage: %d]" % (from_, reg, caller, caller_reg, stage))
           if stage < 5:
             retraced = DataFlows.analyze_recent_load_of(store, caller, caller_reg, stage=stage+1)
             if retraced:

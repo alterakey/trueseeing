@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 import re
 import os
 import subprocess
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List, Iterable, TypeVar, Optional, Tuple
@@ -39,15 +40,15 @@ class GrabMode:
     if self._packages:
       for pkg in self._packages:
         if Grab(pkg).exploit():
-          print(f'{me}: package saved: {pkg}.apk')
+          ui.info(f'{me}: package saved: {pkg}.apk')
           return 0
       else:
-        print(f'{me}: package not found')
+        ui.info(f'{me}: package not found')
         return 1
     else:
-      print(f'{me}: listing packages')
+      ui.info(f'{me}: listing packages')
       for p in sorted(Grab.list_()):
-        print(p)
+        ui.stdout(p)
       return 0
 
 def invoked(as_: str) -> str:

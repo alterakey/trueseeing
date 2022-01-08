@@ -28,8 +28,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import logging
-
 import re
 
 from trueseeing.core.flow.code import InvocationPattern
@@ -41,8 +39,6 @@ if TYPE_CHECKING:
   from typing import Iterable, Optional
   from trueseeing.core.store import Store
   from trueseeing.core.code.op import Op
-
-log = logging.getLogger(__name__)
 
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
