@@ -19,13 +19,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import glob
-import logging
 import os
 import re
 import shutil
 import tempfile
 
-log = logging.getLogger(__name__)
+from trueseeing.core.ui import ui
 
 class SigningKey:
   def key(self) -> str:
@@ -34,7 +33,7 @@ class SigningKey:
       return path
     else:
       os.makedirs(os.path.dirname(path))
-      log.info("generating key for repackaging")
+      ui.info("generating key for repackaging")
       os.system('keytool -genkey -v -keystore %(path)s -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000' % dict(path=path))
       return path
 
@@ -72,8 +71,8 @@ class Resigner:
   def _sigfile(self, root: str) -> str:
     try:
       fn = [os.path.basename(fn) for fn in glob.glob("%(root)s/t/META-INF/*.SF" % dict(root=root))][0]
-      log.debug("found existing signature: %s" % fn)
+      ui.debug("found existing signature: %s" % fn)
       return re.sub(r'\.[A-Z]+$', '', fn)
     except IndexError:
-      log.debug("signature not found")
+      ui.debug("signature not found")
       return 'CERT'

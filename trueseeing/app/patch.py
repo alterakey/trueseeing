@@ -19,17 +19,15 @@ from typing import TYPE_CHECKING
 
 import os
 import re
-import logging
 
 import lxml.etree as ET
 
 from trueseeing.core.patch import Patcher
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List
   from trueseeing.core.context import Context
-
-log = logging.getLogger(__name__)
 
 class PatchMode:
   _files: List[str]

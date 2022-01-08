@@ -32,7 +32,6 @@ import itertools
 import re
 import math
 import base64
-import logging
 
 from trueseeing.core.flow.code import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
@@ -43,8 +42,6 @@ if TYPE_CHECKING:
   from typing import Dict, Iterable
   from trueseeing.core.code.op import Op
   from trueseeing.core.store import Store
-
-log = logging.getLogger(__name__)
 
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'

@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 
 import collections
 import re
-import logging
 import time
 import sys
 
@@ -32,9 +31,6 @@ if TYPE_CHECKING:
   from trueseeing.core.store import Store
 
   T = TypeVar('T')
-
-log = logging.getLogger(__name__)
-
 
 class SmaliAnalyzer:
   store: Store

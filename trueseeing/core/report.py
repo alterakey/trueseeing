@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 import os
 import sys
-import logging
 import jinja2
 import pkg_resources
 import json
@@ -28,6 +27,7 @@ import json
 from trueseeing.core.issue import Issue
 from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List, Protocol, Any, Dict
@@ -37,8 +37,6 @@ if TYPE_CHECKING:
     def issue(self, issue: Issue) -> None: ...
     def progress(self) -> None: ...
     def done(self) -> None: ...
-
-log = logging.getLogger(__name__)
 
 class NullReporter:
   def __init__(self) -> None:
@@ -102,7 +100,7 @@ class CIReportGenerator(ReportGenerator):
     self._write(self._formatted(issue))
 
   def _write(self, x: str) -> None:
-    log.error(x)
+    ui.error(x)
 
   def _formatted(self, issue: Issue) -> str:
     return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=noneif(issue.source, '(global)'), row=noneif(issue.row, 0), col=noneif(issue.col, 0), severity=issue.severity(), confidence=issue.confidence, description=issue.brief_description(), detector_id=issue.detector_id)

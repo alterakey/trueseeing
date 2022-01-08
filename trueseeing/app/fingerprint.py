@@ -17,14 +17,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import logging
-
 from trueseeing.core.context import Context
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List
-
-log = logging.getLogger(__name__)
 
 class FingerprintMode:
   _files: List[str]
@@ -33,5 +30,5 @@ class FingerprintMode:
 
   def invoke(self) -> int:
     for f in self._files:
-      print('%s: %s' % (f, Context(f).fingerprint_of()))
+      ui.stdout('%s: %s' % (f, Context(f).fingerprint_of()))
     return 0

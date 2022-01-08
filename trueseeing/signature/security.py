@@ -30,18 +30,16 @@ import itertools
 import lxml.etree as ET
 import re
 import os
-import logging
 
 from trueseeing.core.flow.code import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import IssueConfidence, Issue
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, Set, Tuple, Any, List, Union, TypeVar, Dict
   T = TypeVar('T')
-
-log = logging.getLogger(__name__)
 
 class SecurityFilePermissionDetector(Detector):
   option = 'security-file-permission'
@@ -153,10 +151,10 @@ class LayoutSizeGuesser:
           return float(re.sub(r'di?p$', '', x)) / float(dp)
         except ValueError:
           try:
-            log.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
+            ui.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
             return float(re.sub(r'[^0-9-]', '', x)) / float(dp)
           except ValueError:
-            log.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring unknown dimension")
+            ui.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring unknown dimension")
             return 0.0
       else:
         return dp
@@ -176,10 +174,10 @@ class LayoutSizeGuesser:
         width, height = width_of(e), height_of(e)
       except KeyError:
         try:
-          log.warning('layout_guesser: guessed_size: ignoring improper webview declaration ({0})'.format(e.attrib['{0}id'.format(self.xmlns_android)]))
+          ui.warning('layout_guesser: guessed_size: ignoring improper webview declaration ({0})'.format(e.attrib['{0}id'.format(self.xmlns_android)]))
           return 0.0
         except KeyError:
-          log.warning('layout_guesser: guessed_size: ignoring improper webview declaration')
+          ui.warning('layout_guesser: guessed_size: ignoring improper webview declaration')
           return 0.0
       else:
         if any(is_bound(x) for x in (width_of(e), height_of(e))):
@@ -224,7 +222,7 @@ class SecurityTamperableWebViewDetector(Detector):
                   source=self.context.source_name_of_disassembled_resource(fn)
                 )
               except KeyError as e:
-                log.warning('SecurityTamperableWebViewDetector.do_detect: missing key {0}'.format(e))
+                ui.warning('SecurityTamperableWebViewDetector.do_detect: missing key {0}'.format(e))
 
       # XXX: crude detection
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
