@@ -24,10 +24,8 @@ from __future__ import print_function  # this is here for the version check to w
 def invoke() -> None:
   import sys
   if sys.version_info < (3, 7):
-    print("#" * 76, file=sys.stderr)
-    print("# trueseeing requires Python 3.7 or higher!                                #", file=sys.stderr)
-    print("#" * 76, file=sys.stderr)
-    sys.exit(1)
+    print("fatal: requires Python 3.7 or later", file=sys.stderr)
+    sys.exit(2)
   else:
     import trueseeing.app.shell
     trueseeing.app.shell.Shell().invoke()
