@@ -24,7 +24,7 @@ import re
 if TYPE_CHECKING:
   from typing import Iterable, List, Mapping, Any, Optional, Reversible
   from trueseeing.core.store import Store
-  from trueseeing.core.code.op import Op, Token
+  from trueseeing.core.code.model import Op, Token
 
 class InvocationPattern:
   insn: str

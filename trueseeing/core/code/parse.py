@@ -22,13 +22,13 @@ import re
 import time
 import sys
 
-from trueseeing.core.code.model import *
+from trueseeing.core.code.model import Annotation
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Iterable, ContextManager, Optional, Type, TextIO, List, Tuple, TypeVar
   from types import TracebackType
-  from trueseeing.core.code.op import Token, Op
+  from trueseeing.core.code.model import Token, Op
   from trueseeing.core.store import Store
 
   T = TypeVar('T')
