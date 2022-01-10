@@ -68,12 +68,10 @@ class Context:
       ui.debug('analyzed once')
     else:
       if os.path.exists(self.wd):
-        sys.stderr.write('analyze: removing leftover\n')
-        sys.stderr.flush()
+        ui.info('analyze: removing leftover\n')
         shutil.rmtree(self.wd)
 
-      sys.stderr.write('\ranalyze: disassembling... ')
-      sys.stderr.flush()
+      ui.info('\ranalyze: disassembling... ', nl=False)
       os.makedirs(self.wd, mode=0o700)
       self.copy_target()
       self.decode_apk(skip_resources)
@@ -84,8 +82,7 @@ class Context:
       with open(os.path.join(self.wd, '.done'), 'w'):
         pass
 
-      sys.stderr.write('\ranalyze: disassembling... done.\n')
-      sys.stderr.flush()
+      ui.info('\ranalyze: disassembling... done.\n')
 
   def decode_apk(self, skip_resources: bool) -> None:
     # XXX insecure

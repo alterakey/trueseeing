@@ -139,8 +139,7 @@ class HTMLReportGenerator(ReportGenerator):
       self._write(self._template.render(app=app, issues=issues))
 
   def _write(self, x: str) -> None:
-    sys.stdout.write(x)
-    sys.stdout.flush()
+    ui.stdout(x, nl=False)
 
 class JSONReportGenerator(ReportGenerator):
   def __init__(self, context: Context, progress: Reporter):
@@ -180,5 +179,4 @@ class JSONReportGenerator(ReportGenerator):
       self._write(json.dumps({"app": app, "issues": issues}, indent=2))
 
   def _write(self, x: str) -> None:
-    sys.stdout.write(x)
-    sys.stdout.flush()
+    ui.stdout(x, nl=False)
