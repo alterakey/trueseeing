@@ -18,10 +18,37 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.core.code.op import Token, Op
-
 if TYPE_CHECKING:
   from typing import Optional, List, Set
+
+class Token:
+  t: str
+  v: str
+  def __init__(self, t: str, v: str) -> None:
+    self.t = t
+    self.v = v
+
+  def __repr__(self) -> str:
+    return f'<Token t={self.t} v={self.v}>'
+
+  def eq(self, t: str, v: str) -> bool:
+    return (self.t, self.v) == (t, v)
+
+class Op(Token):
+  p: List[Op]
+  _id: Optional[int] = None
+  _idx: Optional[int] = None
+  def __init__(self, t: str, v: str, p: Optional[List[Op]] = None, id_: Optional[int]=None):
+    super().__init__(t, v)
+    if p is not None:
+      self.p = p
+    else:
+      self.p = []
+    if id_ is not None:
+      self._id = id_
+
+  def __repr__(self) -> str:
+    return f'<Op t={self.t} v={self.v}, p={self.p}>'
 
 class Annotation(Op):
   content: List[str]

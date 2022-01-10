@@ -40,7 +40,7 @@ from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Dict, Iterable
-  from trueseeing.core.code.op import Op
+  from trueseeing.core.code.model import Op
   from trueseeing.core.store import Store
 
 class CryptoStaticKeyDetector(Detector):

@@ -38,7 +38,7 @@ from trueseeing.core.issue import Issue
 if TYPE_CHECKING:
   from typing import Iterable, Optional
   from trueseeing.core.store import Store
-  from trueseeing.core.code.op import Op
+  from trueseeing.core.code.model import Op
 
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
