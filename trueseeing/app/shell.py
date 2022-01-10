@@ -40,9 +40,33 @@ if TYPE_CHECKING:
 class Signatures:
   _corpse: Mapping[str, Type[Detector]]
   def __init__(self) -> None:
-    self._corpse = collections.OrderedDict(
-      [cl.as_signature() for cl in trueseeing.signature.base.SignatureClasses().extracted()]
-    )
+    from trueseeing.signature import crypto, fingerprint, manifest, privacy, security
+
+    sigs: List[Type[Detector]] = [
+      crypto.CryptoStaticKeyDetector,
+      crypto.CryptoEcbDetector,
+      crypto.CryptoNonRandomXorDetector,
+      fingerprint.LibraryDetector,
+      fingerprint.ProGuardDetector,
+      fingerprint.UrlLikeDetector,
+      manifest.ManifestOpenPermissionDetector,
+      manifest.ManifestMissingPermissionDetector,
+      manifest.ManifestManipActivity,
+      manifest.ManifestManipBroadcastReceiver,
+      manifest.ManifestManipContentProvider,
+      manifest.ManifestManipBackup,
+      manifest.ManifestDebuggable,
+      privacy.PrivacyDeviceIdDetector,
+      privacy.PrivacySMSDetector,
+      security.SecurityFilePermissionDetector,
+      security.SecurityTlsInterceptionDetector,
+      security.SecurityTamperableWebViewDetector,
+      security.SecurityInsecureWebViewDetector,
+      security.FormatStringDetector,
+      security.LogDetector,
+    ]
+
+    self._corpse = {cl.option:cl for cl in sigs}
 
   def content(self) -> Mapping[str, Type[Detector]]:
     return self._corpse

@@ -24,10 +24,8 @@ import glob
 import importlib
 from abc import ABC, abstractmethod
 
-import pkg_resources
-
 if TYPE_CHECKING:
-  from typing import Type, Tuple, Any, Iterable, Optional, ClassVar
+  from typing import Iterable, ClassVar
   from trueseeing.core.context import Context
   from trueseeing.core.issue import Issue
 
@@ -40,37 +38,5 @@ class Detector(ABC):
   def __init__(self, context: Context) -> None:
     self.context = context
 
-  @classmethod
-  def as_signature(cls: Type[Detector]) -> Tuple[str, Type[Detector]]:
-    return (cls.option, cls)
-
   @abstractmethod
   def detect(self) -> Iterable[Issue]: ...
-
-class SignatureDiscoverer:
-  PRIORITY = ['fingerprint', 'manifest', 'security']
-
-  def discovered(self) -> Iterable[str]:
-    return sorted([os.path.basename(r).replace('.py', '') for r in
-                   glob.glob(pkg_resources.resource_filename(__name__, os.path.join('*'))) if
-                   re.match(r'^[^_].*\.py$', os.path.basename(r)) and not re.match(r'^base\.py$', os.path.basename(r))],
-                  key=self.key)
-
-  def key(self, k: str) -> int:
-    try:
-      return self.PRIORITY.index(k)
-    except ValueError:
-      return 31337
-
-class SignatureClasses:
-  @staticmethod
-  def extracted() -> Iterable[Type[Detector]]:
-    mods = [importlib.import_module(f'trueseeing.signature.{s}') for s in SignatureDiscoverer().discovered()]
-    for m in mods:
-      for attr in dir(m):
-        i = getattr(m, attr)
-        try:
-          if issubclass(i, Detector) and hasattr(i, 'option'):
-            yield i
-        except TypeError:
-          pass
