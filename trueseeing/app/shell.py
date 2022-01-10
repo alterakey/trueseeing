@@ -145,7 +145,7 @@ Misc:
       'SIGNATURES',
       '',
     ] + [
-      f'  {name:-36s}{signatures[name].description}' for name in sorted(signatures.keys())
+      f'  {name:<36s}{signatures[name].description}' for name in sorted(signatures.keys())
     ])
 
   def invoke(self) -> int:
