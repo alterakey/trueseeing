@@ -26,15 +26,6 @@ if TYPE_CHECKING:
   from trueseeing.core.store import Store
   from trueseeing.core.code.model import Op, Token
 
-class InvocationPattern:
-  insn: str
-  value: str
-  i: Optional[int]
-  def __init__(self, insn: str, value: str, i: Optional[int] = None) -> None:
-    self.insn = insn
-    self.value = value
-    self.i = i
-
 class CodeFlows:
   @staticmethod
   def callers_of(store: Store, method: Op) -> Iterable[Op]:

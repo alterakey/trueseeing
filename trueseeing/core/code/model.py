@@ -59,3 +59,12 @@ class Annotation(Op):
 
   def __repr__(self) -> str:
     return f'<Annotation {self.t}:{self.v}:{self.p}, content:{self.content}>'
+
+class InvocationPattern:
+  insn: str
+  value: str
+  i: Optional[int]
+  def __init__(self, insn: str, value: str, i: Optional[int] = None) -> None:
+    self.insn = insn
+    self.value = value
+    self.i = i
