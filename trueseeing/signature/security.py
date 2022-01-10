@@ -302,7 +302,7 @@ class SecurityInsecureWebViewDetector(Detector):
 
         # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
         if self.context.get_min_sdk_version() <= 20:
-          for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
+          for q in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
             try:
               val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
               if val == 0:
