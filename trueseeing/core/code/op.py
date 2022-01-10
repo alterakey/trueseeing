@@ -30,7 +30,7 @@ class Token:
     self.v = v
 
   def __repr__(self) -> str:
-    return '<Token t={} v={}>'.format(self.t, self.v)
+    return f'<Token t={self.t} v={self.v}>'
 
   def eq(self, t: str, v: str) -> bool:
     return (self.t, self.v) == (t, v)
@@ -49,4 +49,4 @@ class Op(Token):
       self._id = id_
 
   def __repr__(self) -> str:
-    return '<Op t={} v={}, p={}>'.format(self.t, self.v, self.p)
+    return f'<Op t={self.t} v={self.v}, p={self.p}>'

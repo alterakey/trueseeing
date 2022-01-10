@@ -137,10 +137,10 @@ class LayoutSizeGuesser:
         return (x, y)
 
     def width_of(e: Any) -> str:
-      return e.attrib['{0}layout_width'.format(self.xmlns_android)] # type:ignore[no-any-return]
+      return e.attrib[f'{self.xmlns_android}layout_width'] # type:ignore[no-any-return]
 
     def height_of(e: Any) -> str:
-      return e.attrib['{0}layout_height'.format(self.xmlns_android)] # type:ignore[no-any-return]
+      return e.attrib[f'{self.xmlns_android}layout_height'] # type:ignore[no-any-return]
 
     def is_bound(x: str) -> bool:
       return x not in ('fill_parent', 'match_parent', 'wrap_content')
@@ -174,10 +174,10 @@ class LayoutSizeGuesser:
         width, height = width_of(e), height_of(e)
       except KeyError:
         try:
-          ui.warning('layout_guesser: guessed_size: ignoring improper webview declaration ({0})'.format(e.attrib['{0}id'.format(self.xmlns_android)]))
+          ui.warn('layout_guesser: guessed_size: ignoring improper webview declaration ({0})'.format(e.attrib[f'{self.xmlns_android}id']))
           return 0.0
         except KeyError:
-          ui.warning('layout_guesser: guessed_size: ignoring improper webview declaration')
+          ui.warn('layout_guesser: guessed_size: ignoring improper webview declaration')
           return 0.0
       else:
         if any(is_bound(x) for x in (width_of(e), height_of(e))):
@@ -209,7 +209,7 @@ class SecurityTamperableWebViewDetector(Detector):
       for fn in (n for n in self.context.disassembled_resources() if 'layout' in n):
         with open(fn, 'rb') as f:
           r = ET.parse(f, parser=ET.XMLParser(recover=True)).getroot()
-          for t in functools.reduce(lambda x,y: x+y, (r.xpath('//%s' % self.context.class_name_of_dalvik_class_type(c).replace('$', '_')) for c in targets)):
+          for t in functools.reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self.context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
             size = LayoutSizeGuesser().guessed_size(t, fn)
             if size > 0.5:
               try:
@@ -218,11 +218,11 @@ class SecurityTamperableWebViewDetector(Detector):
                   confidence=IssueConfidence.TENTATIVE,
                   cvss3_vector=self.cvss1,
                   summary='tamperable webview',
-                  info1='{0} (score: {1:.02f})'.format(t.attrib['{0}id'.format(self.xmlns_android)], size),
+                  info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self.xmlns_android}id'], size),
                   source=self.context.source_name_of_disassembled_resource(fn)
                 )
               except KeyError as e:
-                ui.warning('SecurityTamperableWebViewDetector.do_detect: missing key {0}'.format(e))
+                ui.warn(f'SecurityTamperableWebViewDetector.do_detect: missing key {e}')
 
       # XXX: crude detection
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
@@ -270,7 +270,7 @@ class SecurityInsecureWebViewDetector(Detector):
             targets.add(name)
             more = True
       for seed in seeds:
-        targets.add('L.*%s;' % seed)
+        targets.add(f'L.*{seed};')
 
       # XXX: Crude detection
       # https://developer.android.com/reference/android/webkit/WebView.html#addJavascriptInterface(java.lang.Object,%2520java.lang.String)
@@ -279,7 +279,7 @@ class SecurityInsecureWebViewDetector(Detector):
           try:
             if DataFlows.solved_constant_data_in_invocation(store, p, 0):
               for target in targets:
-                for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', '%s->addJavascriptInterface' % target)):
+                for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
                   try:
                     if DataFlows.solved_constant_data_in_invocation(store, q, 0):
                       yield Issue(
@@ -346,7 +346,7 @@ class FormatStringDetector(Detector):
             cvss3_vector=self.cvss,
             summary='detected format string',
             info1=t['value'],
-            source='R.string.%s' % name
+            source=f'R.string.{name}'
           )
 
 class LogDetector(Detector):

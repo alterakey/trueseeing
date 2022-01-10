@@ -77,7 +77,7 @@ class PrivacyDeviceIdDetector(Detector):
             confidence=IssueConfidence.CERTAIN,
             cvss3_vector=self.cvss,
             summary='privacy concerns',
-            info1='getting %s' % val_type,
+            info1=f'getting {val_type}',
             source=store.query().qualname_of(op)
           )
 

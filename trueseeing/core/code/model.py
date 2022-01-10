@@ -31,4 +31,4 @@ class Annotation(Op):
     self.content = content
 
   def __repr__(self) -> str:
-    return '<Annotation %s:%s:%s, content:%s>' % (self.t, self.v, self.p, self.content)
+    return f'<Annotation {self.t}:{self.v}:{self.p}, content:{self.content}>'

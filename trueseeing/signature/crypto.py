@@ -87,9 +87,9 @@ class CryptoStaticKeyDetector(Detector):
             for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
               try:
                 decoded = base64.b64decode(found)
-                info1 = '"%(target_val)s" [%(target_val_len)d] (base64; "%(decoded_val)s" [%(decoded_val_len)d])' % dict(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
+                info1 = '"{target_val}" [{target_val_len}] (base64; "{decoded_val}" [{decoded_val_len}])'.format(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
               except (ValueError, binascii.Error):
-                info1 = '"%(target_val)s" [%(target_val_len)d]' % dict(target_val=found, target_val_len=len(found))
+                info1 = f'"{found}" [{len(found)}]'
 
               if looks_like_real_key(found):
                 yield Issue(
@@ -141,7 +141,7 @@ Possible cryptographic constants has been found in the application binary.
           cvss3_vector=self.cvss,
           confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)],
           summary='insecure cryptography: static keys (2)',
-          info1='"%(target_val)s" [%(target_val_len)d] (X.509)' % dict(target_val=val, target_val_len=len(val)),
+          info1=f'"{val}" [{len(val)}] (X.509)',
           source=store.query().qualname_of(cl),
           synopsis='Traces of X.509 certificates has been found the application binary.',
           description='''\
@@ -158,8 +158,8 @@ Use a device or installation specific information, or obfuscate them.  Especiall
             cvss3_vector=self.cvss,
             confidence=IssueConfidence.TENTATIVE,
             summary='insecure cryptography: static keys (2)',
-            info1='"%(target_val)s" [%(target_val_len)d] (X.509)' % dict(target_val=val, target_val_len=len(val)),
-            source='R.string.%s' % name,
+            info1=f'"{val}" [{len(val)}] (X.509)',
+            source=f'R.string.{name}',
             synopsis='Traces of X.509 certificates has been found the application binary.',
             description='''\
 Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
@@ -214,6 +214,6 @@ class CryptoNonRandomXorDetector(Detector):
             cvss3_vector=self.cvss,
             confidence=IssueConfidence.FIRM,
             summary='insecure cryptography: non-random XOR cipher',
-            info1='0x%02x' % target_val,
+            info1=f'0x{target_val:02x}',
             source=store.query().qualname_of(cl)
           )

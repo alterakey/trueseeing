@@ -45,7 +45,7 @@ class Patcher:
   def apply_multi(self, patches: List[Patch]) -> None:
     with Context(self.apk) as context:
       context.analyze()
-      ui.info("%s -> %s" % (self.apk, context.wd))
+      ui.info(f"{self.apk} -> {context.wd}")
       for p in patches:
           p.apply(context)
 
@@ -54,7 +54,7 @@ class Patcher:
 
       # XXX insecure
       with tempfile.TemporaryDirectory() as d:
-        os.system("(mkdir -p %(root)s/)" % dict(root=d, apk=self.apk))
-        os.system("(cd %(wd)s && java -jar %(apktool)s b -o %(root)s/patched.apk .)" % dict(root=d, apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=context.wd))
-        os.system("(cd %(root)s && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore %(keystore)s -storepass android -keypass android -sigfile %(sigfile)s patched.apk androiddebugkey)" % dict(root=d, keystore=SigningKey().key(), sigfile=sigfile))
+        os.system("(mkdir -p {root}/)".format(root=d))
+        os.system("(cd {wd} && java -jar {apktool} b -o {root}/patched.apk .)".format(root=d, apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=context.wd))
+        os.system("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=SigningKey().key(), sigfile=sigfile))
         shutil.copyfile(os.path.join(d, 'patched.apk'), self.out)

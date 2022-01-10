@@ -22,7 +22,8 @@ import re
 import time
 import sys
 
-from .model import *
+from trueseeing.core.code.model import *
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Iterable, ContextManager, Optional, Type, TextIO, List, Tuple, TypeVar
@@ -57,8 +58,7 @@ class SmaliAnalyzer:
         self.store.op_append(t)
         analyzed_ops = analyzed_ops + 1
         if analyzed_ops & 0xffff == 0:
-          sys.stderr.write("\ranalyzed: %d ops, %d methods, %d classes (%.02f ops/s)" % (analyzed_ops, analyzed_methods, analyzed_classes, analyzed_ops / (time.time() - started)))
-          sys.stderr.flush()
+          ui.stderr(f"\ranalyzed: {analyzed_ops} ops, {analyzed_methods} methods, {analyzed_classes} classes ({analyzed_ops / (time.time() - started):.02f} ops/s)", nl=False)
 
         if reg1 is not None:
           reg1.append(t)
@@ -87,12 +87,10 @@ class SmaliAnalyzer:
           reg1 = None
           analyzed_classes = analyzed_classes + 1
 
-    sys.stderr.write(("\ranalyzed: %d ops, %d methods, %d classes" + (" " * 20) + "\n") % (analyzed_ops, analyzed_methods, analyzed_classes))
-    sys.stderr.write("analyzed: finalizing\n")
-    sys.stderr.flush()
+    ui.stderr(f"\ranalyzed: {analyzed_ops} ops, {analyzed_methods} methods, {analyzed_classes} classes{' '*20}")
+    ui.stderr("analyzed: finalizing")
     self.store.op_finalize()
-    sys.stderr.write("analyzed: done (%.02f sec)\n" % (time.time() - started))
-    sys.stderr.flush()
+    ui.stderr(f"analyzed: done ({time.time() - started:.02f} sec)")
 
 class P:
   @staticmethod

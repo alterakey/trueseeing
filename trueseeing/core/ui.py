@@ -56,10 +56,14 @@ class UI:
     if self.level <= self.DEBUG:
       self.stderr(msg)
 
-  def stdout(self, msg: str) -> None:
-    print(msg)
+  def stdout(self, msg: str, nl: bool = True) -> None:
+    sys.stdout.write(msg)
+    if nl:
+      sys.stdout.write('\n')
 
-  def stderr(self, msg: str) -> None:
-    print(msg, file=sys.stderr)
+  def stderr(self, msg: str, nl: bool = True) -> None:
+    sys.stderr.write(msg)
+    if nl:
+      sys.stderr.write('\n')
 
 ui = UI()

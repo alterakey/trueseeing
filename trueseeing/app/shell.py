@@ -66,8 +66,9 @@ class Signatures:
 class Shell:
   @staticmethod
   def version() -> str:
+    version = pkg_resources.get_distribution('trueseeing').version
     return '\n'.join([
-    'Trueseeing %s, the app vulnerability scanner' % pkg_resources.get_distribution('trueseeing').version,
+    f'Trueseeing {version}, the app vulnerability scanner',
     #.........................................................................80
     '''\
 Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>
@@ -120,7 +121,7 @@ Misc:
       'SIGNATURES',
       '',
     ] + [
-      ('  %-36s%s' % (name, signatures[name].description)) for name in sorted(signatures.keys())
+      f'  {name:-36s}{signatures[name].description}' for name in sorted(signatures.keys())
     ])
 
   def invoke(self) -> int:

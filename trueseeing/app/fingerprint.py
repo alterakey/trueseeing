@@ -30,5 +30,5 @@ class FingerprintMode:
 
   def invoke(self) -> int:
     for f in self._files:
-      ui.stdout('%s: %s' % (f, Context(f).fingerprint_of()))
+      ui.stdout(f'{f}: {Context(f).fingerprint_of()}')
     return 0

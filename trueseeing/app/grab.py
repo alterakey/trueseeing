@@ -89,8 +89,8 @@ def path_from_multidex(package: str) -> Iterable[Tuple[str, str]]:
     yield f'/data/app/{package}-{i}/base.apk', f'{package}.apk'
 
 def path_from_dump(package: str) -> Iterable[Tuple[str, str]]:
-  out = invoked('adb shell pm dump "%s"' % package)
-  m = re.search('codePath=(/data/app/%s-.+)' % package, out)
+  out = invoked(f'adb shell pm dump "{package}"')
+  m = re.search(f'codePath=(/data/app/{package}-.+)', out)
   if m:
     yield os.path.join(m.group(1), 'base.apk'), f'{package}.apk'
   else:
@@ -103,9 +103,9 @@ class Grab:
 
   def exploit(self) -> bool:
     for from_, to_ in path_from(self.package):
-      out = invoke_tried("adb pull %s %s 2>/dev/null" % (from_, to_))
+      out = invoke_tried(f"adb pull {from_} {to_} 2>/dev/null")
       if out is not None:
-        out = invoke_tried("adb shell 'cat %s 2>/dev/null' > %s" % (from_, to_))
+        out = invoke_tried("adb shell 'cat {from_} 2>/dev/null' > {to_}")
         if out is not None and os.path.getsize(to_) > 0:
           return True
         else:

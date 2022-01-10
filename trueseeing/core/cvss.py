@@ -42,7 +42,10 @@ class CVSS3Scoring:
   @staticmethod
   def temporalified(vec: str, confidence: str) -> str:
     from trueseeing.core.issue import IssueConfidence
-    return '%sRC:%s/' % (vec, {IssueConfidence.CERTAIN:'C',IssueConfidence.FIRM:'R',IssueConfidence.TENTATIVE:'U'}[confidence])
+    return '{v}RC:{c}/'.format(
+      v=vec,
+      c={IssueConfidence.CERTAIN:'C',IssueConfidence.FIRM:'R',IssueConfidence.TENTATIVE:'U'}[confidence]
+    )
 
   @staticmethod
   def score_of(vec: str) -> float:

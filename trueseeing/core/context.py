@@ -89,9 +89,12 @@ class Context:
 
   def decode_apk(self, skip_resources: bool) -> None:
     # XXX insecure
-    subprocess.check_output("java -jar %(apktool)s d -f %(skipresflag)s -o %(wd)s %(apk)s" % dict(
-      apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=self.wd,
-      apk=self.apk, skipresflag=('-r' if skip_resources else '')), shell=True, stderr=subprocess.STDOUT)
+    subprocess.check_output("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
+      apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
+      wd=self.wd,
+      apk=self.apk,
+      skipresflag=('-r' if skip_resources else '')
+    ), shell=True, stderr=subprocess.STDOUT)
 
   def copy_target(self) -> None:
     if not os.path.exists(os.path.join(self.wd, self.TARGET_APK)):
@@ -134,7 +137,7 @@ class Context:
     return os.path.join(*os.path.relpath(fn, self.wd).split(os.sep)[1:])
 
   def dalvik_type_of_disassembled_class(self, fn: str) -> str:
-    return 'L%s;' % (self.source_name_of_disassembled_class(fn).replace('.smali', ''))
+    return 'L{};'.format((self.source_name_of_disassembled_class(fn).replace('.smali', '')))
 
   def source_name_of_disassembled_resource(self, fn: str) -> str:
     return os.path.relpath(fn, os.path.join(self.wd, 'res'))
