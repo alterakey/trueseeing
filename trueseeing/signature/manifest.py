@@ -33,7 +33,7 @@ import re
 import os
 
 from trueseeing.signature.base import Detector
-from trueseeing.core.issue import IssueConfidence, Issue
+from trueseeing.core.issue import Issue
 
 import pkg_resources
 
@@ -51,7 +51,7 @@ class ManifestOpenPermissionDetector(Detector):
     yield from (
       Issue(
         detector_id=self.option,
-        confidence=IssueConfidence.CERTAIN,
+        confidence='certain',
         cvss3_vector=self.cvss,
         summary='open permissions',
         info1=p,
@@ -99,7 +99,7 @@ class ManifestManipActivity(Detector):
       if not filter_:
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
+          confidence='certain',
           cvss3_vector=self.cvss1,
           summary='manipulatable Activity',
           info1=name,
@@ -111,7 +111,7 @@ class ManifestManipActivity(Detector):
       else:
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
+          confidence='certain',
           cvss3_vector=self.cvss2,
           summary='manipulatable Activity with private action names',
           info1=name,
@@ -140,7 +140,7 @@ class ManifestManipBroadcastReceiver(Detector):
       if not filter_:
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
+          confidence='certain',
           cvss3_vector=self.cvss1,
           summary='manipulatable BroadcastReceiver',
           info1=name,
@@ -152,7 +152,7 @@ class ManifestManipBroadcastReceiver(Detector):
       else:
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
+          confidence='certain',
           cvss3_vector=self.cvss2,
           summary='manipulatable BroadcastReceiver with private action names',
           info1=name,
@@ -181,7 +181,7 @@ class ManifestManipContentProvider(Detector):
       if not filter_:
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
+          confidence='certain',
           cvss3_vector=self.cvss1,
           summary='manipulatable ContentProvider',
           info1=name,
@@ -197,7 +197,7 @@ class ManifestManipContentProvider(Detector):
       else:
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
+          confidence='certain',
           cvss3_vector=self.cvss2,
           summary='manipulatable ContentProvider with private action names',
           info1=name,
@@ -223,7 +223,7 @@ class ManifestManipBackup(Detector):
     if self.context.parsed_manifest().getroot().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       yield Issue(
         detector_id=self.option,
-        confidence=IssueConfidence.CERTAIN,
+        confidence='certain',
         cvss3_vector=self.cvss,
         summary='manipulatable backups',
         source='AndroidManifest.xml',
@@ -245,7 +245,7 @@ class ManifestDebuggable(Detector):
     if self.context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       yield Issue(
         detector_id=self.option,
-        confidence=IssueConfidence.CERTAIN,
+        confidence='certain',
         cvss3_vector=self.cvss,
         summary='app is debuggable',
         source='AndroidManifest.xml',

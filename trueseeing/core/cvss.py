@@ -22,29 +22,27 @@ import re
 import math
 
 if TYPE_CHECKING:
-  from trueseeing.core.issue import IssueSeverity
+  from trueseeing.core.issue import IssueSeverity, IssueConfidence
 
 class CVSS3Scoring:
   @staticmethod
-  def severity_of(score: float) -> str:
-    from trueseeing.core.issue import IssueSeverity
+  def severity_of(score: float) -> IssueSeverity:
     if score <= 0.0:
-      return IssueSeverity.INFO
+      return 'info'
     elif score < 4.0:
-      return IssueSeverity.LOW
+      return 'low'
     elif score < 7.0:
-      return IssueSeverity.MEDIUM
+      return 'medium'
     elif score < 9.0:
-      return IssueSeverity.HIGH
+      return 'high'
     else:
-      return IssueSeverity.CRITICAL
+      return 'critical'
 
   @staticmethod
-  def temporalified(vec: str, confidence: str) -> str:
-    from trueseeing.core.issue import IssueConfidence
+  def temporalified(vec: str, confidence: IssueConfidence) -> str:
     return '{v}RC:{c}/'.format(
       v=vec,
-      c={IssueConfidence.CERTAIN:'C',IssueConfidence.FIRM:'R',IssueConfidence.TENTATIVE:'U'}[confidence]
+      c={'certain':'C','firm':'R','tentative':'U'}[confidence]
     )
 
   @staticmethod

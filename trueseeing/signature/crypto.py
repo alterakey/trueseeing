@@ -36,7 +36,7 @@ import base64
 from trueseeing.core.flow.code import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
-from trueseeing.core.issue import IssueConfidence, Issue
+from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Dict, Iterable
@@ -95,7 +95,7 @@ class CryptoStaticKeyDetector(Detector):
                 yield Issue(
                   detector_id=self.option,
                   cvss3_vector=self.cvss,
-                  confidence=IssueConfidence.FIRM,
+                  confidence='firm',
                   summary='insecure cryptography: static keys',
                   info1=info1,
                   source=store.query().qualname_of(cl),
@@ -111,7 +111,7 @@ Use a device or installation specific information, or obfuscate them.
                 yield Issue(
                   detector_id=self.option,
                   cvss3_vector=self.cvss_nonkey,
-                  confidence=IssueConfidence.TENTATIVE,
+                  confidence='tentative',
                   summary='Cryptographic constants detected',
                   info1=info1,
                   source=store.query().qualname_of(cl),
@@ -139,7 +139,7 @@ Possible cryptographic constants has been found in the application binary.
         yield Issue(
           detector_id=self.option,
           cvss3_vector=self.cvss,
-          confidence={True:IssueConfidence.FIRM, False:IssueConfidence.TENTATIVE}[should_be_secret(store, cl, val)],
+          confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
           summary='insecure cryptography: static keys (2)',
           info1=f'"{val}" [{len(val)}] (X.509)',
           source=store.query().qualname_of(cl),
@@ -156,7 +156,7 @@ Use a device or installation specific information, or obfuscate them.  Especiall
           yield Issue(
             detector_id=self.option,
             cvss3_vector=self.cvss,
-            confidence=IssueConfidence.TENTATIVE,
+            confidence='tentative',
             summary='insecure cryptography: static keys (2)',
             info1=f'"{val}" [{len(val)}] (X.509)',
             source=f'R.string.{name}',
@@ -184,7 +184,7 @@ class CryptoEcbDetector(Detector):
             yield Issue(
               detector_id=self.option,
               cvss3_vector=self.cvss,
-              confidence=IssueConfidence.CERTAIN,
+              confidence='certain',
               summary='insecure cryptography: cipher might be operating in ECB mode',
               info1=','.join(target_val),
               source=store.query().qualname_of(cl),
@@ -212,7 +212,7 @@ class CryptoNonRandomXorDetector(Detector):
           yield Issue(
             detector_id=self.option,
             cvss3_vector=self.cvss,
-            confidence=IssueConfidence.FIRM,
+            confidence='firm',
             summary='insecure cryptography: non-random XOR cipher',
             info1=f'0x{target_val:02x}',
             source=store.query().qualname_of(cl)
