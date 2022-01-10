@@ -45,7 +45,7 @@ class ScanMode:
       else:
         return 1
     else:
-      ui.critical("%s: no input files" % sys.argv[0])
+      ui.critical(f"{sys.argv[0]}: no input files")
       return 2
 
 
@@ -59,7 +59,7 @@ class AnalyzeSession:
   def invoke(self, apkfilename: str) -> bool:
     with Context(apkfilename) as context:
       context.analyze()
-      ui.info("%s -> %s" % (apkfilename, context.wd))
+      ui.info(f"{apkfilename} -> {context.wd}")
       with context.store().db as db:
         db.execute('delete from analysis_issues')
 

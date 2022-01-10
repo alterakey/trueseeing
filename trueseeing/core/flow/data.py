@@ -50,7 +50,7 @@ class DataFlows:
       regs = ref.v
       if ' .. ' in regs:
         from_, to_ = regs.split(' .. ')
-        return type_(['%s%d' % (from_[0], c) for c in range(int(from_[1:]), int(to_[1:]) + 1)])
+        return type_([f'{from_[0]}{c:d}' for c in range(int(from_[1:]), int(to_[1:]) + 1)])
       elif ',' in regs:
         return type_([r.strip() for r in regs.split(',')])
       else:
@@ -59,7 +59,7 @@ class DataFlows:
       regs = ref.v
       return type_([regs.strip()])
     else:
-      raise DataFlows.RegisterDecodeError("unknown type of reference: %s, %s" % (ref.t, ref.v))
+      raise DataFlows.RegisterDecodeError(f"unknown type of reference: {ref.t}, {ref.v}")
 
   @staticmethod
   def decoded_registers_of_list(ref: Op) -> List[str]:
@@ -95,18 +95,18 @@ class DataFlows:
     try:
       reg = DataFlows.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     except IndexError:
-      raise DataFlows.NoSuchValueError('argument not found at index %d' % index)
+      raise DataFlows.NoSuchValueError(f'argument not found at index {index}')
     if graph:
       try:
         arg = graph[invokation_op][reg] # type: ignore[index]
         if arg.t == 'id' and arg.v.startswith('const'):
           return arg.p[1].v # type: ignore[no-any-return]
         else:
-          raise DataFlows.NoSuchValueError('not a compile-time constant: %r' % arg)
+          raise DataFlows.NoSuchValueError(f'not a compile-time constant: {arg!r}')
       except (KeyError, AttributeError):
-        raise DataFlows.NoSuchValueError('not a compile-time constant: %r' % arg)
+        raise DataFlows.NoSuchValueError(f'not a compile-time constant: {arg!r}')
     else:
-      raise DataFlows.NoSuchValueError('not a compile-time constant: %r' % arg)
+      raise DataFlows.NoSuchValueError(f'not a compile-time constant: {arg!r}')
 
   @staticmethod
   def walk_dict_values(d: Union[Op, Mapping[Op, Any]]) -> Iterable[Optional[Op]]:
@@ -191,7 +191,7 @@ class DataFlows:
         if o.p[1].v == target:
           return o
     else:
-      ui.debug("analyze_recent_static_load_of: failed static trace: %r" % op)
+      ui.debug(f"analyze_recent_static_load_of: failed static trace: {op!r}")
       return None
 
   @staticmethod
@@ -215,7 +215,7 @@ class DataFlows:
       for caller in CodeFlows.callers_of(store, from_):
         if store.query().qualname_of(from_) != store.query().qualname_of(caller):
           caller_reg = DataFlows.decoded_registers_of_list(caller.p[0])[index]
-          ui.debug("analyze_recent_load_of: retrace: %r [%s] <-> %r [%s] [stage: %d]" % (from_, reg, caller, caller_reg, stage))
+          ui.debug(f"analyze_recent_load_of: retrace: {from_!r} [{reg}] <-> {caller!r} [{caller_reg}] [stage: {stage}]")
           if stage < 5:
             retraced = DataFlows.analyze_recent_load_of(store, caller, caller_reg, stage=stage+1)
             if retraced:

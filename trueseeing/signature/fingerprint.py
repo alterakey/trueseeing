@@ -96,7 +96,7 @@ class LibraryDetector(Detector):
         confidence=IssueConfidence.FIRM,
         cvss3_vector=self.cvss,
         summary='detected library',
-        info1='%s (score: %d)' % (p, len(packages[p])),
+        info1=f'{p} (score: {len(packages[p])})',
       ) for p in sorted(packages.keys())
     )
 
@@ -154,14 +154,14 @@ class UrlLikeDetector(Detector):
 
   def detect(self) -> Iterable[Issue]:
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
-      self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
+      self.re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
     with self.context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
         for match in self._analyzed(cl.p[1].v):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary='detected %s' % match['type_'], info1=v, source=store.query().qualname_of(cl))
+            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source=store.query().qualname_of(cl))
       for name, val in self.context.string_resources():
         for match in self._analyzed(val):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary='detected %s' % match['type_'], info1=v, source='R.string.%s' % name)
+            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source='R.string.%s' % name)

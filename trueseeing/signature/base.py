@@ -65,7 +65,7 @@ class SignatureDiscoverer:
 class SignatureClasses:
   @staticmethod
   def extracted() -> Iterable[Type[Detector]]:
-    mods = [importlib.import_module('trueseeing.signature.%s' % s) for s in SignatureDiscoverer().discovered()]
+    mods = [importlib.import_module(f'trueseeing.signature.{s}') for s in SignatureDiscoverer().discovered()]
     for m in mods:
       for attr in dir(m):
         i = getattr(m, attr)

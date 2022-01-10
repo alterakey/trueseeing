@@ -34,7 +34,7 @@ class SigningKey:
     else:
       os.makedirs(os.path.dirname(path))
       ui.info("generating key for repackaging")
-      os.system('keytool -genkey -v -keystore %(path)s -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000' % dict(path=path))
+      os.system(f'keytool -genkey -v -keystore {path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
       return path
 
 
@@ -46,8 +46,8 @@ class Unsigner:
   def unsign(self) -> None:
     # XXX insecure
     with tempfile.TemporaryDirectory() as d:
-      os.system("(mkdir -p %(root)s/t)" % dict(root=d, apk=self.apk))
-      os.system("(cd %(root)s/t && unzip -q %(apk)s && rm -rf META-INF && zip -qr ../unsigned.apk .)" % dict(root=d, apk=self.apk))
+      os.system(f"(mkdir -p {d}/t)")
+      os.system(f"(cd {d}/t && unzip -q {self.apk} && rm -rf META-INF && zip -qr ../unsigned.apk .)")
       shutil.copyfile(os.path.join(d, 'unsigned.apk'), self.out)
 
 
@@ -59,19 +59,19 @@ class Resigner:
   def resign(self) -> None:
     # XXX insecure
     with tempfile.TemporaryDirectory() as d:
-      os.system("(mkdir -p %(root)s/t)" % dict(root=d, apk=self.apk))
-      os.system("(cd %(root)s/t && unzip -q %(apk)s)" % dict(root=d, apk=self.apk))
+      os.system(f"(mkdir -p {d}/t)")
+      os.system(f"(cd {d}/t && unzip -q {self.apk})")
       sigfile = self._sigfile(d)
-      os.system("(cd %(root)s/t && rm -rf META-INF && zip -qr ../signed.apk .)" % dict(root=d, apk=self.apk))
+      os.system(f"(cd {d}/t && rm -rf META-INF && zip -qr ../signed.apk .)")
       os.system(
-        "(cd %(root)s && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore %(keystore)s -storepass android -keypass android -sigfile %(sigfile)s signed.apk androiddebugkey)" % dict(
-          root=d, keystore=SigningKey().key(), sigfile=sigfile))
+        f"(cd {d} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {SigningKey().key()} -storepass android -keypass android -sigfile {sigfile} signed.apk androiddebugkey)"
+      )
       shutil.copyfile(os.path.join(d, 'signed.apk'), self.out)
 
   def _sigfile(self, root: str) -> str:
     try:
-      fn = [os.path.basename(fn) for fn in glob.glob("%(root)s/t/META-INF/*.SF" % dict(root=root))][0]
-      ui.debug("found existing signature: %s" % fn)
+      fn = [os.path.basename(fn) for fn in glob.glob(f"{root}/t/META-INF/*.SF")][0]
+      ui.debug(f"found existing signature: {fn}")
       return re.sub(r'\.[A-Z]+$', '', fn)
     except IndexError:
       ui.debug("signature not found")

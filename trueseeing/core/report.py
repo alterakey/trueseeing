@@ -67,12 +67,10 @@ class ProgressReporter:
     self._report()
 
   def _report(self) -> None:
-    sys.stderr.write('\ranalyzing: %(progress).01f%%: critical:%(critical)d high:%(high)d medium:%(medium)d low:%(low)d info:%(info)d' % self._issues)
-    sys.stderr.flush()
+    ui.stderr('\ranalyzing: {progress:.01f}%: critical:{critical} high:{high} medium:{medium} low:{low} info:{info}'.format(**self._issues), nl=False)
 
   def done(self) -> None:
-    sys.stderr.write('\n')
-    sys.stderr.flush()
+    ui.stderr('\n', nl=False)
 
 class ReportGenerator:
   def __init__(self, context: Context, progress: Reporter):
@@ -103,7 +101,15 @@ class CIReportGenerator(ReportGenerator):
     ui.error(x)
 
   def _formatted(self, issue: Issue) -> str:
-    return '%(source)s:%(row)d:%(col)d:%(severity)s{%(confidence)s}:%(description)s [-W%(detector_id)s]' % dict(source=noneif(issue.source, '(global)'), row=noneif(issue.row, 0), col=noneif(issue.col, 0), severity=issue.severity(), confidence=issue.confidence, description=issue.brief_description(), detector_id=issue.detector_id)
+    return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [-W{detector_id}]'.format(
+      source=noneif(issue.source, '(global)'),
+      row=noneif(issue.row, 0),
+      col=noneif(issue.col, 0),
+      severity=issue.severity(),
+      confidence=issue.confidence,
+      description=issue.brief_description(),
+      detector_id=issue.detector_id
+    )
 
 class HTMLReportGenerator(ReportGenerator):
   def __init__(self, context: Context, progress: Reporter):

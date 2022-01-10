@@ -72,7 +72,7 @@ class ManifestMissingPermissionDetector(Detector):
 class ComponentNamePolicy:
   def __init__(self) -> None:
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
-      self.re_tlds = re.compile('^(?:%s)$' % '|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#')), flags=re.IGNORECASE)
+      self.re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
   def looks_public(self, name: str) -> bool:
     if '.' in name:
@@ -95,7 +95,7 @@ class ManifestManipActivity(Detector):
         self.context.parsed_manifest().getroot().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
         self.context.parsed_manifest().getroot().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
       )):
-      filter_ = [name for name in self.context.parsed_manifest().getroot().xpath('//activity[@android:name="%s"]/intent-filter/action/@android:name' % name, namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in self.context.parsed_manifest().getroot().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         yield Issue(
           detector_id=self.option,
@@ -136,7 +136,7 @@ class ManifestManipBroadcastReceiver(Detector):
         self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
         self.context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
       )):
-      filter_ = [name for name in self.context.parsed_manifest().getroot().xpath('//receiver[@android:name="%s"]/intent-filter/action/@android:name' % name, namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in self.context.parsed_manifest().getroot().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         yield Issue(
           detector_id=self.option,
@@ -177,7 +177,7 @@ class ManifestManipContentProvider(Detector):
         self.context.parsed_manifest().getroot().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
         self.context.parsed_manifest().getroot().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
     )):
-      filter_ = [name for name in self.context.parsed_manifest().getroot().xpath('//receiver[@android:name="%s"]/intent-filter/action/@android:name' % name, namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in self.context.parsed_manifest().getroot().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         yield Issue(
           detector_id=self.option,
