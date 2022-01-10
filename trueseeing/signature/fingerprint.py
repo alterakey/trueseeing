@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 import collections
 import os
 import re
-from trueseeing.core.flow.code import InvocationPattern
+from trueseeing.core.code.model import InvocationPattern
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
 

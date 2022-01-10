@@ -27,7 +27,7 @@ from trueseeing.core.code.model import Op
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Dict, Optional
   from trueseeing.core.store import Store
-  from trueseeing.core.flow.code import InvocationPattern
+  from trueseeing.core.code.model import InvocationPattern
 
 class StorePrep:
   def __init__(self, c: Any) -> None:

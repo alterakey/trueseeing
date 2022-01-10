@@ -33,7 +33,7 @@ import re
 import math
 import base64
 
-from trueseeing.core.flow.code import InvocationPattern
+from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
