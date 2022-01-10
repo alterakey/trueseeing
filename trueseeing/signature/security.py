@@ -34,7 +34,7 @@ import os
 from trueseeing.core.flow.code import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
-from trueseeing.core.issue import IssueConfidence, Issue
+from trueseeing.core.issue import Issue
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -54,7 +54,7 @@ class SecurityFilePermissionDetector(Detector):
           if target_val & 3:
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.CERTAIN,
+              confidence='certain',
               cvss3_vector=self.cvss,
               summary='insecure file permission',
               info1={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
@@ -75,7 +75,7 @@ class SecurityTlsInterceptionDetector(Detector):
         if not self.do_detect_plain_pins_hostnameverifier():
           yield Issue(
             detector_id=self.option,
-            confidence=IssueConfidence.CERTAIN,
+            confidence='certain',
             cvss3_vector=self.cvss,
             summary='insecure TLS connection',
             info1='no pinning detected'
@@ -215,7 +215,7 @@ class SecurityTamperableWebViewDetector(Detector):
               try:
                 yield Issue(
                   detector_id=self.option,
-                  confidence=IssueConfidence.TENTATIVE,
+                  confidence='tentative',
                   cvss3_vector=self.cvss1,
                   summary='tamperable webview',
                   info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self.xmlns_android}id'], size),
@@ -231,7 +231,7 @@ class SecurityTamperableWebViewDetector(Detector):
           if v.startswith('http://'):
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.FIRM,
+              confidence='firm',
               cvss3_vector=self.cvss2,
               summary='tamperable webview with URL',
               info1=v,
@@ -284,7 +284,7 @@ class SecurityInsecureWebViewDetector(Detector):
                     if DataFlows.solved_constant_data_in_invocation(store, q, 0):
                       yield Issue(
                         detector_id=self.option,
-                        confidence=IssueConfidence.FIRM,
+                        confidence='firm',
                         cvss3_vector=self.cvss,
                         summary='insecure Javascript interface',
                         source=store.query().qualname_of(q)
@@ -292,7 +292,7 @@ class SecurityInsecureWebViewDetector(Detector):
                   except (DataFlows.NoSuchValueError):
                       yield Issue(
                         detector_id=self.option,
-                        confidence=IssueConfidence.TENTATIVE,
+                        confidence='tentative',
                         cvss3_vector=self.cvss,
                         summary='insecure Javascript interface',
                         source=store.query().qualname_of(q)
@@ -308,7 +308,7 @@ class SecurityInsecureWebViewDetector(Detector):
               if val == 0:
                 yield Issue(
                   detector_id=self.option,
-                  confidence=IssueConfidence.FIRM,
+                  confidence='firm',
                   cvss3_vector=self.cvss,
                   summary='insecure mixed content mode',
                   info1='MIXED_CONTENT_ALWAYS_ALLOW',
@@ -324,7 +324,7 @@ class FormatStringDetector(Detector):
   def analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
     if re.search(r'%s', x):
       if re.search(r'(://|[<>/&?])', x):
-        yield dict(confidence=IssueConfidence.FIRM, value=x)
+        yield dict(confidence='firm', value=x)
 
   def detect(self) -> Iterable[Issue]:
     with self.context.store() as store:
@@ -361,7 +361,7 @@ class LogDetector(Detector):
           try:
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.TENTATIVE,
+              confidence='tentative',
               cvss3_vector=self.cvss,
               summary='detected logging',
               info1=cl.p[1].v,
@@ -371,7 +371,7 @@ class LogDetector(Detector):
           except (DataFlows.NoSuchValueError):
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.TENTATIVE,
+              confidence='tentative',
               cvss3_vector=self.cvss,
               summary='detected logging',
               info1=cl.p[1].v,
@@ -381,7 +381,7 @@ class LogDetector(Detector):
           try:
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.TENTATIVE,
+              confidence='tentative',
               cvss3_vector=self.cvss,
               summary='detected logging',
               info1=cl.p[1].v,
@@ -391,7 +391,7 @@ class LogDetector(Detector):
           except (DataFlows.NoSuchValueError):
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.TENTATIVE,
+              confidence='tentative',
               cvss3_vector=self.cvss,
               summary='detected logging',
               info1=cl.p[1].v,
@@ -400,7 +400,7 @@ class LogDetector(Detector):
         else:
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.TENTATIVE,
+              confidence='tentative',
               cvss3_vector=self.cvss,
               summary='detected logging',
               info1=cl.p[1].v,

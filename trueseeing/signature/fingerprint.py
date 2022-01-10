@@ -27,7 +27,7 @@ import os
 import re
 from trueseeing.core.flow.code import InvocationPattern
 from trueseeing.signature.base import Detector
-from trueseeing.core.issue import IssueConfidence, Issue
+from trueseeing.core.issue import Issue
 
 import pkg_resources
 
@@ -93,7 +93,7 @@ class LibraryDetector(Detector):
     yield from (
       Issue(
         detector_id=self.option,
-        confidence=IssueConfidence.FIRM,
+        confidence='firm',
         cvss3_vector=self.cvss,
         summary='detected library',
         info1=f'{p} (score: {len(packages[p])})',
@@ -113,10 +113,10 @@ class ProGuardDetector(Detector):
   def detect(self) -> Iterable[Issue]:
     for c in (self.class_name_of(self.context.source_name_of_disassembled_class(r)) for r in self.context.disassembled_classes()):
       if re.search('(?:^|\.)a$', c):
-        yield Issue(detector_id=self.option, confidence=IssueConfidence.CERTAIN, cvss3_vector=self.cvss_true, summary='detected obfuscator', info1='ProGuard')
+        yield Issue(detector_id=self.option, confidence='certain', cvss3_vector=self.cvss_true, summary='detected obfuscator', info1='ProGuard')
         break
     else:
-      yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss_false, summary='lack of obfuscation')
+      yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self.cvss_false, summary='lack of obfuscation')
 
 class FakeToken:
   v: Any
@@ -160,8 +160,8 @@ class UrlLikeDetector(Detector):
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
         for match in self._analyzed(cl.p[1].v):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source=store.query().qualname_of(cl))
+            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source=store.query().qualname_of(cl))
       for name, val in self.context.string_resources():
         for match in self._analyzed(val):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence=IssueConfidence.FIRM, cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source='R.string.%s' % name)
+            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source='R.string.%s' % name)

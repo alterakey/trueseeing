@@ -33,7 +33,7 @@ import re
 from trueseeing.core.flow.code import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
-from trueseeing.core.issue import IssueConfidence, Issue
+from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional
@@ -74,7 +74,7 @@ class PrivacyDeviceIdDetector(Detector):
         if val_type is not None:
           yield Issue(
             detector_id=self.option,
-            confidence=IssueConfidence.CERTAIN,
+            confidence='certain',
             cvss3_vector=self.cvss,
             summary='privacy concerns',
             info1=f'getting {val_type}',
@@ -93,7 +93,7 @@ class PrivacySMSDetector(Detector):
           if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
             yield Issue(
               detector_id=self.option,
-              confidence=IssueConfidence.CERTAIN,
+              confidence='certain',
               cvss3_vector=self.cvss,
               summary='privacy concerns',
               info1='accessing SMS',
@@ -105,7 +105,7 @@ class PrivacySMSDetector(Detector):
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsManager;->send')):
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.CERTAIN,
+          confidence='certain',
           cvss3_vector=self.cvss,
           summary='privacy concerns',
           info1='sending SMS',
@@ -115,7 +115,7 @@ class PrivacySMSDetector(Detector):
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsMessage;->createFromPdu\(')):
         yield Issue(
           detector_id=self.option,
-          confidence=IssueConfidence.FIRM,
+          confidence='firm',
           cvss3_vector=self.cvss,
           summary='privacy concerns',
           info1='intercepting incoming SMS',
