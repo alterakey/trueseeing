@@ -32,27 +32,27 @@ class UI:
 
   level = DEBUG
 
-  def fatal(self, msg: str) -> NoReturn:
+  def fatal(self, msg: str, nl: bool = True) -> NoReturn:
     self.stderr(f'fatal: {msg}')
     sys.exit(2)
 
-  def critical(self, msg: str) -> None:
+  def critical(self, msg: str, nl: bool = True) -> None:
     if self.level <= self.CRITICAL:
       self.stderr(msg)
 
-  def error(self, msg: str) -> None:
+  def error(self, msg: str, nl: bool = True) -> None:
     if self.level <= self.ERROR:
       self.stderr(msg)
 
-  def warn(self, msg: str) -> None:
+  def warn(self, msg: str, nl: bool = True) -> None:
     if self.level <= self.WARN:
       self.stderr(msg)
 
-  def info(self, msg: str) -> None:
+  def info(self, msg: str, nl: bool = True) -> None:
     if self.level <= self.INFO:
       self.stderr(msg)
 
-  def debug(self, msg: str) -> None:
+  def debug(self, msg: str, nl: bool = True) -> None:
     if self.level <= self.DEBUG:
       self.stderr(msg)
 

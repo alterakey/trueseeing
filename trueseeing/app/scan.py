@@ -45,9 +45,7 @@ class ScanMode:
       else:
         return 1
     else:
-      ui.critical(f"{sys.argv[0]}: no input files")
-      return 2
-
+      ui.fatal(f"no input files")
 
 class AnalyzeSession:
   _chain: List[Type[Detector]]

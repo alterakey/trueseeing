@@ -36,17 +36,15 @@ class GrabMode:
 
   def invoke(self) -> int:
     import sys
-    me = sys.argv[0]
     if self._packages:
       for pkg in self._packages:
         if Grab(pkg).exploit():
-          ui.info(f'{me}: package saved: {pkg}.apk')
+          ui.info(f'package saved: {pkg}.apk')
           return 0
       else:
-        ui.info(f'{me}: package not found')
-        return 1
+        ui.fatal(f'package not found')
     else:
-      ui.info(f'{me}: listing packages')
+      ui.info(f'listing packages')
       for p in sorted(Grab.list_()):
         ui.stdout(p)
       return 0
