@@ -50,10 +50,9 @@ class Context:
     return Store(self.wd)
 
   def fingerprint_of(self) -> str:
-    from zipfile import ZipFile
     from hashlib import sha256
-    with ZipFile(self._apk, 'r') as f:
-      return sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
+    with open(self._apk, 'rb') as f:
+      return sha256(f.read()).hexdigest()
 
   def analyze(self, skip_resources: bool = False) -> None:
     if os.path.exists(os.path.join(self.wd, '.done')):
