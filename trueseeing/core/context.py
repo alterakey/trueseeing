@@ -41,7 +41,7 @@ class Context:
 
   def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
-    dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
+    dirname = os.path.join(os.path.dirname(self._apk), f'.trueseeing2-{hashed}')
     return dirname
 
   def store(self) -> Store:
