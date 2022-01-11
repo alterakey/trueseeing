@@ -18,6 +18,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import attr
+
 if TYPE_CHECKING:
   from typing import Optional, List, Set
 
@@ -60,11 +62,8 @@ class Annotation(Op):
   def __repr__(self) -> str:
     return f'<Annotation {self.t}:{self.v}:{self.p}, content:{self.content}>'
 
+@attr.s(auto_attribs=True, frozen=True)
 class InvocationPattern:
   insn: str
   value: str
-  i: Optional[int]
-  def __init__(self, insn: str, value: str, i: Optional[int] = None) -> None:
-    self.insn = insn
-    self.value = value
-    self.i = i
+  i: Optional[int] = None
