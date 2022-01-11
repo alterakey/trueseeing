@@ -59,7 +59,7 @@ class Grab:
     for from_, to_ in self._path_from(self._target):
       out = try_invoke(f"adb pull {from_} {to_} 2>/dev/null")
       if out is None:
-        out = try_invoke("adb shell 'cat {from_} 2>/dev/null' > {to_}")
+        out = try_invoke(f"adb shell 'cat {from_} 2>/dev/null' > {to_}")
         if out is not None and os.path.getsize(to_) > 0:
           return True
         else:
