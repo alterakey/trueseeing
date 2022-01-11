@@ -19,11 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import re
-import os.path
-import sqlite3
-import trueseeing.core.literalquery
-import trueseeing.core.code.model
-from trueseeing.core.literalquery import Query
+from trueseeing.core.literalquery import StorePrep, Query
 
 if TYPE_CHECKING:
   from typing import Optional, List, Any
@@ -31,13 +27,15 @@ if TYPE_CHECKING:
 
 class Store:
   def __init__(self, path: str) -> None:
+    import os.path
+    import sqlite3
     self.path = os.path.join(path, 'store.db')
     is_creating = not os.path.exists(self.path)
     self.db = sqlite3.connect(self.path)
     self.db.create_function("REGEXP", 2, Store._re_fn)
-    trueseeing.core.literalquery.StorePrep(self.db).stage0()
+    StorePrep(self.db).stage0()
     if is_creating:
-      trueseeing.core.literalquery.StorePrep(self.db).stage1()
+      StorePrep(self.db).stage1()
 
   @staticmethod
   def _re_fn(expr: str, item: Any) -> bool:
@@ -53,7 +51,7 @@ class Store:
     pass
 
   def op_finalize(self) -> None:
-    trueseeing.core.literalquery.StorePrep(self.db).stage2()
+    StorePrep(self.db).stage2()
 
   def op_get(self, k: int) -> Optional[Op]:
     for t,v in self.db.execute('select t,v from ops where op=?', (k, )):

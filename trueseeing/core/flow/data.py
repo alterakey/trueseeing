@@ -19,7 +19,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import itertools
-import pprint
 
 from trueseeing.core.flow.code import CodeFlows
 from trueseeing.core.ui import ui

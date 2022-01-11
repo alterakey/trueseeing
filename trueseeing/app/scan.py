@@ -35,18 +35,15 @@ class ScanMode:
     self._files = files
 
   def invoke(self, ci_mode: str, signatures: List[Type[Detector]]) -> int:
-    if self._files:
-      error_found = False
-      session = AnalyzeSession(signatures, ci_mode=ci_mode)
-      for f in self._files:
-        if session.invoke(f):
-          error_found = True
-      if not error_found:
-        return 0
-      else:
-        return 1
+    error_found = False
+    session = AnalyzeSession(signatures, ci_mode=ci_mode)
+    for f in self._files:
+      if session.invoke(f):
+        error_found = True
+    if not error_found:
+      return 0
     else:
-      ui.fatal(f"no input files")
+      return 1
 
 class AnalyzeSession:
   _chain: List[Type[Detector]]

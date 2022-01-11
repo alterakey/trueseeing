@@ -18,12 +18,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import glob
 import os
-import re
 import shutil
 import tempfile
 
+from trueseeing.core.tools import invoke_passthru
 from trueseeing.core.ui import ui
 
 class SigningKey:
@@ -34,7 +33,7 @@ class SigningKey:
     else:
       os.makedirs(os.path.dirname(path))
       ui.info("generating key for repackaging")
-      os.system(f'keytool -genkey -v -keystore {path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
+      invoke_passthru(f'keytool -genkey -v -keystore {path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
       return path
 
 
@@ -46,8 +45,8 @@ class Unsigner:
   def unsign(self) -> None:
     # XXX insecure
     with tempfile.TemporaryDirectory() as d:
-      os.system(f"(mkdir -p {d}/t)")
-      os.system(f"(cd {d}/t && unzip -q {self.apk} && rm -rf META-INF && zip -qr ../unsigned.apk .)")
+      invoke_passthru(f"(mkdir -p {d}/t)")
+      invoke_passthru(f"(cd {d}/t && unzip -q {self.apk} && rm -rf META-INF && zip -qr ../unsigned.apk .)")
       shutil.copyfile(os.path.join(d, 'unsigned.apk'), self.out)
 
 
@@ -59,18 +58,20 @@ class Resigner:
   def resign(self) -> None:
     # XXX insecure
     with tempfile.TemporaryDirectory() as d:
-      os.system(f"(mkdir -p {d}/t)")
-      os.system(f"(cd {d}/t && unzip -q {self.apk})")
+      invoke_passthru(f"(mkdir -p {d}/t)")
+      invoke_passthru(f"(cd {d}/t && unzip -q {self.apk})")
       sigfile = self._sigfile(d)
-      os.system(f"(cd {d}/t && rm -rf META-INF && zip -qr ../signed.apk .)")
-      os.system(
+      invoke_passthru(f"(cd {d}/t && rm -rf META-INF && zip -qr ../signed.apk .)")
+      invoke_passthru(
         f"(cd {d} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {SigningKey().key()} -storepass android -keypass android -sigfile {sigfile} signed.apk androiddebugkey)"
       )
       shutil.copyfile(os.path.join(d, 'signed.apk'), self.out)
 
   def _sigfile(self, root: str) -> str:
+    import re
+    from glob import glob
     try:
-      fn = [os.path.basename(fn) for fn in glob.glob(f"{root}/t/META-INF/*.SF")][0]
+      fn = [os.path.basename(fn) for fn in glob(f"{root}/t/META-INF/*.SF")][0]
       ui.debug(f"found existing signature: {fn}")
       return re.sub(r'\.[A-Z]+$', '', fn)
     except IndexError:

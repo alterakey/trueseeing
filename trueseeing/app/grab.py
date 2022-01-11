@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 import re
 import os
-import subprocess
+from trueseeing.core.tools import try_invoke, invoke
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -49,24 +49,17 @@ class GrabMode:
         ui.stdout(p)
       return 0
 
-def invoked(as_: str) -> str:
-  return subprocess.run(as_, shell=True, check=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
-
-def invoke_tried(as_: str) -> Optional[str]:
-  try:
-    return invoked(as_)
-  except subprocess.CalledProcessError:
-    return None
-
 def version_of_default_device() -> float:
-  try:
-    out = invoked("adb shell cat /system/build.prop")
-    m = re.search(r'ro.build.version.release=(.+?)', out)
-    if m:
+  out = try_invoke("adb shell cat /system/build.prop")
+  if out is None:
+    return FALLBACK_VERSION
+  m = re.search(r'ro.build.version.release=(.+?)', out)
+  if m:
+    try:
       return float(m.group(1))
-    else:
+    except ValueError:
       return FALLBACK_VERSION
-  except (ValueError, subprocess.CalledProcessError):
+  else:
     return FALLBACK_VERSION
 
 def path_from(package: str) -> Iterable[Tuple[str, str]]:
@@ -87,7 +80,7 @@ def path_from_multidex(package: str) -> Iterable[Tuple[str, str]]:
     yield f'/data/app/{package}-{i}/base.apk', f'{package}.apk'
 
 def path_from_dump(package: str) -> Iterable[Tuple[str, str]]:
-  out = invoked(f'adb shell pm dump "{package}"')
+  out = invoke(f'adb shell pm dump "{package}"')
   m = re.search(f'codePath=(/data/app/{package}-.+)', out)
   if m:
     yield os.path.join(m.group(1), 'base.apk'), f'{package}.apk'
@@ -101,9 +94,9 @@ class Grab:
 
   def exploit(self) -> bool:
     for from_, to_ in path_from(self.package):
-      out = invoke_tried(f"adb pull {from_} {to_} 2>/dev/null")
+      out = try_invoke(f"adb pull {from_} {to_} 2>/dev/null")
       if out is not None:
-        out = invoke_tried("adb shell 'cat {from_} 2>/dev/null' > {to_}")
+        out = try_invoke("adb shell 'cat {from_} 2>/dev/null' > {to_}")
         if out is not None and os.path.getsize(to_) > 0:
           return True
         else:
@@ -112,5 +105,5 @@ class Grab:
 
   @classmethod
   def list_(cls) -> Iterable[str]:
-    out = invoked("adb shell pm list packages")
+    out = invoke("adb shell pm list packages")
     return (l.replace('package:', '') for l in filter(None, out.split('\n')))

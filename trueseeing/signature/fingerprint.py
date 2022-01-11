@@ -22,14 +22,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import collections
 import os
 import re
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
-
-import pkg_resources
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any
@@ -153,6 +150,7 @@ class UrlLikeDetector(Detector):
             yield dict(type_='possible FQDN', value=[hostlike])
 
   def detect(self) -> Iterable[Issue]:
+    import pkg_resources
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
       self.re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 

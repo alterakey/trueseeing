@@ -18,9 +18,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import itertools
-import re
-
 if TYPE_CHECKING:
   from typing import Iterable, List, Mapping, Any, Optional, Reversible
   from trueseeing.core.store import Store

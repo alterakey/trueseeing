@@ -25,9 +25,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import functools
 import itertools
-import lxml.etree as ET
 import re
 import os
 
@@ -194,6 +192,8 @@ class SecurityTamperableWebViewDetector(Detector):
   xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
   def detect(self) -> Iterable[Issue]:
+    import lxml.etree as ET
+    from functools import reduce
     with self.context.store() as store:
       targets = {'WebView','XWalkView','GeckoView'}
 
@@ -209,7 +209,7 @@ class SecurityTamperableWebViewDetector(Detector):
       for fn in (n for n in self.context.disassembled_resources() if 'layout' in n):
         with open(fn, 'rb') as f:
           r = ET.parse(f, parser=ET.XMLParser(recover=True)).getroot()
-          for t in functools.reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self.context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
+          for t in reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self.context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
             size = LayoutSizeGuesser().guessed_size(t, fn)
             if size > 0.5:
               try:

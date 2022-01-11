@@ -17,7 +17,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -29,6 +28,9 @@ class InspectMode:
     self._files = files
 
   def invoke(self) -> int:
+    assert self._files
+    from trueseeing.core.context import Context
+
     f = self._files[0]
     with Context(f) as context:
       ui.info(f"inspection mode; analyzing {f}")

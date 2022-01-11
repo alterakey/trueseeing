@@ -35,8 +35,6 @@ import os
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
 
-import pkg_resources
-
 if TYPE_CHECKING:
   from typing import Iterable
   from trueseeing.core.issue import Issue
@@ -71,6 +69,7 @@ class ManifestMissingPermissionDetector(Detector):
 
 class ComponentNamePolicy:
   def __init__(self) -> None:
+    import pkg_resources
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
       self.re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
