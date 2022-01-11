@@ -25,13 +25,11 @@ import os
 import re
 import shutil
 
-import trueseeing.core.code.parse
-import trueseeing.core.store
-
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import ClassVar, List, Any, Iterable, Tuple
+  from trueseeing.core.store import Store
 
 class Context:
   wd: str
@@ -46,9 +44,10 @@ class Context:
     dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
     return dirname
 
-  def store(self) -> trueseeing.core.store.Store:
+  def store(self) -> Store:
     assert self.wd is not None
-    return trueseeing.core.store.Store(self.wd)
+    from trueseeing.core.store import Store
+    return Store(self.wd)
 
   def fingerprint_of(self) -> str:
     from zipfile import ZipFile
@@ -60,6 +59,7 @@ class Context:
     if os.path.exists(os.path.join(self.wd, '.done')):
       ui.debug('analyzed once')
     else:
+      from trueseeing.core.code.parse import SmaliAnalyzer
       if os.path.exists(self.wd):
         ui.info('analyze: removing leftover\n')
         shutil.rmtree(self.wd)
@@ -69,7 +69,7 @@ class Context:
       self._copy_target()
       self._decode_apk(skip_resources)
 
-      trueseeing.core.code.parse.SmaliAnalyzer(self.store()).analyze(
+      SmaliAnalyzer(self.store()).analyze(
         open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
 
       with open(os.path.join(self.wd, '.done'), 'w'):

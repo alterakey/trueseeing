@@ -21,7 +21,7 @@ import re
 import sys
 from collections import deque
 
-from trueseeing.core.code.model import Annotation
+from trueseeing.core.code.model import Token, Op, Annotation
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:

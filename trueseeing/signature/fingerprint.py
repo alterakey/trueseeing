@@ -153,8 +153,8 @@ class UrlLikeDetector(Detector):
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
         for match in self._analyzed(cl.p[1].v):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected match["type_"]', info1=v, source=store.query().qualname_of(cl))
+            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=store.query().qualname_of(cl))
       for name, val in self._context.string_resources():
         for match in self._analyzed(val):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected match["type_"]', info1=v, source='R.string.%s' % name)
+            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source='R.string.%s' % name)
