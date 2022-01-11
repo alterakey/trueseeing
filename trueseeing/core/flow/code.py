@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
   from typing import Iterable, List, Mapping, Any, Optional, Reversible
   from trueseeing.core.store import Store
-  from trueseeing.core.code.model import Op, Token
+  from trueseeing.core.code.model import Op
 
 class CodeFlows:
   @classmethod
