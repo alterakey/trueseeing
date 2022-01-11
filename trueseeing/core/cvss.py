@@ -18,12 +18,17 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import re
+
 if TYPE_CHECKING:
   from trueseeing.core.issue import IssueSeverity, IssueConfidence
 
 class CVSS3Scoring:
-  @staticmethod
-  def severity_of(score: float) -> IssueSeverity:
+  def __init__(self, m: re.Match[str]):
+    self._m = m
+
+  @classmethod
+  def severity_of(cls, score: float) -> IssueSeverity:
     if score <= 0.0:
       return 'info'
     elif score < 4.0:
@@ -35,72 +40,72 @@ class CVSS3Scoring:
     else:
       return 'critical'
 
-  @staticmethod
-  def temporalified(vec: str, confidence: IssueConfidence) -> str:
+  @classmethod
+  def temporalified(cls, vec: str, confidence: IssueConfidence) -> str:
     return '{v}RC:{c}/'.format(
       v=vec,
       c={'certain':'C','firm':'R','tentative':'U'}[confidence]
     )
 
-  @staticmethod
-  def score_of(vec: str) -> float:
-    import re
+  @classmethod
+  def score_of(cls, vec: str) -> float:
     m = re.match(r'CVSS:3.0/AV:(?P<AV>[NALP])/AC:(?P<AC>[LH])/PR:(?P<PR>[NLH])/UI:(?P<UI>[NR])/S:(?P<S>[CU])/C:(?P<C>[HLN])/I:(?P<I>[HLN])/A:(?P<A>[HLN])(?:/RC:(?P<RC>[XCRU]))?/', vec)
     if m:
-      def score(m: re.Match[str]) -> float:
-        return temporal_score(m)
-
-      def temporal_score(m: re.Match[str]) -> float:
-        return roundup(base_score(m) * exploit_code_maturity_score(m) * remediation_level_score(m) * report_confidence_score(m))
-
-      def exploit_code_maturity_score(m: re.Match[str]) -> float:
-        return 1
-
-      def remediation_level_score(m: re.Match[str]) -> float:
-        return 1
-
-      def report_confidence_score(m: re.Match[str]) -> float:
-        M = dict(X=1.0, C=1.0, R=0.96, U=0.92)
-        return M[m.group('RC')]
-
-      def base_score(m: re.Match[str]) -> float:
-        impact, exploitability = subscore_impact(m), subscore_exploitability(m)
-        if impact <= 0:
-          return 0
-        else:
-          if not scope_changed(m):
-            return roundup(min(impact + exploitability, 10))
-          else:
-            return roundup(min(1.08 * (impact + exploitability), 10))
-
-      def subscore_impact(m: re.Match[str]) -> float:
-        base = subscore_impact_base(m)
-        if not scope_changed(m):
-          return 6.42 * base
-        else:
-          return 7.52*(base-0.029) - 3.25*(base-0.02)**15
-
-      def subscore_impact_base(m: re.Match[str]) -> float:
-        M = dict(N=0, L=0.22, H=0.56)
-        C, I, A = M[m.group('C')], M[m.group('I')], M[m.group('A')]
-        return 1 - ((1-C) * (1-I) * (1-A))
-
-      def subscore_exploitability(m: re.Match[str]) -> float:
-        M_AV = dict(N=0.85, A=0.62, L=0.55, P=0.2)
-        M_AC = dict(L=0.77, H=0.44)
-        M_PR = dict(N=0.85, L=0.68 if scope_changed(m) else 0.62, H=0.50 if scope_changed(m) else 0.27)
-        M_UI = dict(N=0.85, R=0.62)
-        AV, AC, PR, UI = M_AV[m.group('AV')], M_AC[m.group('AC')], M_PR[m.group('PR')], M_UI[m.group('UI')]
-
-        return 8.22 * AV * AC * PR * UI
-
-      def scope_changed(m: re.Match[str]) -> bool:
-        return (m.group('S') == 'C')
-
-      def roundup(v: float) -> float:
-        from math import ceil
-        return ceil(v * 10.0) / 10.0
-
-      return score(m)
+      return cls(m)._score()
     else:
       raise ValueError()
+
+  def _score(self) -> float:
+    return self._temporal_score()
+
+  def _temporal_score(self) -> float:
+    return self._roundup(self._base_score() * self._exploit_code_maturity_score() * self._remediation_level_score() * self._report_confidence_score())
+
+  def _exploit_code_maturity_score(self) -> float:
+    return 1
+
+  def _remediation_level_score(self) -> float:
+    return 1
+
+  def _report_confidence_score(self) -> float:
+    M = dict(X=1.0, C=1.0, R=0.96, U=0.92)
+    return M[self._m.group('RC')]
+
+  def _base_score(self) -> float:
+    impact, exploitability = self._subscore_impact(), self._subscore_exploitability()
+    if impact <= 0:
+      return 0
+    else:
+      if not self._scope_changed():
+        return self._roundup(min(impact + exploitability, 10))
+      else:
+        return self._roundup(min(1.08 * (impact + exploitability), 10))
+
+  def _subscore_impact(self) -> float:
+    base = self._subscore_impact_base()
+    if not self._scope_changed():
+      return 6.42 * base
+    else:
+      return 7.52*(base-0.029) - 3.25*(base-0.02)**15
+
+  def _subscore_impact_base(self) -> float:
+    M = dict(N=0, L=0.22, H=0.56)
+    C, I, A = M[self._m.group('C')], M[self._m.group('I')], M[self._m.group('A')]
+    return 1 - ((1-C) * (1-I) * (1-A))
+
+  def _subscore_exploitability(self) -> float:
+    M_AV = dict(N=0.85, A=0.62, L=0.55, P=0.2)
+    M_AC = dict(L=0.77, H=0.44)
+    M_PR = dict(N=0.85, L=0.68 if self._scope_changed() else 0.62, H=0.50 if self._scope_changed() else 0.27)
+    M_UI = dict(N=0.85, R=0.62)
+    AV, AC, PR, UI = M_AV[self._m.group('AV')], M_AC[self._m.group('AC')], M_PR[self._m.group('PR')], M_UI[self._m.group('UI')]
+
+    return 8.22 * AV * AC * PR * UI
+
+  def _scope_changed(self) -> bool:
+    return (self._m.group('S') == 'C')
+
+  @classmethod
+  def _roundup(cls, v: float) -> float:
+    from math import ceil
+    return ceil(v * 10.0) / 10.0

@@ -42,10 +42,11 @@ if TYPE_CHECKING:
 class SecurityFilePermissionDetector(Detector):
   option = 'security-file-permission'
   description = 'Detects insecure file creation'
-  cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  _summary = 'insecure file permission'
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
@@ -53,8 +54,8 @@ class SecurityFilePermissionDetector(Detector):
             yield Issue(
               detector_id=self.option,
               confidence='certain',
-              cvss3_vector=self.cvss,
-              summary='insecure file permission',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
               info1={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
               source=store.query().qualname_of(cl)
             )
@@ -65,22 +66,23 @@ class SecurityFilePermissionDetector(Detector):
 class SecurityTlsInterceptionDetector(Detector):
   option = 'security-tls-interception'
   description = 'Detects certificate (non-)pinning'
-  cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
+  _summary = 'insecure TLS connection'
 
   def detect(self) -> Iterable[Issue]:
-    if self.context.get_min_sdk_version() <= 23:
-      if not self.do_detect_plain_pins_x509():
-        if not self.do_detect_plain_pins_hostnameverifier():
+    if self._context.get_min_sdk_version() <= 23:
+      if not self._do_detect_plain_pins_x509():
+        if not self._do_detect_plain_pins_hostnameverifier():
           yield Issue(
             detector_id=self.option,
             confidence='certain',
-            cvss3_vector=self.cvss,
-            summary='insecure TLS connection',
+            cvss3_vector=self._cvss,
+            summary=self._summary,
             info1='no pinning detected'
           )
 
-  def do_detect_plain_pins_x509(self) -> Set[str]:
-    with self.context.store() as store:
+  def _do_detect_plain_pins_x509(self) -> Set[str]:
+    with self._context.store() as store:
       pins: Set[str] = set()
       q = store.query()
       for m in store.query().methods_in_class('checkServerTrusted', 'X509TrustManager'):
@@ -96,7 +98,7 @@ class SecurityTlsInterceptionDetector(Detector):
       if pins:
         # XXX crude detection
         custom_sslcontext_detected = False
-        for cl in self.context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext;->init')):
+        for cl in self._context.store().query().invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext;->init')):
           custom_sslcontext_detected = True
           pins = DataFlows.solved_typeset_in_invocation(store, cl, 1) & pins
 
@@ -107,8 +109,8 @@ class SecurityTlsInterceptionDetector(Detector):
       else:
         return pins
 
-  def do_detect_plain_pins_hostnameverifier(self) -> Set[str]:
-    with self.context.store() as store:
+  def _do_detect_plain_pins_hostnameverifier(self) -> Set[str]:
+    with self._context.store() as store:
       pins: Set[str] = set()
       q = store.query()
       for m in itertools.chain(store.query().methods_in_class('verify(Ljava/lang/String;Ljavax/net/ssl/SSLSession;)Z', 'HostnameVerifier')):
@@ -120,81 +122,91 @@ class SecurityTlsInterceptionDetector(Detector):
 
 
 class LayoutSizeGuesser:
-  xmlns_android = '{http://schemas.android.com/apk/res/android}'
-  table = {'small':(320.0, 426.0), 'normal':(320.0, 470.0), 'large':(480.0, 640.0), 'xlarge':(720.0, 960.0)}
+  _xmlns_android = '{http://schemas.android.com/apk/res/android}'
+  _table = {'small':(320.0, 426.0), 'normal':(320.0, 470.0), 'large':(480.0, 640.0), 'xlarge':(720.0, 960.0)}
 
   def guessed_size(self, t: Any, path: str) -> float:
-    def dps_from_modifiers(mods: Set[str]) -> Tuple[float, float]:
+    dps = self._dps_from_modifiers(self._modifiers_in(path))
+    for e in self._self_and_containers_of(t):
       try:
-        x, y = self.table[list(mods & self.table.keys())[0]]
-      except (IndexError, KeyError):
-        x, y = self.table['large']
-      if 'land' in mods:
-        return (y, x)
-      else:
-        return (x, y)
-
-    def width_of(e: Any) -> str:
-      return e.attrib[f'{self.xmlns_android}layout_width'] # type:ignore[no-any-return]
-
-    def height_of(e: Any) -> str:
-      return e.attrib[f'{self.xmlns_android}layout_height'] # type:ignore[no-any-return]
-
-    def is_bound(x: str) -> bool:
-      return x not in ('fill_parent', 'match_parent', 'wrap_content')
-
-    def guessed_dp(x: str, dp: float) -> float:
-      if is_bound(x):
-        try:
-          return float(re.sub(r'di?p$', '', x)) / float(dp)
-        except ValueError:
-          try:
-            ui.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
-            return float(re.sub(r'[^0-9-]', '', x)) / float(dp)
-          except ValueError:
-            ui.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring unknown dimension")
-            return 0.0
-      else:
-        return dp
-
-    def self_and_containers_of(e: Any) -> Iterable[Any]:
-      yield e
-      e = e.getparent()
-      if e is not None:
-        self_and_containers_of(e)
-
-    def modifiers_in(path: str) -> Set[str]:
-      return [set(c.split('-')) for c in path.split(os.sep) if 'layout' in c][0]
-
-    dps = dps_from_modifiers(modifiers_in(path))
-    for e in self_and_containers_of(t):
-      try:
-        width, height = width_of(e), height_of(e)
+        width, height = self._width_of(e), self._height_of(e)
       except KeyError:
         try:
-          ui.warn('layout_guesser: guessed_size: ignoring improper webview declaration ({0})'.format(e.attrib[f'{self.xmlns_android}id']))
+          ui.warn('layout_guesser: guessed_size: ignoring improper webview declaration ({0})'.format(e.attrib[f'{self._xmlns_android}id']))
           return 0.0
         except KeyError:
           ui.warn('layout_guesser: guessed_size: ignoring improper webview declaration')
           return 0.0
       else:
-        if any(is_bound(x) for x in (width_of(e), height_of(e))):
-          return guessed_dp(width_of(e), dps[0]) * guessed_dp(height_of(e), dps[1])
+        if any(self._is_bound(x) for x in (self._width_of(e), self._height_of(e))):
+          return self._guessed_dp(self._width_of(e), dps[0]) * self._guessed_dp(self._height_of(e), dps[1])
     else:
       return 1.0
+
+  @classmethod
+  def _dps_from_modifiers(cls, mods: Set[str]) -> Tuple[float, float]:
+    try:
+      x, y = cls._table[list(mods & cls._table.keys())[0]]
+    except (IndexError, KeyError):
+      x, y = cls._table['large']
+    if 'land' in mods:
+      return (y, x)
+    else:
+      return (x, y)
+
+  @classmethod
+  def _width_of(cls, e: Any) -> str:
+    return e.attrib[f'{cls._xmlns_android}layout_width'] # type:ignore[no-any-return]
+
+  @classmethod
+  def _height_of(cls, e: Any) -> str:
+    return e.attrib[f'{cls._xmlns_android}layout_height'] # type:ignore[no-any-return]
+
+  @classmethod
+  def _is_bound(cls, x: str) -> bool:
+    return x not in ('fill_parent', 'match_parent', 'wrap_content')
+
+  @classmethod
+  def _guessed_dp(cls, x: str, dp: float) -> float:
+    if cls._is_bound(x):
+      try:
+        return float(re.sub(r'di?p$', '', x)) / float(dp)
+      except ValueError:
+        try:
+          ui.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring non-dp suffix ({!s})".format(x))
+          return float(re.sub(r'[^0-9-]', '', x)) / float(dp)
+        except ValueError:
+          ui.debug("layout_guesser: guessed_size: guessed_dp: warning: ignoring unknown dimension")
+          return 0.0
+    else:
+      return dp
+
+  @classmethod
+  def _self_and_containers_of(cls, e: Any) -> Iterable[Any]:
+    yield e
+    e = e.getparent()
+    if e is not None:
+      cls._self_and_containers_of(e)
+
+  @classmethod
+  def _modifiers_in(cls, path: str) -> Set[str]:
+    return [set(c.split('-')) for c in path.split(os.sep) if 'layout' in c][0]
+
 
 class SecurityTamperableWebViewDetector(Detector):
   option = 'security-tamperable-webview'
   description = 'Detects tamperable WebView'
-  cvss1 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:N/I:H/A:N/'
-  cvss2 = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:C/C:N/I:H/A:N/'
+  _summary1 = 'tamperable webview'
+  _summary2 = 'tamperable webview with URL'
+  _cvss1 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:N/I:H/A:N/'
+  _cvss2 = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:C/C:N/I:H/A:N/'
 
-  xmlns_android = '{http://schemas.android.com/apk/res/android}'
+  _xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
   def detect(self) -> Iterable[Issue]:
     import lxml.etree as ET
     from functools import reduce
-    with self.context.store() as store:
+    with self._context.store() as store:
       targets = {'WebView','XWalkView','GeckoView'}
 
       more = True
@@ -206,20 +218,20 @@ class SecurityTamperableWebViewDetector(Detector):
             targets.add(name)
             more = True
 
-      for fn in (n for n in self.context.disassembled_resources() if 'layout' in n):
+      for fn in (n for n in self._context.disassembled_resources() if 'layout' in n):
         with open(fn, 'rb') as f:
           r = ET.parse(f, parser=ET.XMLParser(recover=True)).getroot()
-          for t in reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self.context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
+          for t in reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self._context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
             size = LayoutSizeGuesser().guessed_size(t, fn)
             if size > 0.5:
               try:
                 yield Issue(
                   detector_id=self.option,
                   confidence='tentative',
-                  cvss3_vector=self.cvss1,
-                  summary='tamperable webview',
-                  info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self.xmlns_android}id'], size),
-                  source=self.context.source_name_of_disassembled_resource(fn)
+                  cvss3_vector=self._cvss1,
+                  summary=self._summary1,
+                  info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self._xmlns_android}id'], size),
+                  source=self._context.source_name_of_disassembled_resource(fn)
                 )
               except KeyError as e:
                 ui.warn(f'SecurityTamperableWebViewDetector.do_detect: missing key {e}')
@@ -232,8 +244,8 @@ class SecurityTamperableWebViewDetector(Detector):
             yield Issue(
               detector_id=self.option,
               confidence='firm',
-              cvss3_vector=self.cvss2,
-              summary='tamperable webview with URL',
+              cvss3_vector=self._cvss2,
+              summary=self._summary2,
               info1=v,
               source=store.query().qualname_of(op)
             )
@@ -244,20 +256,22 @@ class SecurityTamperableWebViewDetector(Detector):
 class SecurityInsecureWebViewDetector(Detector):
   option = 'security-insecure-webview'
   description = 'Detects insecure WebView'
-  cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:H/'
+  _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:H/'
+  _summary1 = 'insecure Javascript interface'
+  _summary2 = 'insecure mixed content mode'
 
-  xmlns_android = '{http://schemas.android.com/apk/res/android}'
+  _xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
   # FIXME: Come up with something more right
-  @staticmethod
-  def first(xs: Iterable[T], default: Optional[T] = None) -> Optional[T]:
+  @classmethod
+  def _first(cls, xs: Iterable[T], default: Optional[T] = None) -> Optional[T]:
     try:
       return list(itertools.islice(xs, 1))[0]
     except IndexError:
       return default
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       targets = set()
       seeds = {'WebView','XWalkView','GeckoView'}
 
@@ -274,7 +288,7 @@ class SecurityInsecureWebViewDetector(Detector):
 
       # XXX: Crude detection
       # https://developer.android.com/reference/android/webkit/WebView.html#addJavascriptInterface(java.lang.Object,%2520java.lang.String)
-      if self.context.get_min_sdk_version() <= 16:
+      if self._context.get_min_sdk_version() <= 16:
         for p in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')):
           try:
             if DataFlows.solved_constant_data_in_invocation(store, p, 0):
@@ -285,23 +299,23 @@ class SecurityInsecureWebViewDetector(Detector):
                       yield Issue(
                         detector_id=self.option,
                         confidence='firm',
-                        cvss3_vector=self.cvss,
-                        summary='insecure Javascript interface',
+                        cvss3_vector=self._cvss,
+                        summary=self._summary1,
                         source=store.query().qualname_of(q)
                       )
                   except (DataFlows.NoSuchValueError):
                       yield Issue(
                         detector_id=self.option,
                         confidence='tentative',
-                        cvss3_vector=self.cvss,
-                        summary='insecure Javascript interface',
+                        cvss3_vector=self._cvss,
+                        summary=self._summary1,
                         source=store.query().qualname_of(q)
                       )
           except (DataFlows.NoSuchValueError):
             pass
 
         # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
-        if self.context.get_min_sdk_version() <= 20:
+        if self._context.get_min_sdk_version() <= 20:
           for q in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
             try:
               val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
@@ -309,8 +323,8 @@ class SecurityInsecureWebViewDetector(Detector):
                 yield Issue(
                   detector_id=self.option,
                   confidence='firm',
-                  cvss3_vector=self.cvss,
-                  summary='insecure mixed content mode',
+                  cvss3_vector=self._cvss,
+                  summary=self._summary2,
                   info1='MIXED_CONTENT_ALWAYS_ALLOW',
                   source=store.query().qualname_of(q))
             except (DataFlows.NoSuchValueError):
@@ -319,32 +333,33 @@ class SecurityInsecureWebViewDetector(Detector):
 class FormatStringDetector(Detector):
   option = 'security-format-string'
   description = 'Detects format string usages'
-  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _summary = 'detected format string'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
+  def _analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
     if re.search(r'%s', x):
       if re.search(r'(://|[<>/&?])', x):
         yield dict(confidence='firm', value=x)
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'%s')):
-        for t in self.analyzed(cl.p[1].v):
+        for t in self._analyzed(cl.p[1].v):
           yield Issue(
             detector_id=self.option,
             confidence=t['confidence'],
-            cvss3_vector=self.cvss,
-            summary='detected format string',
+            cvss3_vector=self._cvss,
+            summary=self._summary,
             info1=t['value'],
             source=store.query().qualname_of(cl)
           )
-      for name, val in self.context.string_resources():
-        for t in self.analyzed(val):
+      for name, val in self._context.string_resources():
+        for t in self._analyzed(val):
           yield Issue(
             detector_id=self.option,
             confidence=t['confidence'],
-            cvss3_vector=self.cvss,
-            summary='detected format string',
+            cvss3_vector=self._cvss,
+            summary=self._summary,
             info1=t['value'],
             source=f'R.string.{name}'
           )
@@ -352,18 +367,19 @@ class FormatStringDetector(Detector):
 class LogDetector(Detector):
   option = 'security-log'
   description = 'Detects logging activities'
-  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
+  _summary = 'detected logging'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         if 'print' not in cl.p[1].v:
           try:
             yield Issue(
               detector_id=self.option,
               confidence='tentative',
-              cvss3_vector=self.cvss,
-              summary='detected logging',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
               info1=cl.p[1].v,
               info2=DataFlows.solved_constant_data_in_invocation(store, cl, 1),
               source=store.query().qualname_of(cl)
@@ -372,8 +388,8 @@ class LogDetector(Detector):
             yield Issue(
               detector_id=self.option,
               confidence='tentative',
-              cvss3_vector=self.cvss,
-              summary='detected logging',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
               info1=cl.p[1].v,
               source=store.query().qualname_of(cl)
             )
@@ -382,8 +398,8 @@ class LogDetector(Detector):
             yield Issue(
               detector_id=self.option,
               confidence='tentative',
-              cvss3_vector=self.cvss,
-              summary='detected logging',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
               info1=cl.p[1].v,
               info2=DataFlows.solved_constant_data_in_invocation(store, cl, 0),
               source=store.query().qualname_of(cl)
@@ -392,8 +408,8 @@ class LogDetector(Detector):
             yield Issue(
               detector_id=self.option,
               confidence='tentative',
-              cvss3_vector=self.cvss,
-              summary='detected logging',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
               info1=cl.p[1].v,
               source=store.query().qualname_of(cl)
             )
@@ -401,8 +417,8 @@ class LogDetector(Detector):
             yield Issue(
               detector_id=self.option,
               confidence='tentative',
-              cvss3_vector=self.cvss,
-              summary='detected logging',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
               info1=cl.p[1].v,
               source=store.query().qualname_of(cl)
             )

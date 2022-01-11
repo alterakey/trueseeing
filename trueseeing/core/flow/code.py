@@ -24,13 +24,13 @@ if TYPE_CHECKING:
   from trueseeing.core.code.model import Op, Token
 
 class CodeFlows:
-  @staticmethod
-  def callers_of(store: Store, method: Op) -> Iterable[Op]:
+  @classmethod
+  def callers_of(cls, store: Store, method: Op) -> Iterable[Op]:
     yield from store.query().callers_of(method)
 
-  @staticmethod
-  def callstacks_of(store: Store, method: Op) -> Mapping[Op, Any]:
+  @classmethod
+  def callstacks_of(cls, store: Store, method: Op) -> Mapping[Op, Any]:
     o = dict()
-    for m in CodeFlows.callers_of(store, method):
-      o[m] = CodeFlows.callstacks_of(store, m)
+    for m in cls.callers_of(store, method):
+      o[m] = cls.callstacks_of(store, m)
     return o
