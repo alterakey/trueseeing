@@ -19,10 +19,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import os
-import shutil
-import tempfile
-
-import pkg_resources
 
 from trueseeing.core.sign import SigningKey
 from trueseeing.core.context import Context
@@ -43,6 +39,9 @@ class Patcher:
     return self.apply_multi([patch])
 
   def apply_multi(self, patches: List[Patch]) -> None:
+    from shutil import copyfile
+    from tempfile import TemporaryDirectory
+    from pkg_resources import resource_filename
     with Context(self.apk) as context:
       context.analyze()
       ui.info(f"{self.apk} -> {context.wd}")
@@ -53,8 +52,9 @@ class Patcher:
       sigfile = 'CERT'
 
       # XXX insecure
-      with tempfile.TemporaryDirectory() as d:
-        os.system("(mkdir -p {root}/)".format(root=d))
-        os.system("(cd {wd} && java -jar {apktool} b -o {root}/patched.apk .)".format(root=d, apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=context.wd))
-        os.system("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=SigningKey().key(), sigfile=sigfile))
-        shutil.copyfile(os.path.join(d, 'patched.apk'), self.out)
+      with TemporaryDirectory() as d:
+        from trueseeing.core.tools import invoke_passthru
+        invoke_passthru("(mkdir -p {root}/)".format(root=d))
+        invoke_passthru("(cd {wd} && java -jar {apktool} b -o {root}/patched.apk .)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=context.wd))
+        invoke_passthru("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=SigningKey().key(), sigfile=sigfile))
+        copyfile(os.path.join(d, 'patched.apk'), self.out)

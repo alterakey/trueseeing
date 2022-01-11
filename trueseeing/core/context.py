@@ -18,23 +18,15 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import re
-import os
-import lxml.etree as ET
-# FIXME: using ruamel.yaml?
-import yaml
-import shutil
-import pkg_resources
-import hashlib
-import zipfile
+import functools
 import itertools
-import glob
-import sys
-import subprocess
+import lxml.etree as ET
+import os
+import re
+import shutil
 
 import trueseeing.core.code.parse
 import trueseeing.core.store
-import functools
 
 from trueseeing.core.ui import ui
 
@@ -60,8 +52,10 @@ class Context:
     return trueseeing.core.store.Store(self.wd)
 
   def fingerprint_of(self) -> str:
-    with zipfile.ZipFile(self.apk, 'r') as f:
-      return hashlib.sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
+    from zipfile import ZipFile
+    from hashlib import sha256
+    with ZipFile(self.apk, 'r') as f:
+      return sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
 
   def analyze(self, skip_resources: bool = False) -> None:
     if os.path.exists(os.path.join(self.wd, '.done')):
@@ -85,13 +79,15 @@ class Context:
       ui.info('\ranalyze: disassembling... done.\n')
 
   def decode_apk(self, skip_resources: bool) -> None:
+    import pkg_resources
+    from trueseeing.core.tools import invoke_passthru
     # XXX insecure
-    subprocess.check_output("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
+    invoke_passthru("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
       apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
       wd=self.wd,
       apk=self.apk,
       skipresflag=('-r' if skip_resources else '')
-    ), shell=True, stderr=subprocess.STDOUT)
+    ), redir_stderr=True)
 
   def copy_target(self) -> None:
     if not os.path.exists(os.path.join(self.wd, self.TARGET_APK)):
@@ -101,7 +97,13 @@ class Context:
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:
       return ET.parse(f, parser=ET.XMLParser(recover=True))
 
+  def manifest_as_xml(self, manifest: Any) -> bytes:
+    assert manifest is not None
+    return ET.tostring(manifest) # type: ignore[no-any-return]
+
   def parsed_apktool_yml(self) -> Any:
+    # FIXME: using ruamel.yaml?
+    import yaml
     with open(os.path.join(self.wd, 'apktool.yml'), 'r') as f:
       return yaml.safe_load(re.sub(r'!!brut\.androlib\.meta\.MetaInfo', '', f.read()))
 
@@ -111,8 +113,10 @@ class Context:
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self) -> List[str]:
+    from itertools import chain
+    from glob import glob
     o: List[str] = []
-    for root, dirs, files in itertools.chain(*(os.walk(p) for p in glob.glob(os.path.join(self.wd, 'smali*/')))):
+    for root, dirs, files in chain(*(os.walk(p) for p in glob(os.path.join(self.wd, 'smali*/')))):
       o.extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
     return o
 

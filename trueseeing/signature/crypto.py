@@ -27,11 +27,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import binascii
-import itertools
 import re
 import math
-import base64
 
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
@@ -73,9 +70,12 @@ class CryptoStaticKeyDetector(Detector):
       yield from range(len(DataFlows.decoded_registers_of_set(k.p[0])))
 
   def detect(self) -> Iterable[Issue]:
-    yield from itertools.chain(self.do_detect_case1(), self.do_detect_case2())
+    from itertools import chain
+    yield from chain(self.do_detect_case1(), self.do_detect_case2())
 
   def do_detect_case1(self) -> Iterable[Issue]:
+    import base64
+    import binascii
     def looks_like_real_key(k: str) -> bool:
       # XXX: silly
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))

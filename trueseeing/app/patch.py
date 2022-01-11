@@ -18,11 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import os
-import re
 
-import lxml.etree as ET
-
-from trueseeing.core.patch import Patcher
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -35,6 +31,7 @@ class PatchMode:
     self._files = files
 
   def invoke(self, mode: str) -> int:
+    from trueseeing.core.patch import Patcher
     for f in self._files:
       if mode == 'all':
         Patcher(f, os.path.basename(f).replace('.apk', '-patched.apk')).apply_multi([
@@ -50,7 +47,7 @@ class PatchDebuggable:
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "false"
     with open(os.path.join(context.wd, 'AndroidManifest.xml'), 'wb') as f:
-      f.write(ET.tostring(manifest))
+      f.write(context.manifest_as_xml(manifest))
 
 class PatchBackupable:
   def apply(self, context: Context) -> None:
@@ -58,10 +55,11 @@ class PatchBackupable:
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "false"
     with open(os.path.join(context.wd, 'AndroidManifest.xml'), 'wb') as f:
-      f.write(ET.tostring(manifest))
+      f.write(context.manifest_as_xml(manifest))
 
 class PatchLoggers:
   def apply(self, context: Context) -> None:
+    import re
     for fn in context.disassembled_classes():
       with open(fn, 'r') as f:
         content = f.read()

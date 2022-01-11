@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING
 import os.path
 import pkg_resources
 
-import trueseeing.core
 from trueseeing.core.code.model import Op
 
 if TYPE_CHECKING:

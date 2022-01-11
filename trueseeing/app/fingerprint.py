@@ -17,7 +17,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -29,6 +28,7 @@ class FingerprintMode:
     self._files = files
 
   def invoke(self) -> int:
+    from trueseeing.core.context import Context
     for f in self._files:
       ui.stdout(f'{f}: {Context(f).fingerprint_of()}')
     return 0

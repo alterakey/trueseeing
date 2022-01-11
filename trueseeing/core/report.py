@@ -18,12 +18,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import os
-import sys
-import jinja2
-import pkg_resources
-import json
-
 from trueseeing.core.issue import Issue
 from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
@@ -120,7 +114,10 @@ class CIReportGenerator(BaseReportGenerator):
 class HTMLReportGenerator(BaseReportGenerator):
   def __init__(self, context: Context, progress: Reporter):
     super().__init__(context, progress)
-    self._template = jinja2.Environment(loader=jinja2.FileSystemLoader(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
+    import os.path
+    from jinja2 import Environment, FileSystemLoader
+    from pkg_resources import resource_filename
+    self._template = Environment(loader=FileSystemLoader(resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
 
   def generate(self) -> None:
     super().generate()
@@ -153,6 +150,7 @@ class JSONReportGenerator(BaseReportGenerator):
 
   def generate(self) -> None:
     super().generate()
+    from json import dumps
     with self._context.store().db as db:
       issues = []
       for row, no in zip(db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc'), range(1, 2**32)):
@@ -182,7 +180,7 @@ class JSONReportGenerator(BaseReportGenerator):
         package=self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
         issues=len(issues)
       )
-      self._write(json.dumps({"app": app, "issues": issues}, indent=2))
+      self._write(dumps({"app": app, "issues": issues}, indent=2))
 
   def _write(self, x: str) -> None:
     ui.stdout(x, nl=False)

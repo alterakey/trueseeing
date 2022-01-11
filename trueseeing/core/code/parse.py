@@ -17,10 +17,9 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import collections
 import re
-import time
 import sys
+from collections import deque
 
 from trueseeing.core.code.model import Annotation
 from trueseeing.core.ui import ui
@@ -45,6 +44,7 @@ class SmaliAnalyzer:
     pass
 
   def analyze(self, fs: Iterable[TextIO]) -> None:
+    import time
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0
@@ -102,7 +102,7 @@ class P:
 
   @staticmethod
   def parsed_flat(s: str) -> Iterable[Op]:
-    q = collections.deque(re.split(r'\n+', s))
+    q = deque(re.split(r'\n+', s))
     while q:
       l = q.popleft()
       if l:
@@ -118,7 +118,7 @@ class P:
     return Op(x.t, x.v, [Op(y.t, y.v) for y in xs] if xs else None)
 
   @staticmethod
-  def parsed_as_annotation_content(q: collections.deque[str]) -> List[str]:
+  def parsed_as_annotation_content(q: deque[str]) -> List[str]:
     content = []
     try:
       while '.end annotation' not in q[0]:

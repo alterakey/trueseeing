@@ -18,9 +18,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import re
-import math
-
 if TYPE_CHECKING:
   from trueseeing.core.issue import IssueSeverity, IssueConfidence
 
@@ -47,6 +44,7 @@ class CVSS3Scoring:
 
   @staticmethod
   def score_of(vec: str) -> float:
+    import re
     m = re.match(r'CVSS:3.0/AV:(?P<AV>[NALP])/AC:(?P<AC>[LH])/PR:(?P<PR>[NLH])/UI:(?P<UI>[NR])/S:(?P<S>[CU])/C:(?P<C>[HLN])/I:(?P<I>[HLN])/A:(?P<A>[HLN])(?:/RC:(?P<RC>[XCRU]))?/', vec)
     if m:
       def score(m: re.Match[str]) -> float:
@@ -100,7 +98,8 @@ class CVSS3Scoring:
         return (m.group('S') == 'C')
 
       def roundup(v: float) -> float:
-        return math.ceil(v * 10.0) / 10.0
+        from math import ceil
+        return ceil(v * 10.0) / 10.0
 
       return score(m)
     else:

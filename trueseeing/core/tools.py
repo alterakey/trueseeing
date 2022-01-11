@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-  from typing import Any
+  from typing import Any, Optional
 
 def noneif(x: Any, defaulter: Any) -> Any:
   if x is not None:
@@ -29,3 +29,18 @@ def noneif(x: Any, defaulter: Any) -> Any:
       return defaulter()
     else:
       return defaulter
+
+def invoke(as_: str) -> str:
+  from subprocess import run, PIPE
+  return run(as_, shell=True, check=True, stdout=PIPE).stdout.decode('utf-8')
+
+def invoke_passthru(as_: str, redir_stderr:bool = False, nocheck: bool = False) -> None:
+  from subprocess import run, STDOUT
+  run(as_, shell=True, check=(not nocheck), stderr=(STDOUT if redir_stderr else None))
+
+def try_invoke(as_: str) -> Optional[str]:
+  from subprocess import CalledProcessError
+  try:
+    return invoke(as_)
+  except CalledProcessError:
+    return None

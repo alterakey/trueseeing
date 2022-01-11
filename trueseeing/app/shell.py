@@ -18,19 +18,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import sys
-import getopt
-import collections
-
-from trueseeing.app.exploit import ExploitMode
-from trueseeing.app.fingerprint import FingerprintMode
-from trueseeing.app.grab import GrabMode
-from trueseeing.app.inspect import InspectMode
-from trueseeing.app.patch import PatchMode
-from trueseeing.app.scan import ScanMode
 from trueseeing.core.ui import ui
-
-import pkg_resources
 
 if TYPE_CHECKING:
   from typing import List, Mapping, Type, Set
@@ -89,7 +77,8 @@ class Signatures:
 class Shell:
   @staticmethod
   def version() -> str:
-    version = pkg_resources.get_distribution('trueseeing').version
+    from pkg_resources import get_distribution
+    version = get_distribution('trueseeing').version
     return '\n'.join([
     f'Trueseeing {version}, the app vulnerability scanner',
     #.........................................................................80
@@ -148,6 +137,8 @@ Misc:
     ])
 
   def invoke(self) -> int:
+    import sys
+    import getopt
     sigs = Signatures()
     log_level = ui.INFO
     signature_selected = sigs.default().copy()
@@ -203,18 +194,29 @@ Misc:
 
     ui.level = log_level
 
-    if exploitation_mode:
-      return ExploitMode(files).invoke(exploitation_mode)
-    elif patch_mode:
-      return PatchMode(files).invoke(patch_mode)
-    elif fingerprint_mode:
-      return FingerprintMode(files).invoke()
-    elif grab_mode:
+    if grab_mode:
+      if not files:
+        ui.fatal(f"no package given")
+      from trueseeing.app.grab import GrabMode
       return GrabMode(packages=files).invoke()
-    elif inspection_mode:
-      return InspectMode(files).invoke()
     else:
-      return ScanMode(files).invoke(
-        ci_mode=ci_mode,
-        signatures=[v for k, v in sigs.content().items() if k in signature_selected]
-      )
+      if not files:
+        ui.fatal(f"no input files")
+      if exploitation_mode:
+        from trueseeing.app.exploit import ExploitMode
+        return ExploitMode(files).invoke(exploitation_mode)
+      elif patch_mode:
+        from trueseeing.app.patch import PatchMode
+        return PatchMode(files).invoke(patch_mode)
+      elif fingerprint_mode:
+        from trueseeing.app.fingerprint import FingerprintMode
+        return FingerprintMode(files).invoke()
+      elif inspection_mode:
+        from trueseeing.app.inspect import InspectMode
+        return InspectMode(files).invoke()
+      else:
+        from trueseeing.app.scan import ScanMode
+        return ScanMode(files).invoke(
+          ci_mode=ci_mode,
+          signatures=[v for k, v in sigs.content().items() if k in signature_selected]
+        )
