@@ -38,6 +38,12 @@ if TYPE_CHECKING:
     def progress(self) -> None: ...
     def done(self) -> None: ...
 
+  class ReportGenerator(Protocol):
+    def progress(self) -> Reporter: ...
+    def note(self, issue: Issue) -> None: ...
+    def generate(self) -> None: ...
+    def return_(self, found: bool) -> bool: ...
+
 class NullReporter:
   def __init__(self) -> None:
     pass
@@ -72,7 +78,7 @@ class ProgressReporter:
   def done(self) -> None:
     ui.stderr('\n', nl=False)
 
-class ReportGenerator:
+class BaseReportGenerator:
   def __init__(self, context: Context, progress: Reporter):
     self._progress = progress
     self._context = context
@@ -89,7 +95,7 @@ class ReportGenerator:
   def return_(self, found: bool) -> bool:
     return found
 
-class CIReportGenerator(ReportGenerator):
+class CIReportGenerator(BaseReportGenerator):
   def __init__(self, context: Context):
     super().__init__(context, NullReporter())
 
@@ -111,7 +117,7 @@ class CIReportGenerator(ReportGenerator):
       detector_id=issue.detector_id
     )
 
-class HTMLReportGenerator(ReportGenerator):
+class HTMLReportGenerator(BaseReportGenerator):
   def __init__(self, context: Context, progress: Reporter):
     super().__init__(context, progress)
     self._template = jinja2.Environment(loader=jinja2.FileSystemLoader(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
@@ -141,7 +147,7 @@ class HTMLReportGenerator(ReportGenerator):
   def _write(self, x: str) -> None:
     ui.stdout(x, nl=False)
 
-class JSONReportGenerator(ReportGenerator):
+class JSONReportGenerator(BaseReportGenerator):
   def __init__(self, context: Context, progress: Reporter):
     super().__init__(context, progress)
 

@@ -20,12 +20,13 @@ from typing import TYPE_CHECKING
 
 import sys
 
-from trueseeing.core.report import ReportGenerator, CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
+from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
 from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List, Type
+  from trueseeing.core.report import ReportGenerator
   from trueseeing.signature.base import Detector
 
 class ScanMode:

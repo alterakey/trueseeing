@@ -22,7 +22,6 @@ import sys
 import getopt
 import collections
 
-import trueseeing.signature.base
 from trueseeing.app.exploit import ExploitMode
 from trueseeing.app.fingerprint import FingerprintMode
 from trueseeing.app.grab import GrabMode
