@@ -58,7 +58,7 @@ class Grab:
   def exploit(self) -> bool:
     for from_, to_ in self._path_from(self._target):
       out = try_invoke(f"adb pull {from_} {to_} 2>/dev/null")
-      if out is not None:
+      if out is None:
         out = try_invoke("adb shell 'cat {from_} 2>/dev/null' > {to_}")
         if out is not None and os.path.getsize(to_) > 0:
           return True
@@ -94,7 +94,7 @@ class Grab:
   @classmethod
   def _path_from_dump(cls, package: str) -> Iterable[Tuple[str, str]]:
     out = invoke(f'adb shell pm dump "{package}"')
-    m = re.search(f'codePath=(/data/app/{package}-.+)', out)
+    m = re.search(f'codePath=(/data/app/.*{package}-.+)', out)
     if m:
       yield os.path.join(m.group(1), 'base.apk'), f'{package}.apk'
     else:
