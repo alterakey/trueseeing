@@ -43,7 +43,8 @@ if TYPE_CHECKING:
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
   description = 'Detects device fingerprinting behavior'
-  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:N/A:N/'
+  _summary = 'privacy concerns'
 
   def analyzed(self, store: Store, op: Op) -> Optional[str]:
     x = op.p[1].v
@@ -68,15 +69,15 @@ class PrivacyDeviceIdDetector(Detector):
     return None
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         val_type = self.analyzed(store, op)
         if val_type is not None:
           yield Issue(
             detector_id=self.option,
             confidence='certain',
-            cvss3_vector=self.cvss,
-            summary='privacy concerns',
+            cvss3_vector=self._cvss,
+            summary=self._summary,
             info1=f'getting {val_type}',
             source=store.query().qualname_of(op)
           )
@@ -84,18 +85,19 @@ class PrivacyDeviceIdDetector(Detector):
 class PrivacySMSDetector(Detector):
   option = 'privacy-sms'
   description = 'Detects SMS-related behavior'
-  cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N/'
+  _summary = 'privacy concerns'
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
         try:
           if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
             yield Issue(
               detector_id=self.option,
               confidence='certain',
-              cvss3_vector=self.cvss,
-              summary='privacy concerns',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
               info1='accessing SMS',
               source=store.query().qualname_of(op)
             )
@@ -106,8 +108,8 @@ class PrivacySMSDetector(Detector):
         yield Issue(
           detector_id=self.option,
           confidence='certain',
-          cvss3_vector=self.cvss,
-          summary='privacy concerns',
+          cvss3_vector=self._cvss,
+          summary=self._summary,
           info1='sending SMS',
           source=store.query().qualname_of(op)
         )
@@ -116,8 +118,8 @@ class PrivacySMSDetector(Detector):
         yield Issue(
           detector_id=self.option,
           confidence='firm',
-          cvss3_vector=self.cvss,
-          summary='privacy concerns',
+          cvss3_vector=self._cvss,
+          summary=self._summary,
           info1='intercepting incoming SMS',
           source=store.query().qualname_of(op)
         )

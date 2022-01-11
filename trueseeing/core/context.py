@@ -34,15 +34,14 @@ if TYPE_CHECKING:
   from typing import ClassVar, List, Any, Iterable, Tuple
 
 class Context:
-  TARGET_APK: ClassVar[str] = 'target.apk'
-  apk: str
   wd: str
+  _apk: str
 
   def __init__(self, apk: str) -> None:
-    self.apk = apk
-    self.wd = self.workdir_of()
+    self._apk = apk
+    self.wd = self._workdir_of()
 
-  def workdir_of(self) -> str:
+  def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
     dirname = os.path.join(os.environ['HOME'], '.trueseeing2', hashed[:2], hashed[2:4], hashed[4:])
     return dirname
@@ -54,7 +53,7 @@ class Context:
   def fingerprint_of(self) -> str:
     from zipfile import ZipFile
     from hashlib import sha256
-    with ZipFile(self.apk, 'r') as f:
+    with ZipFile(self._apk, 'r') as f:
       return sha256(f.open('META-INF/MANIFEST.MF').read()).hexdigest()
 
   def analyze(self, skip_resources: bool = False) -> None:
@@ -67,8 +66,8 @@ class Context:
 
       ui.info('\ranalyze: disassembling... ', nl=False)
       os.makedirs(self.wd, mode=0o700)
-      self.copy_target()
-      self.decode_apk(skip_resources)
+      self._copy_target()
+      self._decode_apk(skip_resources)
 
       trueseeing.core.code.parse.SmaliAnalyzer(self.store()).analyze(
         open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
@@ -78,20 +77,20 @@ class Context:
 
       ui.info('\ranalyze: disassembling... done.\n')
 
-  def decode_apk(self, skip_resources: bool) -> None:
+  def _decode_apk(self, skip_resources: bool) -> None:
     import pkg_resources
     from trueseeing.core.tools import invoke_passthru
     # XXX insecure
     invoke_passthru("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
       apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
       wd=self.wd,
-      apk=self.apk,
+      apk=self._apk,
       skipresflag=('-r' if skip_resources else '')
     ), redir_stderr=True)
 
-  def copy_target(self) -> None:
-    if not os.path.exists(os.path.join(self.wd, self.TARGET_APK)):
-      shutil.copyfile(self.apk, os.path.join(self.wd, self.TARGET_APK))
+  def _copy_target(self) -> None:
+    if not os.path.exists(os.path.join(self.wd, 'target.apk')):
+      shutil.copyfile(self._apk, os.path.join(self.wd, 'target.apk'))
 
   def parsed_manifest(self) -> Any:
     with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:
@@ -101,7 +100,7 @@ class Context:
     assert manifest is not None
     return ET.tostring(manifest) # type: ignore[no-any-return]
 
-  def parsed_apktool_yml(self) -> Any:
+  def _parsed_apktool_yml(self) -> Any:
     # FIXME: using ruamel.yaml?
     import yaml
     with open(os.path.join(self.wd, 'apktool.yml'), 'r') as f:
@@ -109,7 +108,7 @@ class Context:
 
   # FIXME: Handle invalid values
   def get_min_sdk_version(self) -> int:
-    return int(self.parsed_apktool_yml()['sdkInfo']['minSdkVersion'])
+    return int(self._parsed_apktool_yml()['sdkInfo']['minSdkVersion'])
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self) -> List[str]:
@@ -150,14 +149,14 @@ class Context:
     yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
 
   @functools.lru_cache(maxsize=1)
-  def string_resource_files(self) -> List[str]:
+  def _string_resource_files(self) -> List[str]:
     o: List[str] = []
     for root, dirs, files in os.walk(os.path.join(self.wd, 'res', 'values')):
       o.extend(os.path.join(root, f) for f in files if 'strings' in f)
     return o
 
   def string_resources(self) -> Iterable[Tuple[str, str]]:
-    for fn in self.string_resource_files():
+    for fn in self._string_resource_files():
       with open(fn, 'rb') as f:
         yield from ((c.attrib['name'], c.text) for c in ET.parse(f, parser=ET.XMLParser(recover=True)).getroot().xpath('//resources/string') if c.text)
 

@@ -43,10 +43,11 @@ if TYPE_CHECKING:
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'
   description = 'Detects cryptographic function usage with static keys'
-  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
-  cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  _cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def entropy_of(self, string: str) -> float:
+  @classmethod
+  def _entropy_of(cls, string: str) -> float:
     o = 0.0
     m: Dict[str, int] = dict()
     for c in string:
@@ -56,13 +57,15 @@ class CryptoStaticKeyDetector(Detector):
       o -= freq * (math.log(freq) / math.log(2))
     return o
 
-  def assumed_randomness_of(self, string: str) -> float:
+  @classmethod
+  def _assumed_randomness_of(cls, string: str) -> float:
     try:
-      return self.entropy_of(string) / float(math.log(len(string)) / math.log(2))
+      return cls._entropy_of(string) / float(math.log(len(string)) / math.log(2))
     except ValueError:
       return 0
 
-  def important_args_on_invocation(self, k: Op) -> Iterable[int]:
+  @classmethod
+  def _important_args_on_invocation(cls, k: Op) -> Iterable[int]:
     method_name = k.p[1].v
     if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>|L.*/MessageDigest;->update', method_name):
       yield 0
@@ -71,19 +74,19 @@ class CryptoStaticKeyDetector(Detector):
 
   def detect(self) -> Iterable[Issue]:
     from itertools import chain
-    yield from chain(self.do_detect_case1(), self.do_detect_case2())
+    yield from chain(self._do_detect_case1(), self._do_detect_case2())
 
-  def do_detect_case1(self) -> Iterable[Issue]:
+  def _do_detect_case1(self) -> Iterable[Issue]:
     import base64
     import binascii
     def looks_like_real_key(k: str) -> bool:
       # XXX: silly
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', '^Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|^Ljavax?.*/MessageDigest;->(update|digest)')):
         try:
-          for nr in self.important_args_on_invocation(cl):
+          for nr in self._important_args_on_invocation(cl):
             for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
               try:
                 decoded = base64.b64decode(found)
@@ -94,7 +97,7 @@ class CryptoStaticKeyDetector(Detector):
               if looks_like_real_key(found):
                 yield Issue(
                   detector_id=self.option,
-                  cvss3_vector=self.cvss,
+                  cvss3_vector=self._cvss,
                   confidence='firm',
                   summary='insecure cryptography: static keys',
                   info1=info1,
@@ -110,7 +113,7 @@ Use a device or installation specific information, or obfuscate them.
               else:
                 yield Issue(
                   detector_id=self.option,
-                  cvss3_vector=self.cvss_nonkey,
+                  cvss3_vector=self._cvss_nonkey,
                   confidence='tentative',
                   summary='Cryptographic constants detected',
                   info1=info1,
@@ -123,7 +126,7 @@ Possible cryptographic constants has been found in the application binary.
         except IndexError:
           pass
 
-  def do_detect_case2(self) -> Iterable[Issue]:
+  def _do_detect_case2(self) -> Iterable[Issue]:
     # XXX: Crude detection
     def should_be_secret(store: Store, k: Op, val: str) -> bool:
       name = store.query().qualname_of(k)
@@ -133,12 +136,12 @@ Possible cryptographic constants has been found in the application binary.
         return False
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', pat)):
         val = cl.p[1].v
         yield Issue(
           detector_id=self.option,
-          cvss3_vector=self.cvss,
+          cvss3_vector=self._cvss,
           confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
           summary='insecure cryptography: static keys (2)',
           info1=f'"{val}" [{len(val)}] (X.509)',
@@ -151,11 +154,11 @@ Traces of X.509 certificates has been found in the application binary.  X.509 ce
 Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
 '''
         )
-      for name, val in self.context.string_resources():
+      for name, val in self._context.string_resources():
         if re.match(pat, val):
           yield Issue(
             detector_id=self.option,
-            cvss3_vector=self.cvss,
+            cvss3_vector=self._cvss,
             confidence='tentative',
             summary='insecure cryptography: static keys (2)',
             info1=f'"{val}" [{len(val)}] (X.509)',
@@ -173,17 +176,17 @@ Use a device or installation specific information, or obfuscate them.  Especiall
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
   description = 'Detects ECB mode ciphers'
-  cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N/'
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
             yield Issue(
               detector_id=self.option,
-              cvss3_vector=self.cvss,
+              cvss3_vector=self._cvss,
               confidence='certain',
               summary='insecure cryptography: cipher might be operating in ECB mode',
               info1=','.join(target_val),
@@ -202,16 +205,16 @@ Use CBC or CTR mode.
 class CryptoNonRandomXorDetector(Detector):
   option = 'crypto-xor'
   description = 'Detects Vernum cipher usage with static keys'
-  cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
   def detect(self) -> Iterable[Issue]:
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().ops_of('xor-int/lit8'):
         target_val = int(cl.p[2].v, 16)
         if (cl.p[0].v == cl.p[1].v) and target_val > 1:
           yield Issue(
             detector_id=self.option,
-            cvss3_vector=self.cvss,
+            cvss3_vector=self._cvss,
             confidence='firm',
             summary='insecure cryptography: non-random XOR cipher',
             info1=f'0x{target_val:02x}',

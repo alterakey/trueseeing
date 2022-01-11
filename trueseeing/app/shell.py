@@ -75,8 +75,8 @@ class Signatures:
 
 
 class Shell:
-  @staticmethod
-  def version() -> str:
+  @classmethod
+  def _version(cls) -> str:
     from pkg_resources import get_distribution
     version = get_distribution('trueseeing').version
     return '\n'.join([
@@ -87,10 +87,10 @@ Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>
 All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.'''
     ])
 
-  @staticmethod
-  def help_() -> str:
+  @classmethod
+  def _help(cls) -> str:
     return '\n'.join([
-      Shell.version(),
+      cls._version(),
       '',
       #.........................................................................80
       '''\
@@ -124,10 +124,10 @@ Misc:
 '''
     ])
 
-  @staticmethod
-  def help_signatures(signatures: Mapping[str, Type[Detector]]) -> str:
+  @classmethod
+  def _help_signatures(cls, signatures: Mapping[str, Type[Detector]]) -> str:
     return '\n'.join([
-      Shell.version(),
+      cls._version(),
       '',
       #.........................................................................80
       'SIGNATURES',
@@ -183,13 +183,13 @@ Misc:
       if o in ['--output']:
         ci_mode = a
       if o in ['--version']:
-        ui.stderr(Shell.version())
+        ui.stderr(self._version())
         return 0
       if o in ['--help']:
-        ui.stderr(Shell.help_())
+        ui.stderr(self._help())
         return 2
       if o in ['--help-signatures']:
-        ui.stderr(Shell.help_signatures(sigs.content()))
+        ui.stderr(self._help_signatures(sigs.content()))
         return 2
 
     ui.level = log_level

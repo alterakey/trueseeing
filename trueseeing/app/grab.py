@@ -45,55 +45,18 @@ class GrabMode:
         ui.fatal(f'package not found')
     else:
       ui.info(f'listing packages')
-      for p in sorted(Grab.list_()):
+      for p in sorted(Grab.get_package_list()):
         ui.stdout(p)
       return 0
 
-def version_of_default_device() -> float:
-  out = try_invoke("adb shell cat /system/build.prop")
-  if out is None:
-    return FALLBACK_VERSION
-  m = re.search(r'ro.build.version.release=(.+?)', out)
-  if m:
-    try:
-      return float(m.group(1))
-    except ValueError:
-      return FALLBACK_VERSION
-  else:
-    return FALLBACK_VERSION
-
-def path_from(package: str) -> Iterable[Tuple[str, str]]:
-  version = version_of_default_device()
-  if version >= 8.0:
-    return path_from_dump(package)
-  elif version >= 4.4:
-    return path_from_multidex(package)
-  else:
-    return path_from_premultidex(package)
-
-def path_from_premultidex(package: str) -> Iterable[Tuple[str, str]]:
-  for i in range(1, 16):
-    yield f'/data/app/{package}-{i}.apk', f'{package}.apk'
-
-def path_from_multidex(package: str) -> Iterable[Tuple[str, str]]:
-  for i in range(1, 16):
-    yield f'/data/app/{package}-{i}/base.apk', f'{package}.apk'
-
-def path_from_dump(package: str) -> Iterable[Tuple[str, str]]:
-  out = invoke(f'adb shell pm dump "{package}"')
-  m = re.search(f'codePath=(/data/app/{package}-.+)', out)
-  if m:
-    yield os.path.join(m.group(1), 'base.apk'), f'{package}.apk'
-  else:
-    raise RuntimeError('pm dump does not return codePath')
 
 class Grab:
-  package: str
-  def __init__(self, package: str) -> None:
-    self.package = package
+  _target: str
+  def __init__(self, target: str) -> None:
+    self._target = target
 
   def exploit(self) -> bool:
-    for from_, to_ in path_from(self.package):
+    for from_, to_ in self._path_from(self._target):
       out = try_invoke(f"adb pull {from_} {to_} 2>/dev/null")
       if out is not None:
         out = try_invoke("adb shell 'cat {from_} 2>/dev/null' > {to_}")
@@ -104,6 +67,49 @@ class Grab:
     return True
 
   @classmethod
-  def list_(cls) -> Iterable[str]:
+  def get_package_list(cls) -> Iterable[str]:
     out = invoke("adb shell pm list packages")
     return (l.replace('package:', '') for l in filter(None, out.split('\n')))
+
+  @classmethod
+  def _path_from(cls, package: str) -> Iterable[Tuple[str, str]]:
+    version = cls._version_of_default_device()
+    if version >= 8.0:
+      return cls._path_from_dump(package)
+    elif version >= 4.4:
+      return cls._path_from_multidex(package)
+    else:
+      return cls._path_from_premultidex(package)
+
+  @classmethod
+  def _path_from_premultidex(cls, package: str) -> Iterable[Tuple[str, str]]:
+    for i in range(1, 16):
+      yield f'/data/app/{package}-{i}.apk', f'{package}.apk'
+
+  @classmethod
+  def _path_from_multidex(cls, package: str) -> Iterable[Tuple[str, str]]:
+    for i in range(1, 16):
+      yield f'/data/app/{package}-{i}/base.apk', f'{package}.apk'
+
+  @classmethod
+  def _path_from_dump(cls, package: str) -> Iterable[Tuple[str, str]]:
+    out = invoke(f'adb shell pm dump "{package}"')
+    m = re.search(f'codePath=(/data/app/{package}-.+)', out)
+    if m:
+      yield os.path.join(m.group(1), 'base.apk'), f'{package}.apk'
+    else:
+      raise RuntimeError('pm dump does not return codePath')
+
+  @classmethod
+  def _version_of_default_device(cls) -> float:
+    out = try_invoke("adb shell cat /system/build.prop")
+    if out is None:
+      return FALLBACK_VERSION
+    m = re.search(r'ro.build.version.release=(.+?)', out)
+    if m:
+      try:
+        return float(m.group(1))
+      except ValueError:
+        return FALLBACK_VERSION
+    else:
+      return FALLBACK_VERSION

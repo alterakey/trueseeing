@@ -35,12 +35,14 @@ if TYPE_CHECKING:
 class LibraryDetector(Detector):
   option = 'detect-library'
   description = 'Detects libraries'
-  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  def package_name_of(self, path: str) -> str:
+  @classmethod
+  def _package_name_of(cls, path: str) -> str:
     return os.path.dirname(path).replace('/', '.')
 
-  def package_family_of(self, p: str) -> Optional[str]:
+  @classmethod
+  def _package_family_of(cls, p: str) -> Optional[str]:
     f = {
       r'javax\..*': None,
       r'(android\.support\.v[0-9]+)\..*': r'\1',
@@ -58,7 +60,8 @@ class LibraryDetector(Detector):
     else:
       return p
 
-  def shared_package_of(self, c1: str, c2: str) -> Optional[List[str]]:
+  @classmethod
+  def _shared_package_of(cls, c1: str, c2: str) -> Optional[List[str]]:
     o = []
     try:
       for a,b in zip(c1.split('.'), c2.split('.')):
@@ -69,15 +72,16 @@ class LibraryDetector(Detector):
     finally:
       return o
 
-  def is_kind_of(self, c1: str, c2: str) -> bool:
-    return True if self.shared_package_of(c1, c2) else False
+  @classmethod
+  def _is_kind_of(cls, c1: str, c2: str) -> bool:
+    return True if cls._shared_package_of(c1, c2) else False
 
   def detect(self) -> Iterable[Issue]:
-    package = self.context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
+    package = self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
     packages: Dict[str, List[str]] = dict()
-    for fn in (self.context.source_name_of_disassembled_class(r) for r in self.context.disassembled_classes()):
-      family = self.package_family_of(self.package_name_of(fn))
+    for fn in (self._context.source_name_of_disassembled_class(r) for r in self._context.disassembled_classes()):
+      family = self._package_family_of(self._package_name_of(fn))
       if family is not None:
         try:
           packages[family].append(fn)
@@ -85,13 +89,13 @@ class LibraryDetector(Detector):
           packages[family] = [fn]
         else:
           pass
-    packages = {k:v for k,v in packages.items() if not self.is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
+    packages = {k:v for k,v in packages.items() if not self._is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
     yield from (
       Issue(
         detector_id=self.option,
         confidence='firm',
-        cvss3_vector=self.cvss,
+        cvss3_vector=self._cvss,
         summary='detected library',
         info1=f'{p} (score: {len(packages[p])})',
       ) for p in sorted(packages.keys())
@@ -101,39 +105,30 @@ class LibraryDetector(Detector):
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
   description = 'Detects obfuscators'
-  cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
-  cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
+  _cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
-  def class_name_of(self, path: str) -> str:
+  @classmethod
+  def _class_name_of(self, path: str) -> str:
     return path.replace('.smali', '').replace('/', '.')
 
   def detect(self) -> Iterable[Issue]:
-    for c in (self.class_name_of(self.context.source_name_of_disassembled_class(r)) for r in self.context.disassembled_classes()):
+    for c in (self._class_name_of(self._context.source_name_of_disassembled_class(r)) for r in self._context.disassembled_classes()):
       if re.search('(?:^|\.)a$', c):
-        yield Issue(detector_id=self.option, confidence='certain', cvss3_vector=self.cvss_true, summary='detected obfuscator', info1='ProGuard')
+        yield Issue(detector_id=self.option, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard')
         break
     else:
-      yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self.cvss_false, summary='lack of obfuscation')
-
-class FakeToken:
-  v: Any
-  p: Any
-  def __init__(self, v: Any, p: Any):
-    self.v = v
-    self.p = p
+      yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation')
 
 class UrlLikeDetector(Detector):
   option = 'detect-url'
   description = 'Detects URL-like strings'
-  cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  re_tlds: Optional[re.Pattern[str]]
-  def __init__(self, context: Context):
-    super().__init__(context)
-    self.re_tlds = None
+  _re_tlds: Optional[re.Pattern[str]] = None
 
   def _analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
-    assert self.re_tlds is not None
+    assert self._re_tlds is not None
     if '://' in x:
       yield dict(type_='URL', value=re.findall(r'\S+://\S+', x))
     elif re.search(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x):
@@ -145,21 +140,21 @@ class UrlLikeDetector(Detector):
         components = hostlike.split('.')
         if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components):
           yield dict(type_='possible IPv4 address', value=[hostlike])
-        elif self.re_tlds.search(components[-1]):
+        elif self._re_tlds.search(components[-1]):
           if not re.search(r'^android\.(intent|media)\.', hostlike):
             yield dict(type_='possible FQDN', value=[hostlike])
 
   def detect(self) -> Iterable[Issue]:
     import pkg_resources
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
-      self.re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
+      self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
-    with self.context.store() as store:
+    with self._context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
         for match in self._analyzed(cl.p[1].v):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source=store.query().qualname_of(cl))
-      for name, val in self.context.string_resources():
+            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected match["type_"]', info1=v, source=store.query().qualname_of(cl))
+      for name, val in self._context.string_resources():
         for match in self._analyzed(val):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self.cvss, summary=f'detected match["type_"]', info1=v, source='R.string.%s' % name)
+            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected match["type_"]', info1=v, source='R.string.%s' % name)

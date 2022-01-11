@@ -33,10 +33,10 @@ class Detector(ABC):
   option: ClassVar[str]
   description: ClassVar[str]
 
-  context: Context
+  _context: Context
 
   def __init__(self, context: Context) -> None:
-    self.context = context
+    self._context = context
 
   @abstractmethod
   def detect(self) -> Iterable[Issue]: ...
