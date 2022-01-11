@@ -26,7 +26,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import List, Callable, TypeVar, Type, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union
   from trueseeing.core.store import Store
-  from trueseeing.core.code.model import Op, Token
+  from trueseeing.core.code.model import Op
 
 class DataFlows:
   class NoSuchValueError(Exception):

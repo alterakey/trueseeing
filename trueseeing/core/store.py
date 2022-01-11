@@ -23,7 +23,7 @@ from trueseeing.core.literalquery import StorePrep, Query
 
 if TYPE_CHECKING:
   from typing import Optional, List, Any
-  from trueseeing.core.code.model import Op, Token
+  from trueseeing.core.code.model import Op
 
 class Store:
   def __init__(self, path: str) -> None:

@@ -21,13 +21,13 @@ import re
 import sys
 from collections import deque
 
-from trueseeing.core.code.model import Token, Op, Annotation
+from trueseeing.core.code.model import Op, Annotation
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Iterable, ContextManager, Optional, Type, TextIO, List, Tuple, TypeVar
   from types import TracebackType
-  from trueseeing.core.code.model import Token, Op
+  from trueseeing.core.code.model import Op
   from trueseeing.core.store import Store
 
   T = TypeVar('T')
@@ -115,7 +115,8 @@ class P:
   @classmethod
   def _parsed_as_op(cls, l: str) -> Op:
     x, xs = cls._head_and_tail(list(P._lexed_as_smali(l)))
-    return Op(x.t, x.v, [Op(y.t, y.v) for y in xs] if xs else None)
+    if xs: x.p = xs
+    return x
 
   @classmethod
   def _parsed_as_annotation_content(cls, q: deque[str]) -> List[str]:
@@ -128,9 +129,9 @@ class P:
     return content
 
   @classmethod
-  def _lexed_as_smali(cls, l: str) -> Iterable[Token]:
+  def _lexed_as_smali(cls, l: str) -> Iterable[Op]:
     for m in re.finditer(r':(?P<label>[a-z0-9_-]+)|{\s*(?P<multilabel>(?::[a-z0-9_-]+(?: .. )*)+\s*)}|\.(?P<directive>[a-z0-9_-]+)|"(?P<string>.*)"|(?P<reg>[vp][0-9]+)|{(?P<multireg>[vp0-9,. ]+)}|(?P<id>[a-z][a-z/-]*[a-z0-9/-]*)|(?P<reflike>[A-Za-z_0-9/;$()<>\[-]+(?::[A-Za-z_0-9/;$()<>\[-]+)?)|#(?P<comment>.*)', l):
       key = m.lastgroup
       if key:
         value = m.group(key)
-        yield Token(key, value)
+        yield Op(key, value)
