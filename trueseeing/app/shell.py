@@ -195,8 +195,6 @@ Misc:
     ui.level = log_level
 
     if grab_mode:
-      if not files:
-        ui.fatal(f"no package given")
       from trueseeing.app.grab import GrabMode
       return GrabMode(packages=files).invoke()
     else:
