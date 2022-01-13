@@ -25,7 +25,7 @@ from trueseeing.core.code.model import Op, Annotation
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Iterable, ContextManager, Optional, Type, TextIO, List, Tuple, TypeVar
+  from typing import Iterable, ContextManager, Optional, Type, TextIO, List, Tuple, TypeVar, Set
   from types import TracebackType
   from trueseeing.core.code.model import Op
   from trueseeing.core.store import Store
@@ -50,47 +50,52 @@ class SmaliAnalyzer:
     analyzed_classes = 0
     started = time.time()
 
-    for f in fs:
-      reg1 = None
-      reg2 = None
+    classmap: Set[Tuple[int, int]] = set()
 
-      for t in P.parsed_flat(f.read()):
-        self._store.op_append(t)
-        analyzed_ops = analyzed_ops + 1
-        if analyzed_ops & 0xffff == 0:
-          ui.stderr(f"\ranalyzed: {analyzed_ops} ops, {analyzed_methods} methods, {analyzed_classes} classes ({analyzed_ops / (time.time() - started):.02f} ops/s)", nl=False)
+    begin_at = started
+    with self._store.db as c:
+      base_id = 1
+      last_seen = analyzed_ops
 
-        if reg1 is not None:
-          reg1.append(t)
-        if reg2 is not None:
-          reg2.append(t)
+      for f in fs:
+        ops = []
+        for op in P.parsed_flat(f.read()):
+          analyzed_ops += 1
+          for idx, o in enumerate(tuple([op] + op.p)):
+            o._idx = idx
+            ops.append(o)
+        for t in ops:
+          t._id = base_id
+          base_id += 1
+        self._store.op_store_ops(ops, c=c)
 
-        if t.eq('directive', 'class'):
-          if reg1 is not None:
-            reg1.pop()
-            self._store.op_mark_class(reg1, reg1[0])
-            reg1 = [t]
-            analyzed_classes = analyzed_classes + 1
-          else:
-            reg1 = [t]
-        elif t.eq('directive', 'method'):
-          if reg2 is None:
-            reg2 = [t]
-        elif t.eq('directive', 'end') and t.p[0].v == 'method':
-          if reg2 is not None:
-            self._store.op_mark_method(reg2, reg2[0])
-            reg2 = None
-            analyzed_methods = analyzed_methods + 1
-      else:
-        if reg1 is not None:
-          self._store.op_mark_class(reg1, reg1[0], ignore_dupes=True)
-          reg1 = None
-          analyzed_classes = analyzed_classes + 1
+        start = None
+        for t in ops:
+          if t.eq('directive', 'class'):
+            start = t._id
+            break
+        if start:
+          classmap.add(tuple([start, ops[-1]._id])) # type: ignore[arg-type]
 
-    ui.stderr(f"\ranalyzed: {analyzed_ops} ops, {analyzed_methods} methods, {analyzed_classes} classes{' '*20}")
-    ui.stderr("analyzed: finalizing")
+        if analyzed_ops - last_seen > 65536:
+          elapsed = time.time() - begin_at
+          ui.info(f"\ranalyze: {analyzed_ops} ops... ({analyzed_ops / elapsed:.02f} ops/s){' '*20}", nl=False)
+          last_seen = analyzed_ops
+
+      analyzed_ops = self._store.op_count_ops(c=c)
+
+    ui.info(f"\ranalyze: {analyzed_ops} ops, classes... {' '*20}", nl=False)
+    with self._store.db as c:
+      analyzed_classes = self._store.op_store_classmap(classmap, c=c)
+
+    ui.info(f"\ranalyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False)
+    with self._store.db as c:
+      analyzed_methods = self._store.op_generate_methodmap(c=c)
+
+    ui.info(f"\ranalyze: {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}")
+    ui.stderr("analyze: finalizing")
     self._store.op_finalize()
-    ui.stderr(f"analyzed: done ({time.time() - started:.02f} sec)")
+    ui.stderr(f"analyze: done ({time.time() - started:.02f} sec)")
 
 class P:
   @classmethod
