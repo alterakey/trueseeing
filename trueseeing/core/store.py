@@ -22,7 +22,7 @@ import re
 from trueseeing.core.literalquery import StorePrep, Query
 
 if TYPE_CHECKING:
-  from typing import Optional, List, Any
+  from typing import Optional, List, Any, Iterable, Set, Tuple
   from trueseeing.core.code.model import Op
 
 class Store:
@@ -58,30 +58,34 @@ class Store:
       return Op(t, v)
     return None
 
-  def op_append(self, op: Op) -> None:
-    unused_id: Optional[int] = None
-    for r in self.db.execute('select max(op) from ops'):
-      if r[0] is not None:
-        unused_id = r[0] + 1
-      else:
-        unused_id = 1
-    assert unused_id is not None
+  def op_store_ops(self, ops: Iterable[Op], c: Any = None) -> None:
+    if c is None: c = self.db
+    c.executemany('insert into ops(op,t,v) values (?,?,?)', ((t._id, t.t, t.v) for t in ops))
+    c.executemany('insert into ops_p(op, idx, p) values (?,?,?)', ((t._id - t._idx, t._idx, t._id) for t in ops)) # type: ignore[operator]
 
-    vec = tuple([op] + op.p)
-    for idx, t in enumerate(vec):
-      t._idx = idx
-      t._id = unused_id + idx
-    self.db.executemany('insert into ops(op,t,v) values (?,?,?)', ((t._id, t.t, t.v) for t in vec))
-    self.db.executemany('insert into ops_p(op, idx, p) values (?,?,?)', ((op._id, t._idx, t._id) for t in vec))
+  def op_count_ops(self, c: Any = None) -> int:
+    if c is None: c = self.db
+    for cnt, in c.execute('select count(1) from ops_p where idx=0'):
+      return cnt # type: ignore[no-any-return]
+    return 0
 
-  def op_mark_method(self, ops: List[Op], method: Op) -> None:
-    self.db.executemany('insert into ops_method(op,method) values (?,?)', ((str(o._id), str(method._id)) for o in ops))
+  def op_store_classmap(self, classmap: Set[Tuple[int, int]], c: Any = None) -> int:
+    if c is None: c = self.db
+    c.executemany('insert into ops_class(class,op) select ?,op from ops where op between ? and ?', ((start, start, end) for start, end in classmap))
+    return len(classmap)
 
-  def op_mark_class(self, ops: List[Op], class_: Op, ignore_dupes: bool = False) -> None:
-    if not ignore_dupes:
-      self.db.executemany('insert into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
-    else:
-      self.db.executemany('insert or ignore into ops_class(op,class) values (?,?)', ((str(o._id), str(class_._id)) for o in ops))
+  def op_generate_methodmap(self, c: Any = None) -> int:
+    if c is None: c = self.db
+    detected_methods = 0
+    c.execute("create table tmp1 as select op from ops where t='directive' and v='method'");
+    c.execute("create table tmp2 as select a.op as op from ops as a join ops_p as b using (op) left join ops as c on (b.p=c.op) where a.t='directive' and a.v='end' and b.idx=1 and c.v='method'");
+    c.execute("select tmp1.op as start, tmp2.op as end from tmp1 left join tmp2 on (tmp1.rowid=tmp2.rowid)")
+    c.execute('insert into ops_method(method,op) select tmp1.op,ops.op from tmp1 join tmp2 on (tmp1.rowid=tmp2.rowid) left join ops on (ops.op between tmp1.op and tmp2.op)')
+    for cnt, in c.execute('select count(1) from tmp1'):
+      detected_methods = cnt
+    c.execute("drop table tmp1")
+    c.execute("drop table tmp2")
+    return detected_methods
 
   def query(self) -> Query:
     return Query(self)
