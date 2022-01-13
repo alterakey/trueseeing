@@ -68,7 +68,7 @@ class Store:
     assert unused_id is not None
 
     vec = tuple([op] + op.p)
-    for t, idx in zip(vec, range(len(vec))):
+    for idx, t in enumerate(vec):
       t._idx = idx
       t._id = unused_id + idx
     self.db.executemany('insert into ops(op,t,v) values (?,?,?)', ((t._id, t.t, t.v) for t in vec))
