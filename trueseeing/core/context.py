@@ -60,13 +60,14 @@ class Context:
     else:
       from trueseeing.core.code.parse import SmaliAnalyzer
       if os.path.exists(self.wd):
-        ui.info('analyze: removing leftover\n')
+        ui.info('analyze: removing leftover')
         shutil.rmtree(self.wd)
 
       ui.info('\ranalyze: disassembling... ', nl=False)
       os.makedirs(self.wd, mode=0o700)
       self._copy_target()
       self._decode_apk(skip_resources)
+      ui.info('\ranalyze: disassembling... done.')
 
       SmaliAnalyzer(self.store()).analyze(
         open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
@@ -74,13 +75,11 @@ class Context:
       with open(os.path.join(self.wd, '.done'), 'w'):
         pass
 
-      ui.info('\ranalyze: disassembling... done.\n')
-
   def _decode_apk(self, skip_resources: bool) -> None:
     import pkg_resources
-    from trueseeing.core.tools import invoke_passthru
+    from trueseeing.core.tools import invoke
     # XXX insecure
-    invoke_passthru("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
+    invoke("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
       apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
       wd=self.wd,
       apk=self._apk,
