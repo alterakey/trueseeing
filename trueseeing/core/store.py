@@ -60,12 +60,11 @@ class Store:
 
   def op_store_ops(self, ops: Iterable[Op], c: Any = None) -> None:
     if c is None: c = self.db
-    c.executemany('insert into ops(op,t,v) values (?,?,?)', ((t._id, t.t, t.v) for t in ops))
-    c.executemany('insert into ops_p(op, idx, p) values (?,?,?)', ((t._id - t._idx, t._idx, t._id) for t in ops)) # type: ignore[operator]
+    c.executemany('insert into ops(op,idx,t,v) values (?,?,?,?)', ((t._id, t._idx, t.t, t.v) for t in ops))
 
   def op_count_ops(self, c: Any = None) -> int:
     if c is None: c = self.db
-    for cnt, in c.execute('select count(1) from ops_p where idx=0'):
+    for cnt, in c.execute('select count(1) from ops where idx=0'):
       return cnt # type: ignore[no-any-return]
     return 0
 
@@ -78,8 +77,7 @@ class Store:
     if c is None: c = self.db
     detected_methods = 0
     c.execute("create table tmp1 as select op from ops where t='directive' and v='method'");
-    c.execute("create table tmp2 as select a.op as op from ops as a join ops_p as b using (op) left join ops as c on (b.p=c.op) where a.t='directive' and a.v='end' and b.idx=1 and c.v='method'");
-    c.execute("select tmp1.op as start, tmp2.op as end from tmp1 left join tmp2 on (tmp1.rowid=tmp2.rowid)")
+    c.execute("create table tmp2 as select a.op as op from ops as a left join ops as c on (a.op=c.op-c.idx) where a.t='directive' and a.v='end' and c.idx=1 and c.v='method'");
     c.execute('insert into ops_method(method,op) select tmp1.op,ops.op from tmp1 join tmp2 on (tmp1.rowid=tmp2.rowid) left join ops on (ops.op between tmp1.op and tmp2.op)')
     for cnt, in c.execute('select count(1) from tmp1'):
       detected_methods = cnt
