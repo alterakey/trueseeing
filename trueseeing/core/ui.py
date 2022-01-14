@@ -20,7 +20,8 @@ from typing import TYPE_CHECKING
 import sys
 
 if TYPE_CHECKING:
-  from typing import NoReturn, ClassVar, Final
+  from typing import NoReturn, ClassVar
+  from typing_extensions import Final
 
 class UI:
   DEBUG: Final = 0

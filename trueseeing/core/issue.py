@@ -24,7 +24,8 @@ from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
-  from typing import ClassVar, List, Any, Literal
+  from typing import ClassVar, List, Any
+  from typing_extensions import Literal
   IssueSeverity = Literal['critical', 'high', 'medium', 'low', 'info']
   IssueConfidence = Literal['certain', 'firm', 'tentative']
 
