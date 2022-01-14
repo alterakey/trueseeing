@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Trueseeing: Non-decompiling Android application vulnerability scanner
-# Copyright (C) 2017 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>
+# Copyright (C) 2017-22 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,4 +16,4 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Trueseeing is a non-decompiling Android application vulnerability scanner."""
-__version__ = '2.0.11'
+__version__ = '2.1.0'
