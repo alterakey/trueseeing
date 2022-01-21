@@ -19,8 +19,6 @@ from typing import TYPE_CHECKING
 
 import os
 
-from trueseeing.core.ui import ui
-
 if TYPE_CHECKING:
   from typing import List
   from trueseeing.core.context import Context

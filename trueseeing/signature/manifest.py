@@ -37,7 +37,6 @@ from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Iterable
-  from trueseeing.core.issue import Issue
 
 class ManifestOpenPermissionDetector(Detector):
   option = 'manifest-open-permission'
@@ -93,7 +92,7 @@ class ManifestManipActivity(Detector):
     for name in set(itertools.chain(
         self._context.parsed_manifest().getroot().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
         self._context.parsed_manifest().getroot().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
-      )):
+    )):
       filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         yield Issue(
@@ -134,7 +133,7 @@ class ManifestManipBroadcastReceiver(Detector):
     for name in set(itertools.chain(
         self._context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
         self._context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
-      )):
+    )):
       filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         yield Issue(
@@ -210,8 +209,6 @@ class ManifestManipContentProvider(Detector):
   android:export="false"
   '''
         )
-
-
 
 class ManifestManipBackup(Detector):
   option = 'manifest-manip-backup'

@@ -79,13 +79,12 @@ class Shell:
   def _version(cls) -> str:
     from pkg_resources import get_distribution
     version = get_distribution('trueseeing').version
-    return '\n'.join([
-    f'Trueseeing {version}, the app vulnerability scanner',
-    #.........................................................................80
-    '''\
-Copyright (C) 2017-22 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>
-All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.'''
-    ])
+    #   ..............................................................................80
+    return (
+      f'Trueseeing {version}, the app vulnerability scanner\n'
+       'Copyright (C) 2017-22 Takahiro Yoshimura <takahiro_y@monolithworks.co.jp>\n' # noqa: E131
+       'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
+    )
 
   @classmethod
   def _help(cls) -> str:
@@ -199,7 +198,7 @@ Misc:
       return GrabMode(packages=files).invoke()
     else:
       if not files:
-        ui.fatal(f"no input files")
+        ui.fatal("no input files")
       if exploitation_mode:
         from trueseeing.app.exploit import ExploitMode
         return ExploitMode(files).invoke(exploitation_mode)

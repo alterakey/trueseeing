@@ -19,7 +19,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import functools
-import itertools
 import lxml.etree as ET
 import os
 import re
@@ -28,7 +27,7 @@ import shutil
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import ClassVar, List, Any, Iterable, Tuple
+  from typing import List, Any, Iterable, Tuple
   from trueseeing.core.store import Store
 
 class Context:

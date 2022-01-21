@@ -24,7 +24,7 @@ from trueseeing.core.tools import try_invoke, invoke
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Iterable, TypeVar, Optional, Tuple
+  from typing import List, Iterable, TypeVar, Tuple
   T = TypeVar('T')
 
 FALLBACK_VERSION = 8.0
@@ -35,16 +35,15 @@ class GrabMode:
     self._packages = packages
 
   def invoke(self) -> int:
-    import sys
     if self._packages:
       for pkg in self._packages:
         if Grab(pkg).exploit():
           ui.info(f'package saved: {pkg}.apk')
           return 0
       else:
-        ui.fatal(f'package not found')
+        ui.fatal('package not found')
     else:
-      ui.info(f'listing packages')
+      ui.info('listing packages')
       for p in sorted(Grab.get_package_list()):
         ui.stdout(p)
       return 0

@@ -79,6 +79,7 @@ class CryptoStaticKeyDetector(Detector):
   def _do_detect_case1(self) -> Iterable[Issue]:
     import base64
     import binascii
+
     def looks_like_real_key(k: str) -> bool:
       # XXX: silly
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
@@ -180,7 +181,7 @@ class CryptoEcbDetector(Detector):
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
-      for cl in store.query().invocations(InvocationPattern('invoke-static', 'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
+      for cl in store.query().invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):

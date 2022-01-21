@@ -30,7 +30,6 @@ from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any
-  from trueseeing.core.context import Context
 
 class LibraryDetector(Detector):
   option = 'detect-library'
@@ -114,7 +113,7 @@ class ProGuardDetector(Detector):
 
   def detect(self) -> Iterable[Issue]:
     for c in (self._class_name_of(self._context.source_name_of_disassembled_class(r)) for r in self._context.disassembled_classes()):
-      if re.search('(?:^|\.)a$', c):
+      if re.search(r'(?:^|\.)a$', c):
         yield Issue(detector_id=self.option, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard')
         break
     else:
