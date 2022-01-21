@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = 'trueseeing'
 authors = [
-  {name='Takahiro Yoshimura', email='takahiro_y@monolithworks.co.jp'}
+  {name='Takahiro Yoshimura', email='altakey@gmail.com'}
 ]
 classifiers = [
     "Topic :: Security",
