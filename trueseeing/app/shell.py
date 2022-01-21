@@ -25,7 +25,7 @@ if TYPE_CHECKING:
   from trueseeing.signature.base import Detector
 
 class Signatures:
-  _corpse: Mapping[str, Type[Detector]]
+  content: Mapping[str, Type[Detector]]
   def __init__(self) -> None:
     from trueseeing.signature import crypto, fingerprint, manifest, privacy, security
 
@@ -53,13 +53,10 @@ class Signatures:
       security.LogDetector,
     ]
 
-    self._corpse = {cl.option:cl for cl in sigs}
-
-  def content(self) -> Mapping[str, Type[Detector]]:
-    return self._corpse
+    self.content = {cl.option:cl for cl in sigs}
 
   def all(self) -> Set[str]:
-    return set(self._corpse.keys())
+    return set(self.content.keys())
 
   def default(self) -> Set[str]:
     return self.all().copy()
@@ -138,7 +135,11 @@ Misc:
   def invoke(self) -> int:
     import sys
     import getopt
+    from trueseeing.core.api import Extension
+
     sigs = Signatures()
+    Extension.get().patch_signatures(sigs)
+
     log_level = ui.INFO
     signature_selected = sigs.default().copy()
     exploitation_mode = ''
@@ -188,7 +189,7 @@ Misc:
         ui.stderr(self._help())
         return 2
       if o in ['--help-signatures']:
-        ui.stderr(self._help_signatures(sigs.content()))
+        ui.stderr(self._help_signatures(sigs.content))
         return 2
 
     ui.level = log_level
@@ -215,5 +216,5 @@ Misc:
         from trueseeing.app.scan import ScanMode
         return ScanMode(files).invoke(
           ci_mode=ci_mode,
-          signatures=[v for k, v in sigs.content().items() if k in signature_selected]
+          signatures=[v for k, v in sigs.content.items() if k in signature_selected]
         )

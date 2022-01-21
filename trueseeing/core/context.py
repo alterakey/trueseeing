@@ -74,6 +74,9 @@ class Context:
       with open(os.path.join(self.wd, '.done'), 'w'):
         pass
 
+    from trueseeing.core.api import Extension
+    Extension.get().patch_context(self)
+
   def _decode_apk(self, skip_resources: bool) -> None:
     import pkg_resources
     from trueseeing.core.tools import invoke
