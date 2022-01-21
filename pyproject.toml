@@ -29,7 +29,7 @@ dynamic = ['version', 'description']
 Source = "https://github.com/alterakey/trueseeing"
 
 [tool.flit.sdist]
-include=['trueseeing/libs/*.jar', 'trueseeing/libs/*.txt', 'trueseeing/libs/*.sql', 'trueseeing/template/*']
+include=['trueseeing/libs/*.jar', 'trueseeing/libs/*.txt', 'trueseeing/libs/*.sql', 'trueseeing/template/*', '*.typed']
 
 [project.scripts]
 trueseeing = "trueseeing.app._dummy:invoke"
