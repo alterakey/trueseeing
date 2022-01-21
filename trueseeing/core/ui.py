@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import sys
 
 if TYPE_CHECKING:
-  from typing import NoReturn
+  from typing import NoReturn, Optional, TextIO
   from typing_extensions import Final
 
 class UI:
@@ -33,39 +33,49 @@ class UI:
 
   level = DEBUG
 
-  def fatal(self, msg: str, nl: bool = True) -> NoReturn:
-    self.stderr(f'fatal: {msg}', nl=nl)
+  def fatal(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> NoReturn:
+    self.stderr(f'fatal: {msg}', nl=nl, exc=exc)
     sys.exit(2)
 
-  def critical(self, msg: str, nl: bool = True) -> None:
+  def critical(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.CRITICAL:
-      self.stderr(msg, nl=nl)
+      self.stderr(msg, nl=nl, exc=exc)
 
-  def error(self, msg: str, nl: bool = True) -> None:
+  def error(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.ERROR:
-      self.stderr(msg, nl=nl)
+      self.stderr(msg, nl=nl, exc=exc)
 
-  def warn(self, msg: str, nl: bool = True) -> None:
+  def warn(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.WARN:
-      self.stderr(msg, nl=nl)
+      self.stderr(msg, nl=nl, exc=exc)
 
-  def info(self, msg: str, nl: bool = True) -> None:
+  def info(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.INFO:
-      self.stderr(msg, nl=nl)
+      self.stderr(msg, nl=nl, exc=exc)
 
-  def debug(self, msg: str, nl: bool = True) -> None:
+  def debug(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.DEBUG:
-      self.stderr(msg, nl=nl)
+      self.stderr(msg, nl=nl, exc=exc)
 
-  def stdout(self, msg: str, nl: bool = True) -> None:
+  def stdout(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     sys.stdout.write(msg)
     if nl:
       sys.stdout.write('\n')
+    if exc is not None:
+      self._format_exception(sys.stdout, exc, nl=nl)
 
-  def stderr(self, msg: str, nl: bool = True) -> None:
+  def stderr(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     sys.stderr.write(msg)
     if nl:
       sys.stderr.write('\n')
+    if exc is not None:
+      self._format_exception(sys.stderr, exc, nl=nl)
+
+  def _format_exception(self, f: TextIO, exc: Exception, nl: bool = True) -> None:
+    from traceback import format_exception
+    f.write(''.join(format_exception(type(exc), exc, exc.__traceback__)))
+    if nl:
+      f.write('\n')
 
 
 ui = UI()

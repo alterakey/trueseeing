@@ -28,8 +28,8 @@ class Extension:
       code = compile(self._importer('~/.trueseeing2/ext'), filename='<string>', mode='exec')
       exec(code, globals_, locals_)
       return locals_
-    except Exception:
-      ui.warn('Uncaught exception during invocation')
+    except Exception as e:
+      ui.warn('Uncaught exception during invocation', exc=e)
       return {}
 
   def patch_context(self, context: Context) -> None:
