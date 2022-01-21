@@ -25,6 +25,9 @@ import tempfile
 from trueseeing.core.tools import invoke_passthru
 from trueseeing.core.ui import ui
 
+if TYPE_CHECKING:
+  pass
+
 class SigningKey:
   def key(self) -> str:
     path = os.path.join(os.environ['HOME'], '.android', 'debug.keystore')

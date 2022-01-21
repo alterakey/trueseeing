@@ -33,3 +33,21 @@ include=['trueseeing/libs/*.jar', 'trueseeing/libs/*.txt', 'trueseeing/libs/*.sq
 
 [project.scripts]
 trueseeing = "trueseeing.app._dummy:invoke"
+
+[tool.mypy]
+strict = true
+show_error_codes = true
+enable_error_code = "redundant-expr"
+
+[[tool.mypy.overrides]]
+module = [
+  "lxml.*",
+  "jinja2",
+  "IPython"
+]
+ignore_missing_imports = true
+
+# pyproject-flake8 (pflake8)
+[tool.flake8]
+extend-ignore = "E301,E302,E265,E114,E501,E231,E252,E261,E701,E722,E741,W291,W293,W292,W391"
+indent-size = 2

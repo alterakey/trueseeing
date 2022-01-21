@@ -24,7 +24,7 @@ from trueseeing.core.flow.code import CodeFlows
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Callable, TypeVar, Type, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union
+  from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union
   from trueseeing.core.store import Store
   from trueseeing.core.code.model import Op
 
@@ -133,6 +133,7 @@ class DataFlows:
     reg = cls.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     if graph:
       arg = graph[invokation_op][reg] # type: ignore[index]
+
       def assumed_target_type_of_op(x: Op) -> str:
         assert x.t == 'id'
         if x.v.startswith('const/4'):
@@ -232,7 +233,6 @@ class DataFlows:
     assert len(op.p) == 3
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['iget-'])
     field = op.p[2].v
-    instance_reg = cls.decoded_registers_of_list(op.p[1])[0]
     for o in itertools.chain(cls.looking_behind_from(store, op), store.query().iputs(field)):
       if o.t == 'id' and o.v.startswith('iput-') and o.p[2].v == field:
         return o

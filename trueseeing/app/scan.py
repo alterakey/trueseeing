@@ -18,8 +18,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import sys
-
 from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
 from trueseeing.core.context import Context
 from trueseeing.core.ui import ui

@@ -48,7 +48,7 @@ class PrivacyDeviceIdDetector(Detector):
 
   def analyzed(self, store: Store, op: Op) -> Optional[str]:
     x = op.p[1].v
-    if re.search('Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
+    if re.search(r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
       try:
         if DataFlows.solved_constant_data_in_invocation(store, op, 1) == 'android_id':
           return 'ANDROID_ID'
@@ -56,21 +56,21 @@ class PrivacyDeviceIdDetector(Detector):
           return None
       except DataFlows.NoSuchValueError:
         return None
-    elif re.search('Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;', x):
+    elif re.search(r'Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;', x):
       return 'IMEI'
-    elif re.search('Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;', x):
+    elif re.search(r'Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;', x):
       return 'IMSI'
-    elif re.search('Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;', x):
+    elif re.search(r'Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;', x):
       return 'phone number'
-    elif re.search('Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;', x):
+    elif re.search(r'Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;', x):
       return 'L2 address (Bluetooth)'
-    elif re.search('Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)', x):
+    elif re.search(r'Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)', x):
       return 'L2 address (Wi-Fi)'
     return None
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
+      for op in store.query().invocations(InvocationPattern('invoke-', r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         val_type = self.analyzed(store, op)
         if val_type is not None:
           yield Issue(
@@ -90,7 +90,7 @@ class PrivacySMSDetector(Detector):
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
+      for op in store.query().invocations(InvocationPattern('invoke-', r'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
         try:
           if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
             yield Issue(
@@ -104,7 +104,7 @@ class PrivacySMSDetector(Detector):
         except DataFlows.NoSuchValueError:
           pass
 
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsManager;->send')):
+      for op in store.query().invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsManager;->send')):
         yield Issue(
           detector_id=self.option,
           confidence='certain',
@@ -114,7 +114,7 @@ class PrivacySMSDetector(Detector):
           source=store.query().qualname_of(op)
         )
 
-      for op in store.query().invocations(InvocationPattern('invoke-', 'Landroid/telephony/SmsMessage;->createFromPdu\(')):
+      for op in store.query().invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsMessage;->createFromPdu\(')):
         yield Issue(
           detector_id=self.option,
           confidence='firm',

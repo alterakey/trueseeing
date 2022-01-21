@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import attr
 
 if TYPE_CHECKING:
-  from typing import Optional, List, Set
+  from typing import Optional, List
 
 class Op:
   t: str

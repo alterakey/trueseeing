@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import sys
 
 if TYPE_CHECKING:
-  from typing import NoReturn, ClassVar
+  from typing import NoReturn
   from typing_extensions import Final
 
 class UI:
@@ -66,5 +66,6 @@ class UI:
     sys.stderr.write(msg)
     if nl:
       sys.stderr.write('\n')
+
 
 ui = UI()

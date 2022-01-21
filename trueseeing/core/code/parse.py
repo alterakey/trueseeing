@@ -18,16 +18,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import re
-import sys
 from collections import deque
 
 from trueseeing.core.code.model import Op, Annotation
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Iterable, ContextManager, Optional, Type, TextIO, List, Tuple, TypeVar, Set
+  from typing import Iterable, Optional, Type, TextIO, List, Tuple, TypeVar, Set
   from types import TracebackType
-  from trueseeing.core.code.model import Op
   from trueseeing.core.store import Store
 
   T = TypeVar('T')

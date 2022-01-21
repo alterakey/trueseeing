@@ -154,7 +154,7 @@ class JSONReportGenerator(BaseReportGenerator):
     with self._context.store().db as db:
       issues = []
       for no, row in enumerate(db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
-        instances: List[Dict[str, Any]]= []
+        instances: List[Dict[str, Any]] = []
         issues.append(dict(
           no=no,
           detector=row[0],

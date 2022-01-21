@@ -36,7 +36,7 @@ from trueseeing.core.issue import Issue
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Iterable, Optional, Set, Tuple, Any, List, Union, TypeVar, Dict
+  from typing import Iterable, Optional, Set, Tuple, Any, TypeVar, Dict
   T = TypeVar('T')
 
 class SecurityFilePermissionDetector(Detector):
@@ -47,7 +47,7 @@ class SecurityFilePermissionDetector(Detector):
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
-      for cl in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
+      for cl in store.query().invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
           if target_val & 3:
@@ -138,8 +138,8 @@ class LayoutSizeGuesser:
           ui.warn('layout_guesser: guessed_size: ignoring improper webview declaration')
           return 0.0
       else:
-        if any(self._is_bound(x) for x in (self._width_of(e), self._height_of(e))):
-          return self._guessed_dp(self._width_of(e), dps[0]) * self._guessed_dp(self._height_of(e), dps[1])
+        if any(self._is_bound(x) for x in (width, height)):
+          return self._guessed_dp(width, dps[0]) * self._guessed_dp(height, dps[1])
     else:
       return 1.0
 
@@ -372,7 +372,7 @@ class LogDetector(Detector):
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
-      for cl in store.query().invocations(InvocationPattern('invoke-', 'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
+      for cl in store.query().invocations(InvocationPattern('invoke-', r'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         if 'print' not in cl.p[1].v:
           try:
             yield Issue(
