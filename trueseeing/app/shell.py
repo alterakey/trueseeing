@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Mapping, Type, Set
+  from typing import List, Type, Set, Dict
   from trueseeing.signature.base import Detector
 
 class Signatures:
-  content: Mapping[str, Type[Detector]]
+  content: Dict[str, Type[Detector]]
   def __init__(self) -> None:
     from trueseeing.signature import crypto, fingerprint, manifest, privacy, security
 
@@ -121,7 +121,7 @@ Misc:
     ])
 
   @classmethod
-  def _help_signatures(cls, signatures: Mapping[str, Type[Detector]]) -> str:
+  def _help_signatures(cls, signatures: Dict[str, Type[Detector]]) -> str:
     return '\n'.join([
       cls._version(),
       '',
