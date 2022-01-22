@@ -98,12 +98,13 @@ class CIReportGenerator(BaseReportGenerator):
 
   def note(self, issue: Issue) -> None:
     super().note(issue)
-    self._write(self._formatted(issue))
+    self._write(self.formatted(issue))
 
   def _write(self, x: str) -> None:
-    ui.error(x)
+    ui.info(x)
 
-  def _formatted(self, issue: Issue) -> str:
+  @classmethod
+  def formatted(cls, issue: Issue) -> str:
     return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [-W{detector_id}]'.format(
       source=noneif(issue.source, '(global)'),
       row=noneif(issue.row, 0),
@@ -121,6 +122,10 @@ class HTMLReportGenerator(BaseReportGenerator):
     from jinja2 import Environment, FileSystemLoader
     from pkg_resources import resource_filename
     self._template = Environment(loader=FileSystemLoader(resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
+
+  def note(self, issue: Issue) -> None:
+    super().note(issue)
+    ui.info(CIReportGenerator.formatted(issue))
 
   def generate(self, f: TextIO) -> None:
     super().generate(f)
@@ -147,6 +152,10 @@ class HTMLReportGenerator(BaseReportGenerator):
 class JSONReportGenerator(BaseReportGenerator):
   def __init__(self, context: Context, progress: Reporter):
     super().__init__(context, progress)
+
+  def note(self, issue: Issue) -> None:
+    super().note(issue)
+    ui.info(CIReportGenerator.formatted(issue))
 
   def generate(self, f: TextIO) -> None:
     from json import dumps
