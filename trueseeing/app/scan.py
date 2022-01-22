@@ -23,8 +23,8 @@ from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Type
-  from trueseeing.core.report import ReportGenerator
+  from typing import List, Type, Optional, TextIO
+  from trueseeing.core.report import ReportGenerator, ReportFormat
   from trueseeing.signature.base import Detector
 
 class ScanMode:
@@ -32,9 +32,9 @@ class ScanMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self, ci_mode: str, signatures: List[Type[Detector]]) -> int:
+  def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]]) -> int:
     error_found = False
-    session = AnalyzeSession(signatures, ci_mode=ci_mode)
+    session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile)
     for f in self._files:
       if session.invoke(f):
         error_found = True
@@ -45,9 +45,11 @@ class ScanMode:
 
 class AnalyzeSession:
   _chain: List[Type[Detector]]
-  _ci_mode: str
-  def __init__(self, chain: List[Type[Detector]], ci_mode: str = "html"):
+  _ci_mode: ReportFormat
+  _outfile: Optional[str]
+  def __init__(self, chain: List[Type[Detector]], outfile: Optional[str], ci_mode: ReportFormat = "html"):
     self._ci_mode = ci_mode
+    self._outfile = outfile
     self._chain = chain
 
   def invoke(self, apkfilename: str) -> bool:
@@ -79,5 +81,13 @@ class AnalyzeSession:
           else:
             reporter.progress().progress()
       else:
-        reporter.generate()
+        with self._open_outfile() as f:
+          reporter.generate(f)
       return reporter.return_(found)
+
+  def _open_outfile(self) -> TextIO:
+    if self._outfile is None:
+      import sys
+      return sys.stdout
+    else:
+      return open(self._outfile, 'w')

@@ -21,8 +21,9 @@ from typing import TYPE_CHECKING
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Type, Set, Dict
+  from typing import List, Type, Set, Dict, Optional
   from trueseeing.signature.base import Detector
+  from trueseeing.core.report import ReportFormat
 
 class Signatures:
   content: Dict[str, Type[Detector]]
@@ -99,6 +100,7 @@ General:
   --help-signature          Show signatures
 
 Scan mode:
+  -o <filename>             Speficify output filename (omit or "-" for stdout)
   -W<signame>               Enable signature (use --help-signatures to list signatures)
   -Wno-<signame>            Disable signature (use --help-signatures to list signatures)
   --fingerprint             Print fingerprint
@@ -147,15 +149,18 @@ Misc:
     fingerprint_mode = False
     grab_mode = False
     inspection_mode = False
-    ci_mode = 'html'
+    output_filename: Optional[str] = None
+    ci_mode: ReportFormat = 'html'
 
-    opts, files = getopt.getopt(sys.argv[1:], 'dW:',
+    opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect',
                                  'output=', 'version', 'patch-all'])
     for o, a in opts:
       if o in ['-d']:
         log_level = ui.DEBUG
+      if o in ['-o']:
+        output_filename = a if a != '-' else None
       if o in ['-W']:
         if a.startswith('no-'):
           signature_selected.difference_update(sigs.selected_on(a[3:]))
@@ -181,7 +186,11 @@ Misc:
       if o in ['--inspect']:
         inspection_mode = True
       if o in ['--output']:
-        ci_mode = a
+        # NB: should check "a" conforms to the literal type, ReportFormat
+        if a in ['html', 'gcc', 'json']:
+          ci_mode = a # type: ignore[assignment]
+        else:
+          ui.fatal(f'unknown output format: {a}')
       if o in ['--version']:
         ui.stderr(self._version())
         return 0
@@ -191,6 +200,10 @@ Misc:
       if o in ['--help-signatures']:
         ui.stderr(self._help_signatures(sigs.content))
         return 2
+
+    if ci_mode == 'gcc' and output_filename is not None:
+      ui.warn('ignoring output filename in CI mode')
+      output_filename = None
 
     ui.level = log_level
 
@@ -216,5 +229,6 @@ Misc:
         from trueseeing.app.scan import ScanMode
         return ScanMode(files).invoke(
           ci_mode=ci_mode,
+          outfile=output_filename,
           signatures=[v for k, v in sigs.content.items() if k in signature_selected]
         )
