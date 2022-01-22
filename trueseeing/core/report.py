@@ -24,8 +24,11 @@ from trueseeing.core.tools import noneif
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Protocol, Any, Dict
+  from typing import List, Protocol, Any, Dict, TextIO
+  from typing_extensions import Literal
   from trueseeing.core.context import Context
+
+  ReportFormat = Literal['html', 'gcc', 'json']
 
   class Reporter(Protocol):
     def issue(self, issue: Issue) -> None: ...
@@ -35,7 +38,7 @@ if TYPE_CHECKING:
   class ReportGenerator(Protocol):
     def progress(self) -> Reporter: ...
     def note(self, issue: Issue) -> None: ...
-    def generate(self) -> None: ...
+    def generate(self, f: TextIO) -> None: ...
     def return_(self, found: bool) -> bool: ...
 
 class NullReporter:
@@ -83,7 +86,7 @@ class BaseReportGenerator:
   def note(self, issue: Issue) -> None:
     self._progress.issue(issue)
 
-  def generate(self) -> None:
+  def generate(self, f: TextIO) -> None:
     self._progress.done()
 
   def return_(self, found: bool) -> bool:
@@ -119,8 +122,8 @@ class HTMLReportGenerator(BaseReportGenerator):
     from pkg_resources import resource_filename
     self._template = Environment(loader=FileSystemLoader(resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
 
-  def generate(self) -> None:
-    super().generate()
+  def generate(self, f: TextIO) -> None:
+    super().generate(f)
     with self._context.store().db as db:
       issues = []
       for no, row in enumerate(db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
@@ -139,17 +142,13 @@ class HTMLReportGenerator(BaseReportGenerator):
         issues_low=len([_ for _ in issues if _['severity'] == 'Low']),
         issues_info=len([_ for _ in issues if _['severity'] == 'Info'])
       )
-      self._write(self._template.render(app=app, issues=issues))
-
-  def _write(self, x: str) -> None:
-    ui.stdout(x, nl=False)
+      f.write(self._template.render(app=app, issues=issues))
 
 class JSONReportGenerator(BaseReportGenerator):
   def __init__(self, context: Context, progress: Reporter):
     super().__init__(context, progress)
 
-  def generate(self) -> None:
-    super().generate()
+  def generate(self, f: TextIO) -> None:
     from json import dumps
     with self._context.store().db as db:
       issues = []
@@ -180,7 +179,4 @@ class JSONReportGenerator(BaseReportGenerator):
         package=self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
         issues=len(issues)
       )
-      self._write(dumps({"app": app, "issues": issues}, indent=2))
-
-  def _write(self, x: str) -> None:
-    ui.stdout(x, nl=False)
+      f.write(dumps({"app": app, "issues": issues}, indent=2))
