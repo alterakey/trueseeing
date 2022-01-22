@@ -18,7 +18,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, ProgressReporter
+from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, NullReporter
 from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
@@ -60,15 +60,14 @@ class AnalyzeSession:
         db.execute('delete from analysis_issues')
 
       found = False
-      sigs_total = len(self._chain)
 
       reporter: ReportGenerator
       if self._ci_mode == 'gcc':
         reporter = CIReportGenerator(context)
       elif self._ci_mode == 'json':
-        reporter = JSONReportGenerator(context, ProgressReporter(sigs_total))
+        reporter = JSONReportGenerator(context, NullReporter())
       else:
-        reporter = HTMLReportGenerator(context, ProgressReporter(sigs_total))
+        reporter = HTMLReportGenerator(context, NullReporter())
 
       for c in self._chain:
         with context.store().db as db:
