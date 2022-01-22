@@ -18,7 +18,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator, NullReporter
+from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator
 from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
@@ -65,9 +65,9 @@ class AnalyzeSession:
       if self._ci_mode == 'gcc':
         reporter = CIReportGenerator(context)
       elif self._ci_mode == 'json':
-        reporter = JSONReportGenerator(context, NullReporter())
+        reporter = JSONReportGenerator(context)
       else:
-        reporter = HTMLReportGenerator(context, NullReporter())
+        reporter = HTMLReportGenerator(context)
 
       for c in self._chain:
         with context.store().db as db:
@@ -77,8 +77,6 @@ class AnalyzeSession:
             db.execute(
               'insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
               e.__dict__)
-          else:
-            reporter.progress().progress()
       else:
         with self._open_outfile() as f:
           reporter.generate(f)

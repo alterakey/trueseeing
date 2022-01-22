@@ -30,78 +30,23 @@ if TYPE_CHECKING:
 
   ReportFormat = Literal['html', 'gcc', 'json']
 
-  class Reporter(Protocol):
-    def issue(self, issue: Issue) -> None: ...
-    def progress(self) -> None: ...
-    def done(self) -> None: ...
-
   class ReportGenerator(Protocol):
-    def progress(self) -> Reporter: ...
     def note(self, issue: Issue) -> None: ...
     def generate(self, f: TextIO) -> None: ...
     def return_(self, found: bool) -> bool: ...
 
-class NullReporter:
-  def __init__(self) -> None:
-    pass
-
-  def issue(self, issue: Issue) -> None:
-    pass
-
-  def progress(self) -> None:
-    pass
-
-  def done(self) -> None:
-    pass
-
-class ProgressReporter:
-  def __init__(self, total_sigs: int) -> None:
-    self._sigs_done = 0
-    self._sigs_total = total_sigs
-    self._issues = dict(critical=0, high=0, medium=0, low=0, info=0, progress=0.0)
-
-  def issue(self, issue: Issue) -> None:
-    self._issues[issue.severity()] += 1
-    self._report()
-
-  def progress(self) -> None:
-    self._sigs_done += 1
-    self._issues['progress'] = 100.0 * (self._sigs_done / float(self._sigs_total))
-    self._report()
-
-  def _report(self) -> None:
-    ui.stderr('\ranalyzing: {progress:.01f}%: critical:{critical} high:{high} medium:{medium} low:{low} info:{info}'.format(**self._issues), nl=False)
-
-  def done(self) -> None:
-    ui.stderr('\n', nl=False)
-
-class BaseReportGenerator:
-  def __init__(self, context: Context, progress: Reporter):
-    self._progress = progress
+class CIReportGenerator:
+  def __init__(self, context: Context):
     self._context = context
 
-  def progress(self) -> Reporter:
-    return self._progress
-
   def note(self, issue: Issue) -> None:
-    self._progress.issue(issue)
+    ui.info(self.formatted(issue))
 
   def generate(self, f: TextIO) -> None:
-    self._progress.done()
+    pass
 
   def return_(self, found: bool) -> bool:
     return found
-
-class CIReportGenerator(BaseReportGenerator):
-  def __init__(self, context: Context):
-    super().__init__(context, NullReporter())
-
-  def note(self, issue: Issue) -> None:
-    super().note(issue)
-    self._write(self.formatted(issue))
-
-  def _write(self, x: str) -> None:
-    ui.info(x)
 
   @classmethod
   def formatted(cls, issue: Issue) -> str:
@@ -115,17 +60,13 @@ class CIReportGenerator(BaseReportGenerator):
       detector_id=issue.detector_id
     )
 
-class HTMLReportGenerator(BaseReportGenerator):
-  def __init__(self, context: Context, progress: Reporter):
-    super().__init__(context, progress)
+class HTMLReportGenerator(CIReportGenerator):
+  def __init__(self, context: Context):
+    super().__init__(context)
     import os.path
     from jinja2 import Environment, FileSystemLoader
     from pkg_resources import resource_filename
     self._template = Environment(loader=FileSystemLoader(resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
-
-  def note(self, issue: Issue) -> None:
-    super().note(issue)
-    ui.info(CIReportGenerator.formatted(issue))
 
   def generate(self, f: TextIO) -> None:
     super().generate(f)
@@ -149,14 +90,7 @@ class HTMLReportGenerator(BaseReportGenerator):
       )
       f.write(self._template.render(app=app, issues=issues))
 
-class JSONReportGenerator(BaseReportGenerator):
-  def __init__(self, context: Context, progress: Reporter):
-    super().__init__(context, progress)
-
-  def note(self, issue: Issue) -> None:
-    super().note(issue)
-    ui.info(CIReportGenerator.formatted(issue))
-
+class JSONReportGenerator(CIReportGenerator):
   def generate(self, f: TextIO) -> None:
     from json import dumps
     with self._context.store().db as db:
