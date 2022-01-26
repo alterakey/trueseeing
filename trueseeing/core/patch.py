@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
   class Patch(Protocol):
     def apply(self, context: Context) -> None: ...
-  
+
 class Patcher:
   def __init__(self, apk: str, out: str) -> None:
     self.apk = os.path.realpath(apk)

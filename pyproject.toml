@@ -49,5 +49,5 @@ ignore_missing_imports = true
 
 # pyproject-flake8 (pflake8)
 [tool.flake8]
-extend-ignore = "E301,E302,E265,E114,E501,E231,E252,E261,E701,E722,E741,W291,W293,W292,W391"
+extend-ignore = "E301,E302,E265,E114,E501,E231,E252,E261,E701,E722,E741"
 indent-size = 2
