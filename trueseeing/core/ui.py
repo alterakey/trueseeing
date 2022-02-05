@@ -32,6 +32,7 @@ class UI:
   FATAL: Final = 5
 
   level = DEBUG
+  is_debugging = False
 
   def fatal(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> NoReturn:
     self.stderr(f'fatal: {msg}', nl=nl, exc=exc)
