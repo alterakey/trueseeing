@@ -46,7 +46,7 @@ class Patcher:
       context.analyze()
       ui.info(f"{self.apk} -> {context.wd}")
       for p in patches:
-          p.apply(context)
+        p.apply(context)
 
       # XXX
       sigfile = 'CERT'
