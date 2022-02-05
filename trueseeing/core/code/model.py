@@ -40,7 +40,7 @@ class Op:
       self._id = id_
 
   def __repr__(self) -> str:
-    return f'<Op t={self.t} v={self.v}, p={self.p}>'
+    return f'<Op[{self._id}] t={self.t} v={self.v}, p={self.p}>'
 
   def eq(self, t: str, v: str) -> bool:
     return (self.t, self.v) == (t, v)

@@ -24,11 +24,16 @@ from trueseeing.core.flow.code import CodeFlows
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union
+  from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict
+  from typing_extensions import Final
   from trueseeing.core.store import Store
   from trueseeing.core.code.model import Op
 
+  DataGraph = Union[Op, Mapping[Op, Any]]
+
 class DataFlows:
+  _stash: Final[Dict[int, str]] = dict()
+
   class NoSuchValueError(Exception):
     pass
 
@@ -108,7 +113,7 @@ class DataFlows:
       raise cls.NoSuchValueError(f'not a compile-time constant: {arg!r}')
 
   @classmethod
-  def walk_dict_values(cls, d: Union[Op, Mapping[Op, Any]]) -> Iterable[Optional[Op]]:
+  def walk_dict_values(cls, d: DataGraph) -> Iterable[Optional[Op]]:
     try:
       for v in d.values(): # type: ignore[union-attr]
         yield from cls.walk_dict_values(v)
@@ -149,7 +154,7 @@ class DataFlows:
       return set()
 
   @classmethod
-  def analyze(cls, store: Store, op: Optional[Op], state:Optional[Set[Optional[int]]]=None) -> Optional[Union[Op, Mapping[Op, Any]]]:
+  def analyze(cls, store: Store, op: Optional[Op], state:Optional[Set[Optional[int]]]=None) -> Optional[DataGraph]:
     if op is None:
       return None
     if state is None:

@@ -159,6 +159,7 @@ Misc:
     for o, a in opts:
       if o in ['-d']:
         log_level = ui.DEBUG
+        ui.is_debugging = True
       if o in ['-o']:
         output_filename = a if a != '-' else None
       if o in ['-W']:
