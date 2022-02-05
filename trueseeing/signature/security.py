@@ -304,13 +304,13 @@ class SecurityInsecureWebViewDetector(Detector):
                         source=store.query().qualname_of(q)
                       )
                   except (DataFlows.NoSuchValueError):
-                      yield Issue(
-                        detector_id=self.option,
-                        confidence='tentative',
-                        cvss3_vector=self._cvss,
-                        summary=self._summary1,
-                        source=store.query().qualname_of(q)
-                      )
+                    yield Issue(
+                      detector_id=self.option,
+                      confidence='tentative',
+                      cvss3_vector=self._cvss,
+                      summary=self._summary1,
+                      source=store.query().qualname_of(q)
+                    )
           except (DataFlows.NoSuchValueError):
             pass
 
@@ -414,11 +414,11 @@ class LogDetector(Detector):
               source=store.query().qualname_of(cl)
             )
         else:
-            yield Issue(
-              detector_id=self.option,
-              confidence='tentative',
-              cvss3_vector=self._cvss,
-              summary=self._summary,
-              info1=cl.p[1].v,
-              source=store.query().qualname_of(cl)
-            )
+          yield Issue(
+            detector_id=self.option,
+            confidence='tentative',
+            cvss3_vector=self._cvss,
+            summary=self._summary,
+            info1=cl.p[1].v,
+            source=store.query().qualname_of(cl)
+          )
