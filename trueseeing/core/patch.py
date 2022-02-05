@@ -55,6 +55,6 @@ class Patcher:
       with TemporaryDirectory() as d:
         from trueseeing.core.tools import invoke_passthru
         invoke_passthru("(mkdir -p {root}/)".format(root=d))
-        invoke_passthru("(cd {wd} && java -jar {apktool} b -o {root}/patched.apk .)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=context.wd))
+        invoke_passthru("(cd {wd} && java -jar {apktool} b --use-aapt2 -o {root}/patched.apk .)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=context.wd))
         invoke_passthru("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=SigningKey().key(), sigfile=sigfile))
         copyfile(os.path.join(d, 'patched.apk'), self.out)
