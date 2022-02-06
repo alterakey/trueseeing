@@ -154,35 +154,51 @@ class DataFlows:
       return set()
 
   @classmethod
-  def analyze(cls, store: Store, op: Optional[Op], state:Optional[Set[Optional[int]]]=None) -> Optional[DataGraph]:
-    if op is None:
+  def analyze(cls, store: Store, op: Optional[Op], state:Optional[Dict[Optional[int], Optional[DataGraph]]]=None, stage:int = 0) -> Optional[DataGraph]:
+    if op is None or stage > 64: # XXX: Is it sufficient? Might be better if we make it tunable?
       return None
     if state is None:
-      state = set()
+      state = dict()
+
+    o: Optional[DataGraph] = None
+
     if op.t == 'id':
       if op._id in state:
-        return None
-      else:
-        state.add(op._id)
+        return state[op._id]
       if any(op.v.startswith(x) for x in ['const','new-','move-exception']):
-        return op
+        o = op
+        state[op._id] = o
+        return o
       elif op.v in ['move', 'array-length']:
-        return {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state) for k in cls.decoded_registers_of_set(op.p[1])}}
+        o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[1])}}
+        state[op._id] = o
+        return o
       elif any(op.v.startswith(x) for x in ['aget-']):
         assert len(op.p) == 3
-        return {op:{k:cls.analyze(store, cls.analyze_recent_array_load_of(store, op, k), state) for k in (cls.decoded_registers_of_set(op.p[1]) | cls.decoded_registers_of_set(op.p[2]))}}
+        o = {op:{k:cls.analyze(store, cls.analyze_recent_array_load_of(store, op, k), state, stage=stage+1) for k in (cls.decoded_registers_of_set(op.p[1]) | cls.decoded_registers_of_set(op.p[2]))}}
+        state[op._id] = o
+        return o
       elif any(op.v.startswith(x) for x in ['sget-']):
         assert len(op.p) == 2
-        return {op:{k:cls.analyze(store, cls.analyze_recent_static_load_of(store, op), state) for k in cls.decoded_registers_of_set(op.p[0])}}
+        o = {op:{k:cls.analyze(store, cls.analyze_recent_static_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+        state[op._id] = o
+        return o
       elif any(op.v.startswith(x) for x in ['iget-']):
         assert len(op.p) == 3
-        return {op:{k:cls.analyze(store, cls.analyze_recent_instance_load_of(store, op), state) for k in cls.decoded_registers_of_set(op.p[0])}}
+        o = {op:{k:cls.analyze(store, cls.analyze_recent_instance_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+        state[op._id] = o
+        return o
       elif op.v.startswith('move-result'):
-        return cls.analyze(store, cls.analyze_recent_invocation(store, op), state)
+        o = cls.analyze(store, cls.analyze_recent_invocation(store, op), state, stage=stage+1)
+        state[op._id] = o
+        return o
       else:
         try:
-          return {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state) for k in cls.decoded_registers_of_set(op.p[0])}}
+          o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+          state[op._id] = o
+          return o
         except cls.RegisterDecodeError:
+          state[op._id] = None
           return None
     else:
       return None
