@@ -102,6 +102,7 @@ class CryptoStaticKeyDetector(Detector):
                   confidence='firm',
                   summary='insecure cryptography: static keys',
                   info1=info1,
+                  info2=store.query().method_call_target_of(cl),
                   source=store.query().qualname_of(cl),
                   synopsis='Traces of cryptographic material has been found the application binary.',
                   description='''\
@@ -118,6 +119,7 @@ Use a device or installation specific information, or obfuscate them.
                   confidence='tentative',
                   summary='Cryptographic constants detected',
                   info1=info1,
+                  info2=store.query().method_call_target_of(cl),
                   source=store.query().qualname_of(cl),
                   synopsis='Possible cryptographic constants have been found.',
                   description='''\
