@@ -422,3 +422,24 @@ class LogDetector(Detector):
             info1=cl.p[1].v,
             source=store.query().qualname_of(cl)
           )
+
+class ADBProbeDetector(Detector):
+  option = 'security-adb-detect'
+  description = 'Detects probe of adbd status.'
+  _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _summary = 'USB debugging detection'
+  _synopsis = 'The application is probing for USB debugging (adbd.)'
+
+  def detect(self) -> Iterable[Issue]:
+    with self._context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('invoke-', r'^Landroid/provider/Settings\$(Global|Secure);->getInt\(')):
+        for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 1):
+          if found == 'adb_enabled':
+            yield Issue(
+              detector_id=self.option,
+              confidence='firm',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
+              source=store.query().qualname_of(cl),
+              synopsis=self._synopsis,
+            )
