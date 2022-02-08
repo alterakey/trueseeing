@@ -86,6 +86,9 @@ class CryptoStaticKeyDetector(Detector):
 
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', '^Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|^Ljavax?.*/MessageDigest;->(update|digest)')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         try:
           for nr in self._important_args_on_invocation(cl):
             for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
@@ -103,7 +106,7 @@ class CryptoStaticKeyDetector(Detector):
                   summary='insecure cryptography: static keys',
                   info1=info1,
                   info2=store.query().method_call_target_of(cl),
-                  source=store.query().qualname_of(cl),
+                  source=qn,
                   synopsis='Traces of cryptographic material has been found the application binary.',
                   description='''\
 Traces of cryptographic material has been found in the application binary.  If cryptographic material is hardcoded, attackers can extract or replace them.
@@ -120,7 +123,7 @@ Use a device or installation specific information, or obfuscate them.
                   summary='Cryptographic constants detected',
                   info1=info1,
                   info2=store.query().method_call_target_of(cl),
-                  source=store.query().qualname_of(cl),
+                  source=qn,
                   synopsis='Possible cryptographic constants have been found.',
                   description='''\
 Possible cryptographic constants has been found in the application binary.
@@ -141,6 +144,9 @@ Possible cryptographic constants has been found in the application binary.
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
     with self._context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', pat)):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         val = cl.p[1].v
         yield Issue(
           detector_id=self.option,
@@ -148,7 +154,7 @@ Possible cryptographic constants has been found in the application binary.
           confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
           summary='insecure cryptography: static keys (2)',
           info1=f'"{val}" [{len(val)}] (X.509)',
-          source=store.query().qualname_of(cl),
+          source=qn,
           synopsis='Traces of X.509 certificates has been found the application binary.',
           description='''\
 Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
@@ -184,6 +190,9 @@ class CryptoEcbDetector(Detector):
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
@@ -193,7 +202,7 @@ class CryptoEcbDetector(Detector):
               confidence='certain',
               summary='insecure cryptography: cipher might be operating in ECB mode',
               info1=','.join(target_val),
-              source=store.query().qualname_of(cl),
+              source=qn,
               synopsis='The application might be using ciphers in ECB mode.',
               description='''\
               The application might be using symmetric ciphers in ECB mode.  ECB mode is the most basic operating mode that independently transform data blocks.  Indepent transformation leaks information about distribution in plaintext.
@@ -213,6 +222,9 @@ class CryptoNonRandomXorDetector(Detector):
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
       for cl in store.query().ops_of('xor-int/lit8'):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         target_val = int(cl.p[2].v, 16)
         if (cl.p[0].v == cl.p[1].v) and target_val > 1:
           yield Issue(

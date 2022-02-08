@@ -104,6 +104,7 @@ Scan mode:
   -o <filename>             Speficify output filename (omit or "-" for stdout)
   -W<signame>               Enable signature (use --help-signatures to list signatures)
   -Wno-<signame>            Disable signature (use --help-signatures to list signatures)
+  --exclude=<pattern>       Excluding packages matching pattern
   --fingerprint             Print fingerprint
   --grab <package name>     Grab package from device
   --output=html|gcc|json    Output mode (html: HTML, gcc: Text, json: JSON)
@@ -152,11 +153,12 @@ Misc:
     inspection_mode = False
     output_filename: Optional[str] = None
     ci_mode: ReportFormat = 'html'
+    exclude_packages: List[str] = []
 
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect',
-                                 'output=', 'version', 'patch-all'])
+                                 'output=', 'version', 'patch-all', 'exclude='])
     for o, a in opts:
       if o in ['-d']:
         log_level = ui.DEBUG
@@ -168,7 +170,6 @@ Misc:
           signature_selected.difference_update(sigs.selected_on(a[3:]))
         else:
           signature_selected.update(sigs.selected_on(a))
-
       if o in ['--exploit-resign']:
         exploitation_mode = 'resign'
       if o in ['--exploit-unsign']:
@@ -179,6 +180,8 @@ Misc:
         exploitation_mode = 'enable-backup'
       if o in ['--exploit-disable-pinning']:
         exploitation_mode = 'disable-pinning'
+      if o in ['--exclude']:
+        exclude_packages.append(a)
       if o in ['--patch-all']:
         patch_mode = 'all'
       if o in ['--grab']:
@@ -232,5 +235,6 @@ Misc:
         return ScanMode(files).invoke(
           ci_mode=ci_mode,
           outfile=output_filename,
-          signatures=[v for k, v in sigs.content.items() if k in signature_selected]
+          signatures=[v for k, v in sigs.content.items() if k in signature_selected],
+          exclude_packages=exclude_packages,
         )

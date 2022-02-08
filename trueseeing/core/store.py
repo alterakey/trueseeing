@@ -22,13 +22,14 @@ import re
 from trueseeing.core.literalquery import StorePrep, Query
 
 if TYPE_CHECKING:
-  from typing import Optional, Any, Iterable, Set, Tuple
+  from typing import Optional, Any, Iterable, Set, Tuple, List
   from trueseeing.core.code.model import Op
 
 class Store:
-  def __init__(self, path: str) -> None:
+  def __init__(self, path: str, exclude_packages: List[str] = []) -> None:
     import os.path
     import sqlite3
+    self._excludes = exclude_packages
     self.path = os.path.join(path, 'store.db')
     is_creating = not os.path.exists(self.path)
     self.db = sqlite3.connect(self.path)

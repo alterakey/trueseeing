@@ -30,5 +30,5 @@ class FingerprintMode:
   def invoke(self) -> int:
     from trueseeing.core.context import Context
     for f in self._files:
-      ui.stdout(f'{f}: {Context(f).fingerprint_of()}')
+      ui.stdout(f'{f}: {Context(f, []).fingerprint_of()}')
     return 0

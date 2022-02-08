@@ -80,6 +80,7 @@ class LibraryDetector(Detector):
 
     packages: Dict[str, List[str]] = dict()
     for fn in (self._context.source_name_of_disassembled_class(r) for r in self._context.disassembled_classes()):
+      # XXX exclude packages
       family = self._package_family_of(self._package_name_of(fn))
       if family is not None:
         try:
@@ -150,9 +151,12 @@ class UrlLikeDetector(Detector):
 
     with self._context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         for match in self._analyzed(cl.p[1].v):
           for v in match['value']:
-            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=store.query().qualname_of(cl))
+            yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn)
       for name, val in self._context.string_resources():
         for match in self._analyzed(val):
           for v in match['value']:

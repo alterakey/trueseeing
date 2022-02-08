@@ -32,9 +32,9 @@ class ScanMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]]) -> int:
+  def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = []) -> int:
     error_found = False
-    session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile)
+    session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile, exclude_packages=exclude_packages)
     for f in self._files:
       if session.invoke(f):
         error_found = True
@@ -47,13 +47,15 @@ class AnalyzeSession:
   _chain: List[Type[Detector]]
   _ci_mode: ReportFormat
   _outfile: Optional[str]
-  def __init__(self, chain: List[Type[Detector]], outfile: Optional[str], ci_mode: ReportFormat = "html"):
+  _exclude_packages: List[str]
+  def __init__(self, chain: List[Type[Detector]], outfile: Optional[str], ci_mode: ReportFormat = "html", exclude_packages: List[str] = []):
     self._ci_mode = ci_mode
     self._outfile = outfile
     self._chain = chain
+    self._exclude_packages = exclude_packages
 
   def invoke(self, apkfilename: str) -> bool:
-    with Context(apkfilename) as context:
+    with Context(apkfilename, self._exclude_packages) as context:
       context.analyze()
       ui.info(f"{apkfilename} -> {context.wd}")
       with context.store().db as db:

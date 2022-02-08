@@ -42,7 +42,7 @@ class Patcher:
     from shutil import copyfile
     from tempfile import TemporaryDirectory
     from pkg_resources import resource_filename
-    with Context(self.apk) as context:
+    with Context(self.apk, []) as context:
       context.analyze()
       ui.info(f"{self.apk} -> {context.wd}")
       for p in patches:
