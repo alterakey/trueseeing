@@ -48,6 +48,9 @@ class SecurityFilePermissionDetector(Detector):
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
           if target_val & 3:
@@ -238,6 +241,9 @@ class SecurityTamperableWebViewDetector(Detector):
 
       # XXX: crude detection
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
+        qn = store.query().qualname_of(op)
+        if self._context.is_qualname_excluded(qn):
+          continue
         try:
           v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
           if v.startswith('http://'):
@@ -290,6 +296,9 @@ class SecurityInsecureWebViewDetector(Detector):
       # https://developer.android.com/reference/android/webkit/WebView.html#addJavascriptInterface(java.lang.Object,%2520java.lang.String)
       if self._context.get_min_sdk_version() <= 16:
         for p in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')):
+          qn = store.query().qualname_of(p)
+          if self._context.is_qualname_excluded(qn):
+            continue
           try:
             if DataFlows.solved_constant_data_in_invocation(store, p, 0):
               for target in targets:
@@ -317,6 +326,9 @@ class SecurityInsecureWebViewDetector(Detector):
         # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
         if self._context.get_min_sdk_version() <= 20:
           for q in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
+            qn = store.query().qualname_of(q)
+            if self._context.is_qualname_excluded(qn):
+              continue
             try:
               val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
               if val == 0:
@@ -344,6 +356,9 @@ class FormatStringDetector(Detector):
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'%s')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         for t in self._analyzed(cl.p[1].v):
           yield Issue(
             detector_id=self.option,
@@ -373,6 +388,9 @@ class LogDetector(Detector):
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', r'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         if 'print' not in cl.p[1].v:
           try:
             yield Issue(
@@ -433,6 +451,9 @@ class ADBProbeDetector(Detector):
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', r'^Landroid/provider/Settings\$(Global|Secure);->getInt\(')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
         for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 1):
           if found == 'adb_enabled':
             yield Issue(

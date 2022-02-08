@@ -27,16 +27,18 @@ import shutil
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Tuple
+  from typing import List, Any, Iterable, Tuple, Optional
   from trueseeing.core.store import Store
 
 class Context:
   wd: str
+  excludes: List[str]
   _apk: str
 
-  def __init__(self, apk: str) -> None:
+  def __init__(self, apk: str, excludes: List[str]) -> None:
     self._apk = apk
     self.wd = self._workdir_of()
+    self.excludes = excludes
 
   def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
@@ -116,7 +118,7 @@ class Context:
     from glob import glob
     o: List[str] = []
     for root, dirs, files in chain(*(os.walk(p) for p in glob(os.path.join(self.wd, 'smali*/')))):
-      o.extend(os.path.join(root, f) for f in files if f.endswith('.smali'))
+      o.extend([os.path.join(root, f) for f in files if f.endswith('.smali')])
     return o
 
   @functools.lru_cache(maxsize=1)
@@ -159,6 +161,12 @@ class Context:
     for fn in self._string_resource_files():
       with open(fn, 'rb') as f:
         yield from ((c.attrib['name'], c.text) for c in ET.parse(f, parser=ET.XMLParser(recover=True)).getroot().xpath('//resources/string') if c.text)
+
+  def is_qualname_excluded(self, qualname: Optional[str]) -> bool:
+    if qualname is not None:
+      return any([re.match(f'L{x}', qualname) for x in self.excludes])
+    else:
+      return False
 
   def __enter__(self) -> Context:
     return self

@@ -32,7 +32,7 @@ class InspectMode:
     from trueseeing.core.context import Context
 
     f = self._files[0]
-    with Context(f) as context:
+    with Context(f, []) as context:
       ui.info(f"inspection mode; analyzing {f}")
       context.analyze()
       ui.info("analyzed, context in 'context'")
