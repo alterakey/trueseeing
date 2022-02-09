@@ -263,11 +263,13 @@ class SecurityTamperableWebViewDetector(Detector):
 class SecurityInsecureWebViewDetector(Detector):
   option = 'security-insecure-webview'
   description = 'Detects insecure WebView'
-  _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:H/'
+  _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:L/'
+  _cvss2b = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N/'
   _cvss3 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N/'
   _cvss4 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
   _summary1 = 'insecure Javascript interface'
   _summary2 = 'insecure mixed content mode'
+  _summary2b = 'potentially insecure mixed content mode'
   _summary3 = 'insecure CSP'
   _summary4 = 'detected CSP'
 
@@ -328,24 +330,42 @@ class SecurityInsecureWebViewDetector(Detector):
           except (DataFlows.NoSuchValueError):
             pass
 
-        # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
-        if self._context.get_min_sdk_version() <= 20:
-          for q in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
-            qn = store.query().qualname_of(q)
-            if self._context.is_qualname_excluded(qn):
-              continue
-            try:
-              val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
-              if val == 0:
-                yield Issue(
-                  detector_id=self.option,
-                  confidence='firm',
-                  cvss3_vector=self._cvss,
-                  summary=self._summary2,
-                  info1='MIXED_CONTENT_ALWAYS_ALLOW',
-                  source=store.query().qualname_of(q))
-            except (DataFlows.NoSuchValueError):
-              pass
+      # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
+      if self._context.get_min_sdk_version() >= 21:
+        for q in store.query().invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
+          qn = store.query().qualname_of(q)
+          if self._context.is_qualname_excluded(qn):
+            continue
+          try:
+            val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
+            if val == 0:
+              yield Issue(
+                detector_id=self.option,
+                confidence='firm',
+                cvss3_vector=self._cvss,
+                summary=self._summary2,
+                info1='MIXED_CONTENT_ALWAYS_ALLOW',
+                source=store.query().qualname_of(q))
+            elif val == 2:
+              yield Issue(
+                detector_id=self.option,
+                confidence='firm',
+                cvss3_vector=self._cvss2b,
+                summary=self._summary2b,
+                info1='MIXED_CONTENT_COMPATIBILITY_MODE',
+                source=store.query().qualname_of(q))
+          except (DataFlows.NoSuchValueError):
+            pass
+      else:
+        for target in targets:
+          yield Issue(
+            detector_id=self.option,
+            confidence='firm',
+            cvss3_vector=self._cvss,
+            summary=self._summary2,
+            info1='mixed mode always enabled in API < 21',
+            source=store.query().qualname_of(q)
+          )
 
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
         qn = store.query().qualname_of(op)
