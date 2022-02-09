@@ -264,8 +264,12 @@ class SecurityInsecureWebViewDetector(Detector):
   option = 'security-insecure-webview'
   description = 'Detects insecure WebView'
   _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:H/'
+  _cvss3 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N/'
+  _cvss4 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
   _summary1 = 'insecure Javascript interface'
   _summary2 = 'insecure mixed content mode'
+  _summary3 = 'insecure CSP'
+  _summary4 = 'detected CSP'
 
   _xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
@@ -342,6 +346,41 @@ class SecurityInsecureWebViewDetector(Detector):
                   source=store.query().qualname_of(q))
             except (DataFlows.NoSuchValueError):
               pass
+
+      for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
+        qn = store.query().qualname_of(op)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        try:
+          v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
+          if v.startswith('file:///android_asset/'):
+            path = v.replace('file:///android_asset/', '/')
+            with open(os.path.join(self._context.wd, path)) as f:
+              content = f.read()
+              m = re.search('<meta .*Content-Security-Policy.*content="(.*)?">', content, flags=re.IGNORECASE)
+              csp: Optional[str] = None if m is None else m.group(1)
+              if csp is None or any([(x in csp.lower()) for x in ('unsafe', 'http:')]):
+                yield Issue(
+                  detector_id=self.option,
+                  confidence='firm',
+                  cvss3_vector=self._cvss3,
+                  summary=self._summary3,
+                  info1=path,
+                  info2='default' if csp is None else csp,
+                  source=store.query().qualname_of(op)
+                )
+              else:
+                yield Issue(
+                  detector_id=self.option,
+                  confidence='firm',
+                  cvss3_vector=self._cvss4,
+                  summary=self._summary4,
+                  info1=path,
+                  info2=csp,
+                  source=store.query().qualname_of(op)
+                )
+        except DataFlows.NoSuchValueError:
+          pass
 
 class FormatStringDetector(Detector):
   option = 'security-format-string'
