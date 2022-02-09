@@ -487,3 +487,66 @@ class ClientXSSJQDetector(Detector):
               info1='{match} ({rfn})'.format(rfn=os.path.relpath(fn, self._context.wd), match=l),
               synopsis=self._synopsis,
             )
+
+class SecurityFileWriteDetector(Detector):
+  option = 'security-file-write'
+  description = 'Detects file creation'
+  _cvss1 = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N/'
+  _summary1 = 'detected potential logging into file'
+  _synopsis1 = 'The application is potentially logging into file.'
+  _cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:N/I:N/A:N/'
+  _summary2 = 'open files for writing'
+  _synopsis2 = 'The application opens files for writing.'
+
+  def detect(self) -> Iterable[Issue]:
+    with self._context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        try:
+          target_val = DataFlows.solved_constant_data_in_invocation(store, cl, 0)
+        except DataFlows.NoSuchValueError:
+          target_val = '(unknown name)'
+
+        if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
+          yield Issue(
+            detector_id=self.option,
+            confidence='certain',
+            cvss3_vector=self._cvss1,
+            summary=self._summary1,
+            synopsis=self._synopsis1,
+            info1=target_val,
+            source=store.query().qualname_of(cl)
+          )
+        else:
+          yield Issue(
+            detector_id=self.option,
+            confidence='certain',
+            cvss3_vector=self._cvss2,
+            summary=self._summary2,
+            synopsis=self._synopsis2,
+            info1=target_val,
+            source=store.query().qualname_of(cl)
+          )
+
+      for cl in store.query().invocations(InvocationPattern('invoke-direct', r'java/io/File(Writer|OutputStream)?;-><init>\(Ljava/lang/String;\)')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        try:
+          target_val = DataFlows.solved_constant_data_in_invocation(store, cl, 0)
+
+          if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
+            if not re.search(r'^/proc/|^/sys/', target_val):
+              yield Issue(
+                detector_id=self.option,
+                confidence='tentative',
+                cvss3_vector=self._cvss1,
+                summary=self._summary1,
+                synopsis=self._synopsis1,
+                info1=target_val,
+                source=store.query().qualname_of(cl)
+              )
+        except DataFlows.NoSuchValueError:
+          target_val = '(unknown name)'
