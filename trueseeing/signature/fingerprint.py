@@ -22,6 +22,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import glob
 import os
 import re
 from trueseeing.core.code.model import InvocationPattern
@@ -187,3 +188,23 @@ class NativeMethodDetector(Detector):
   def _nativeish_methods(self, c: Any) -> Iterable[Op]:
     for r in c.execute('select op_vecs.op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from ops_method join op_vecs on (method=ops_method.op and method=op_vecs.op) where v=:pat or v2=:pat or v3=:pat or v4=:pat or v5=:pat or v6=:pat or v7=:pat or v8=:pat or v9=:pat', dict(pat='native')):
       yield Query._op_from_row(r)
+
+class NativeArchDetector(Detector):
+  option = 'detect-native-arch'
+  description = 'Detects supported architectures'
+  _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _summary = 'Supported architectures'
+  _synopsis = "The application has native codes for some architectures."
+
+  def detect(self) -> Iterable[Issue]:
+    dirs = [fn for fn in glob.glob(os.path.join(self._context.wd, 'lib', '*')) if os.path.isdir(fn)]
+    for d in dirs:
+      if re.search(r'arm|x86|mips', d):
+        yield Issue(
+          detector_id=self.option,
+          confidence='firm',
+          cvss3_vector=self._cvss,
+          summary=self._summary,
+          info1=os.path.basename(d),
+          synopsis=self._synopsis,
+        )

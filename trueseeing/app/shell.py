@@ -38,6 +38,7 @@ class Signatures:
       fingerprint.ProGuardDetector,
       fingerprint.UrlLikeDetector,
       fingerprint.NativeMethodDetector,
+      fingerprint.NativeArchDetector,
       manifest.ManifestOpenPermissionDetector,
       manifest.ManifestMissingPermissionDetector,
       manifest.ManifestManipActivity,
