@@ -25,6 +25,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import glob
 import itertools
 import re
 import os
@@ -462,5 +463,27 @@ class ADBProbeDetector(Detector):
               cvss3_vector=self._cvss,
               summary=self._summary,
               source=store.query().qualname_of(cl),
+              synopsis=self._synopsis,
+            )
+
+class ClientXSSJQDetector(Detector):
+  option = 'security-cxss-jq'
+  description = 'Detects potential client-side XSS vector in JQuery-based apps'
+  _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N/'
+  _summary = 'Potential client-side XSS (JQuery)'
+  _synopsis = "The application pours literal HTML in JQuery context."
+
+  def detect(self) -> Iterable[Issue]:
+    files = [fn for fn in glob.glob(os.path.join(self._context.wd, 'assets', '**/*.js'), recursive=True) if os.path.isfile(fn)]
+    for fn in files:
+      with open(fn, 'r') as f:
+        for l in f:
+          for m in re.finditer(r'\.html\(', l):
+            yield Issue(
+              detector_id=self.option,
+              confidence='firm',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
+              info1='{match} ({rfn})'.format(rfn=os.path.relpath(fn, self._context.wd), match=l),
               synopsis=self._synopsis,
             )
