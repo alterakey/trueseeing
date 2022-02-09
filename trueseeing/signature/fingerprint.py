@@ -164,8 +164,8 @@ class UrlLikeDetector(Detector):
           for v in match['value']:
             yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source='R.string.%s' % name)
 
-class NativeMethods(Detector):
-  option = 'detect-native-methods'
+class NativeMethodDetector(Detector):
+  option = 'detect-native-method'
   description = 'Detects natively defined methods'
   _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'Natively defined methods'
