@@ -15,15 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Issues:
-# * Cryptography: Insecure cryptography: Static keys
-# * Cryptography: Insecure cryptography: ECB
-# * Cryptography: Insecure cryptography: CBC with fixed key/IV (WIP)
-# * Cryptography: Insecure cryptography: CFB/OFB with fixed key/IV (WIP)
-# * Cryptography: Insecure cryptography: CTR with same counter and key (WIP)
-# * Cryptography: Insecure cryptography: non-random XOR cipher
-# * Cryptography: Insecure cryptography: implicit trust on non-authenticated data (WIP)
-
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
@@ -43,7 +34,7 @@ if TYPE_CHECKING:
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'
   description = 'Detects cryptographic function usage with static keys'
-  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N/'
   _cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   @classmethod
@@ -185,7 +176,7 @@ Use a device or installation specific information, or obfuscate them.  Especiall
 class CryptoEcbDetector(Detector):
   option = 'crypto-ecb'
   description = 'Detects ECB mode ciphers'
-  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
@@ -217,7 +208,7 @@ Use CBC or CTR mode.
 class CryptoNonRandomXorDetector(Detector):
   option = 'crypto-xor'
   description = 'Detects Vernum cipher usage with static keys'
-  _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:

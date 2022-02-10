@@ -15,16 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Issues:
-# * Privacy: Tainted data en clair: logs (WIP)
-# * Privacy: IMEI/IMSI on the wire (WIP)
-# * Privacy: Tainted data en clair: the wire (WIP)
-# * Privacy: Tainted data en clair: permissive files (WIP)
-# * Privacy: Tainted data en clair: preferences (WIP)
-# * Privacy: Transmitting tainted data to questionable entity (country) (WIP)
-# * Privacy: Getting device ID
-# * Privacy: Accessing SMS functionality
-
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
@@ -43,7 +33,7 @@ if TYPE_CHECKING:
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
   description = 'Detects device fingerprinting behavior'
-  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:N/A:N/'
   _summary = 'privacy concerns'
 
   def analyzed(self, store: Store, op: Op) -> Optional[str]:
@@ -88,7 +78,7 @@ class PrivacyDeviceIdDetector(Detector):
 class PrivacySMSDetector(Detector):
   option = 'privacy-sms'
   description = 'Detects SMS-related behavior'
-  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:N/A:N/'
   _summary = 'privacy concerns'
 
   def detect(self) -> Iterable[Issue]:
