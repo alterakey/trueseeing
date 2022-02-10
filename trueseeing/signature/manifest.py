@@ -15,16 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Issues:
-# * Manifest: Open permissions
-# * Manifest: Missing permissions (WIP)
-# * Manifest: Manual permissions (API < 16) (WIP)
-# * Manifest: Manipulatable ContentProvider (API < 9) (WIP: API version conditions)
-# * Manifest: Manipulatable Activity
-# * Manifest: Manipulatable BroadcastReceiver (WIP: API version conditions)
-# * Manifest: Manipulatable backups
-# * Manifest: Debuggable apps
-
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
@@ -41,7 +31,7 @@ if TYPE_CHECKING:
 class ManifestOpenPermissionDetector(Detector):
   option = 'manifest-open-permission'
   description = 'Detects declarated permissions'
-  _cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
 
   def detect(self) -> Iterable[Issue]:
     # TBD: compare with actual permission needs
@@ -56,15 +46,6 @@ class ManifestOpenPermissionDetector(Detector):
         synopsis="Application is requesting one or more permissions.",
         description="Application is requesting one or more permissions.  Permissions are an important security system of Android.  They control accesses to sensitive information (e.g. GPS, IMEI/IMSI, process stats, accounts, contacts, SMSs) or possibly dangerous/costly operation (e.g. SMSs, internet access, controlling system services, obstructing screens.)  Requesting ones are vital for proper functioning of application, though abusage leads to hurt privacy or device availability.  This issue is just an observation; requesting permissions alone does not constitute an security issue.",
       ) for p in self._context.permissions_declared())
-
-class ManifestMissingPermissionDetector(Detector):
-  option = 'manifest-missing-permission'
-  description = 'Detects missing permissions'
-  _cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
-
-  def detect(self) -> Iterable[Issue]:
-    # TBD: compare with actual permission needs
-    return []
 
 class ComponentNamePolicy:
   def __init__(self) -> None:
@@ -82,8 +63,8 @@ class ComponentNamePolicy:
 class ManifestManipActivity(Detector):
   option = 'manifest-manip-activity'
   description = 'Detects exported Activity'
-  _cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
-  _cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
+  _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   def detect(self) -> Iterable[Issue]:
     policy = ComponentNamePolicy()
@@ -123,8 +104,8 @@ class ManifestManipActivity(Detector):
 class ManifestManipBroadcastReceiver(Detector):
   option = 'manifest-manip-broadcastreceiver'
   description = 'Detects exported BroadcastReceiver'
-  _cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
-  _cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
+  _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   def detect(self) -> Iterable[Issue]:
     policy = ComponentNamePolicy()
@@ -164,8 +145,8 @@ class ManifestManipBroadcastReceiver(Detector):
 class ManifestManipContentProvider(Detector):
   option = 'manifest-manip-contentprovider'
   description = 'Detects exported ContentProvider'
-  _cvss1 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
-  _cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/'
+  _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   def detect(self) -> Iterable[Issue]:
     policy = ComponentNamePolicy()
@@ -213,7 +194,7 @@ class ManifestManipContentProvider(Detector):
 class ManifestManipBackup(Detector):
   option = 'manifest-manip-backup'
   description = 'Detects enabled backup bit'
-  _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/'
+  _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/'
 
   def detect(self) -> Iterable[Issue]:
     if self._context.parsed_manifest().getroot().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
@@ -235,7 +216,7 @@ android:allowBackup="false"
 class ManifestDebuggable(Detector):
   option = 'manifest-debuggable'
   description = 'Detects enabled debug bits'
-  _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/'
+  _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/'
 
   def detect(self) -> Iterable[Issue]:
     if self._context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):

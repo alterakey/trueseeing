@@ -40,7 +40,6 @@ class Signatures:
       fingerprint.NativeMethodDetector,
       fingerprint.NativeArchDetector,
       manifest.ManifestOpenPermissionDetector,
-      manifest.ManifestMissingPermissionDetector,
       manifest.ManifestManipActivity,
       manifest.ManifestManipBroadcastReceiver,
       manifest.ManifestManipContentProvider,

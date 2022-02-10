@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- Coding: utf-8 -*-
 # Trueseeing: Non-decompiling Android application vulnerability scanner
 # Copyright (C) 2017-22 Takahiro Yoshimura <altakey@gmail.com>
 #
@@ -14,10 +14,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# Issues:
-# * Fingerprinting libraries
-# * Fingerprinting obfuscators
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
@@ -168,7 +164,7 @@ class UrlLikeDetector(Detector):
 class NativeMethodDetector(Detector):
   option = 'detect-native-method'
   description = 'Detects natively defined methods'
-  _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'Natively defined methods'
   _synopsis = "The application uses JNI."
   _detailed_description = None
@@ -192,7 +188,7 @@ class NativeMethodDetector(Detector):
 class NativeArchDetector(Detector):
   option = 'detect-native-arch'
   description = 'Detects supported architectures'
-  _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'Supported architectures'
   _synopsis = "The application has native codes for some architectures."
 

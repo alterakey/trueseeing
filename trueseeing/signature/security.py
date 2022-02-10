@@ -15,13 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Issues:
-# * Security: Escaratable cross-site scripting (API < 17) (WIP: API version conditions)
-# * Security: TLS interception
-# * Security: Tamperable WebViews
-# * Security: Insecure permissions
-# * Security: Insecure libraries
-
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
@@ -43,7 +36,7 @@ if TYPE_CHECKING:
 class SecurityFilePermissionDetector(Detector):
   option = 'security-file-permission'
   description = 'Detects insecure file creation'
-  _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
   _summary = 'insecure file permission'
 
   def detect(self) -> Iterable[Issue]:
@@ -70,7 +63,7 @@ class SecurityFilePermissionDetector(Detector):
 class SecurityTlsInterceptionDetector(Detector):
   option = 'security-tls-interception'
   description = 'Detects certificate (non-)pinning'
-  _cvss = 'CVSS:3.0/AV:A/AC:H/PR:H/UI:R/S:U/C:N/I:H/A:N/'
+  _cvss = 'CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:C/C:L/I:L/A:L/'
   _summary = 'insecure TLS connection'
 
   def detect(self) -> Iterable[Issue]:
@@ -202,8 +195,8 @@ class SecurityTamperableWebViewDetector(Detector):
   description = 'Detects tamperable WebView'
   _summary1 = 'tamperable webview'
   _summary2 = 'tamperable webview with URL'
-  _cvss1 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:C/C:N/I:H/A:N/'
-  _cvss2 = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:C/C:N/I:H/A:N/'
+  _cvss1 = 'CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:L/'
+  _cvss2 = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:L/'
 
   _xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
@@ -263,10 +256,11 @@ class SecurityTamperableWebViewDetector(Detector):
 class SecurityInsecureWebViewDetector(Detector):
   option = 'security-insecure-webview'
   description = 'Detects insecure WebView'
-  _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:L/'
-  _cvss2b = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N/'
-  _cvss3 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N/'
-  _cvss4 = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
+  _cvss2 = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L/'
+  _cvss2b = 'CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N/'
+  _cvss3 = 'CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N/'
+  _cvss4 = 'CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary1 = 'insecure Javascript interface'
   _summary2 = 'insecure mixed content mode'
   _summary2b = 'potentially insecure mixed content mode'
@@ -342,7 +336,7 @@ class SecurityInsecureWebViewDetector(Detector):
               yield Issue(
                 detector_id=self.option,
                 confidence='firm',
-                cvss3_vector=self._cvss,
+                cvss3_vector=self._cvss2,
                 summary=self._summary2,
                 info1='MIXED_CONTENT_ALWAYS_ALLOW',
                 source=store.query().qualname_of(q))
@@ -358,14 +352,15 @@ class SecurityInsecureWebViewDetector(Detector):
             pass
       else:
         for target in targets:
-          yield Issue(
-            detector_id=self.option,
-            confidence='firm',
-            cvss3_vector=self._cvss,
-            summary=self._summary2,
-            info1='mixed mode always enabled in API < 21',
-            source=store.query().qualname_of(q)
-          )
+          for q in store.query().invocations(InvocationPattern('invoke-virtual', f'{target}->loadUrl')):
+            yield Issue(
+              detector_id=self.option,
+              confidence='firm',
+              cvss3_vector=self._cvss,
+              summary=self._summary2,
+              info1='mixed mode always enabled in API < 21',
+              source=store.query().qualname_of(q)
+            )
 
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
         qn = store.query().qualname_of(op)
@@ -406,7 +401,7 @@ class FormatStringDetector(Detector):
   option = 'security-format-string'
   description = 'Detects format string usages'
   _summary = 'detected format string'
-  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   def _analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
     if re.search(r'%s', x):
@@ -443,7 +438,7 @@ class LogDetector(Detector):
   option = 'security-log'
   description = 'Detects logging activities'
   _summary = 'detected logging'
-  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
+  _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
   def detect(self) -> Iterable[Issue]:
     with self._context.store() as store:
@@ -528,7 +523,7 @@ class ADBProbeDetector(Detector):
 class ClientXSSJQDetector(Detector):
   option = 'security-cxss-jq'
   description = 'Detects potential client-side XSS vector in JQuery-based apps'
-  _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N/'
+  _cvss = 'CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N/'
   _summary = 'Potential client-side XSS (JQuery)'
   _synopsis = "The application pours literal HTML in JQuery context."
 
@@ -550,10 +545,10 @@ class ClientXSSJQDetector(Detector):
 class SecurityFileWriteDetector(Detector):
   option = 'security-file-write'
   description = 'Detects file creation'
-  _cvss1 = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N/'
+  _cvss1 = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N/'
   _summary1 = 'detected potential logging into file'
   _synopsis1 = 'The application is potentially logging into file.'
-  _cvss2 = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:N/I:N/A:N/'
+  _cvss2 = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary2 = 'open files for writing'
   _synopsis2 = 'The application opens files for writing.'
 
