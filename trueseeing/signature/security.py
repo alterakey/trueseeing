@@ -604,3 +604,41 @@ class SecurityFileWriteDetector(Detector):
               )
         except DataFlows.NoSuchValueError:
           target_val = '(unknown name)'
+
+class SecurityInsecureRootedDetector(Detector):
+  option = 'security-insecure-rooted'
+  description = 'Detects insecure rooted device probes'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+
+  _pat = r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+'
+
+  def detect(self) -> Iterable[Issue]:
+    with self._context.store() as store:
+      found: Set[str] = set()
+      attestations: Set[str] = set()
+
+      for cl in store.query().invocations(InvocationPattern('invoke-', r'Lcom/google/android/gms/safetynet/SafetyNetClient;->attest\(\[BLjava/lang/String;\)')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        # XXX: crude detection
+        verdict_accesses = list(store.query().consts_in_class(cl, InvocationPattern('const-string', r'ctsProfileMatch|basicIntegrity')))
+        if verdict_accesses and qn is not None:
+          attestations.add(qn)
+
+      for cl in store.query().consts(InvocationPattern('const-string', self._pat)):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        found = found.union([m.group(0) for m in re.finditer(self._pat, cl.p[1].v)])
+      for name, val in self._context.string_resources():
+        found = found.union([m.group(0) for m in re.finditer(self._pat, val)])
+
+      path_based_detection_attempt: Set[str] = set()
+      for s in found:
+        if re.search(r'Sup|su|xbin|sbin|root', s):
+          path_based_detection_attempt.add(s)
+      if path_based_detection_attempt and not attestations:
+        yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(path_based_detection_attempt))
+      elif attestations and not path_based_detection_attempt:
+        yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(attestations))
