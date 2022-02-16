@@ -56,6 +56,7 @@ class Signatures:
       security.ADBProbeDetector,
       security.ClientXSSJQDetector,
       security.SecurityFileWriteDetector,
+      security.SecurityInsecureRootedDetector,
     ]
 
     self.content = {cl.option:cl for cl in sigs}
