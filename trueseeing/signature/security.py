@@ -64,15 +64,44 @@ class SecurityTlsInterceptionDetector(Detector):
   option = 'security-tls-interception'
   description = 'Detects certificate (non-)pinning'
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:C/C:L/I:L/A:L/'
+  _cvss_info = 'CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'insecure TLS connection'
 
   def detect(self) -> Iterable[Issue]:
-    if self._context.get_min_sdk_version() <= 23:
+    pin_nsc = False
+    if self._context.get_min_sdk_version() > 23:
+      if not self._context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+        pin_nsc = True
+
+    for fn, xp in self._context.xml_resources():
+      if 'network-security-config' in xp.getroot().tag.lower():
+        for e in xp.xpath('.//certificates'):
+          if e.attrib.get('src') == 'user':
+            pin_nsc = False
+            yield Issue(
+              detector_id=self.option,
+              confidence='firm',
+              cvss3_vector=self._cvss,
+              summary=self._summary,
+              info1='user-trusting network security config detected'
+            )
+          for pin in e.xpath('.//pins'):
+            algo: str
+            dig: str
+            algo, dig = pin.attrib('digest', '(unknown)'), pin.text
+            yield Issue(
+              detector_id=self.option,
+              confidence='firm',
+              cvss3_vector=self._cvss_info,
+              summary='explicit ceritifcate pinning',
+              info1=f'{algo}:{dig}',
+            )
+    if not pin_nsc:
       if not self._do_detect_plain_pins_x509():
         if not self._do_detect_plain_pins_hostnameverifier():
           yield Issue(
             detector_id=self.option,
-            confidence='certain',
+            confidence='firm',
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1='no pinning detected'
