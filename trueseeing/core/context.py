@@ -162,6 +162,18 @@ class Context:
       with open(fn, 'rb') as f:
         yield from ((c.attrib['name'], c.text) for c in ET.parse(f, parser=ET.XMLParser(recover=True)).getroot().xpath('//resources/string') if c.text)
 
+  @functools.lru_cache(maxsize=1)
+  def _xml_resource_files(self) -> List[str]:
+    o: List[str] = []
+    for root, dirs, files in os.walk(os.path.join(self.wd, 'res', 'xml')):
+      o.extend(os.path.join(root, f) for f in files if f.endswith('.xml'))
+    return o
+
+  def xml_resources(self) -> Iterable[Tuple[str, Any]]:
+    for fn in self._xml_resource_files():
+      with open(fn, 'rb') as f:
+        yield (fn, ET.parse(f, parser=ET.XMLParser(recover=True)))
+
   def is_qualname_excluded(self, qualname: Optional[str]) -> bool:
     if qualname is not None:
       return any([re.match(f'L{x}', qualname) for x in self.excludes])
