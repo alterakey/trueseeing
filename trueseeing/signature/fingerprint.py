@@ -50,7 +50,7 @@ class PublicSuffixes:
   def __init__(self) -> None:
     import pkg_resources
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'public_suffix_list.dat')), 'r', encoding='utf-8') as f:
-      self._suffixes = self._suffixes.union((l for l in f if l and not l.startswith('//')))
+      self._suffixes.update((l for l in f if l and not l.startswith('//')))
 
   def looks_public(self, names: List[str]) -> bool:
     suf = '.'.join(reversed(names))
