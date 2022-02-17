@@ -27,13 +27,42 @@ from trueseeing.core.issue import Issue
 from trueseeing.core.literalquery import Query
 
 if TYPE_CHECKING:
-  from typing import Iterable, Optional, List, Dict, Any
+  from typing import Iterable, Optional, List, Dict, Any, Set
   from trueseeing.core.code.model import Op
+
+# XXX huge duplication
+class TopLevelSuffixes:
+  def __init__(self) -> None:
+    import pkg_resources
+    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
+      self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
+
+  def looks_public(self, names: List[str]) -> bool:
+    if names:
+      gtld = names[0]
+      return (gtld == 'android') or bool(self._re_tlds.search(gtld))
+    else:
+      return False
+
+class PublicSuffixes:
+  _suffixes: Set[str] = set()
+
+  def __init__(self) -> None:
+    import pkg_resources
+    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'public_suffix_list.dat')), 'r', encoding='utf-8') as f:
+      self._suffixes = self._suffixes.union((l for l in f if l and not l.startswith('//')))
+
+  def looks_public(self, names: List[str]) -> bool:
+    suf = '.'.join(reversed(names))
+    return suf in self._suffixes
 
 class LibraryDetector(Detector):
   option = 'detect-library'
   description = 'Detects libraries'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+
+  _suffixes_top: TopLevelSuffixes = TopLevelSuffixes()
+  _suffixes_public: PublicSuffixes = PublicSuffixes()
 
   @classmethod
   def _package_name_of(cls, path: str) -> str:
@@ -55,8 +84,8 @@ class LibraryDetector(Detector):
           return re.sub(k, v, p)
         else:
           return None
-    else:
-      return p
+
+    return p
 
   @classmethod
   def _shared_package_of(cls, c1: str, c2: str) -> Optional[List[str]]:
@@ -72,7 +101,17 @@ class LibraryDetector(Detector):
 
   @classmethod
   def _is_kind_of(cls, c1: str, c2: str) -> bool:
-    return True if cls._shared_package_of(c1, c2) else False
+    shared = cls._shared_package_of(c1, c2)
+    if shared is None:
+      return False
+    elif not len(shared):
+      return False
+    elif len(shared) == 1:
+      return not cls._suffixes_top.looks_public(shared)
+    elif len(shared) > 2:
+      return True
+    else:
+      return not cls._suffixes_public.looks_public(shared)
 
   def detect(self) -> Iterable[Issue]:
     package = self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
@@ -99,7 +138,6 @@ class LibraryDetector(Detector):
         info1=f'{p} (score: {len(packages[p])})',
       ) for p in sorted(packages.keys())
     )
-
 
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
