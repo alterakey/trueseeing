@@ -139,6 +139,70 @@ class LibraryDetector(Detector):
       ) for p in sorted(packages.keys())
     )
 
+    for p in reversed(sorted(packages.keys(), key=len)):
+      for k in self._context.store().query().consts_in_package(p, InvocationPattern('const-string', r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]')):
+        ver = k.p[1].v
+        if not re.search(r'^/|:[0-9]+|\\|://', ver):
+          comps = ver.split('.')
+          if len(comps) > 4:
+            continue
+          if ' and ' not in ver and re.match('^[0-9]|^v[0-9]', ver):
+            if len(comps) < 4 or self._comp4_looks_like_version(comps):
+              yield Issue(
+                detector_id=self.option,
+                confidence='firm',
+                cvss3_vector=self._cvss,
+                summary='detected library version',
+                info1=f'{ver} ({p})',
+              )
+            else:
+              yield Issue(
+                detector_id=self.option,
+                confidence='tentative',
+                cvss3_vector=self._cvss,
+                summary='potential library version',
+                info1=f'{ver} ({p})',
+              )
+          else:
+            yield Issue(
+              detector_id=self.option,
+              confidence='tentative',
+              cvss3_vector=self._cvss,
+              summary='potential version/dated reference in library',
+              info1=f'{ver} ({p})',
+            )
+
+    files = [fn for fn in glob.glob(os.path.join(self._context.wd, 'assets', '**/*.js'), recursive=True) if os.path.isfile(fn)]
+    for fn in files:
+      with open(fn, 'r', encoding='utf-8', errors='ignore') as f:
+        for l in f:
+          for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
+            ver = l
+            if not re.search(r'^/|:[0-9]+|\\|://|[\x00-\x1f]', ver):
+              yield Issue(
+                detector_id=self.option,
+                confidence='tentative',
+                cvss3_vector=self._cvss,
+                summary='potential version/dated reference in library',
+                info1='{match} ({rfn})'.format(rfn=os.path.relpath(fn, self._context.wd), match=ver),
+              )
+
+  def _comp4_looks_like_version(self, xs: List[str]) -> bool:
+    if xs[0].lower().startswith('v'):
+      return True
+    ints = []
+    for c in xs:
+      try:
+        ints.append(int(c))
+      except ValueError:
+        return True
+    if 0 in ints or any([(t > 255) for t in ints]):
+      return True
+    elif all([(t < 100) for t in ints[:2]]):
+      return True
+    else:
+      return False
+
 class ProGuardDetector(Detector):
   option = 'detect-obfuscator'
   description = 'Detects obfuscators'

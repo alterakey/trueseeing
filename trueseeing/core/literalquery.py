@@ -90,6 +90,10 @@ class Query:
     for r in self.db.execute(f'select op as _0, t as _1, op_vecs.v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from interests_consts join op_class using (op) join op_vecs using (op) where class=(select class from ops_class where op=:class_) and interests_consts.v like \'{pattern.insn}%\' and target regexp \'{pattern.value}\'', dict(class_=class_._id)):
       yield self._op_from_row(r)
 
+  def consts_in_package(self, name: str, pattern: InvocationPattern) -> Iterable[Op]:
+    for r in self.db.execute(f'select op as _0, t as _1, op_vecs.v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from interests_consts join ops_class using (op) join op_vecs using (op) where class in (select class from class_class_name where class_name like :pat) and interests_consts.v like \'{pattern.insn}%\' and target regexp \'{pattern.value}\'', dict(pat=self._get_smali_pattern_of_package(name))):
+      yield self._op_from_row(r)
+
   def sputs(self, target: str) -> Iterable[Op]:
     for r in self.db.execute('select op as _0, t as _1, op_vecs.v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from interests_sputs join op_vecs using (op) where target=:target', dict(target=target)):
       yield self._op_from_row(r)
@@ -125,6 +129,13 @@ class Query:
       for o, in self.db.execute('select class_name from class_class_name join ops_class using (class) where op=:op', dict(op=op._id)):
         return o # type: ignore[no-any-return]
     return None
+
+  def _get_smali_pattern_of_package(self, name: str) -> str:
+    return r'L{}/%'.format(name.replace('.', '/'))
+
+  def classes_in_package_named(self, name: str) -> Iterable[Op]:
+    for r in self.db.execute('select op as _0, t as _1, op_vecs.v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from class_class_name join op_vecs on (class=op) where class_name like :pat', dict(pat=self._get_smali_pattern_of_package(name))):
+      yield self._op_from_row(r)
 
   def method_call_target_of(self, op: Optional[Op]) -> Optional[str]:
     if op:
