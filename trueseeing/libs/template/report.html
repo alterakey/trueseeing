@@ -11,11 +11,12 @@
 	<h1>Trueseeing Report</h1>
       </div>
       <div class="pageheader">
-	<h1>1. Overview</h2>
+	<h2>1. Overview</h2>
       </div>
       <div>
 	<p>Trueseeing has analyzed the given application '{{app.package}}'.</p>
 
+{% if issues %}
 	<p>We have detected {{app.issues}} issues.</p>
 
 	<div class="progress">
@@ -35,24 +36,28 @@
 	    <span class="sr-only">{{app.issues_info}}</span>
 	  </div>
 	</div>
+{% else %}
+	<p>We have detected no issues.</p>
+{% endif %}
 
 	<table class="table table-hover">
 	<thead>
-	  <th>Severity</th><th>Count</th>
+	  <tr><th>Severity</th><th>Count</th></tr>
 	</thead>
 	<tbody>
 	  <tr><td>Critical</td><td>{{app.issues_critical}}</td></tr>
-	  <tr><td>High</td><td>{{app.issues_high}}</td></td></td></tr>
-	  <tr><td>Medium</td><td>{{app.issues_medium}}</td></td></td></tr>
-	  <tr><td>Low</td><td>{{app.issues_low}}</td></td></td></tr>
-	  <tr><td>Info</td><td>{{app.issues_info}}</td></td></td></tr>
+	  <tr><td>High</td><td>{{app.issues_high}}</td></tr>
+	  <tr><td>Medium</td><td>{{app.issues_medium}}</td></tr>
+	  <tr><td>Low</td><td>{{app.issues_low}}</td></tr>
+	  <tr><td>Info</td><td>{{app.issues_info}}</td></tr>
 	</tbody>
 	</table>
 
       </div>
       <div class="pageheader">
-	<h1>2. Details</h2>
+	<h2>2. Details</h2>
       </div>
+{% if issues %}
       {% for issue in issues %}
       <div class="panel {{issue.severity_panel_style}}">
 	<div class="panel-heading">
@@ -96,8 +101,12 @@
 	</div>
       </div>
       {% endfor %}
+{% else %}
+      <div>
+	<p>We don't have any issue to be described here.</p>
       </div>
-
+{% endif %}
+    </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
   </body>
