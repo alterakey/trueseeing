@@ -61,7 +61,7 @@
       {% for issue in issues %}
       <div class="panel {{issue.severity_panel_style}}">
 	<div class="panel-heading">
-	  <h3 class="panel-title">2.{{issue.no}} {{issue.summary}} <span class="badge">{{issue.instances|length}}</span></h3>
+	  <h3 class="panel-title">2.{{issue.no+1}} {{issue.summary}} <span class="badge">{{issue.instances|length}}</span></h3>
 	</div>
 	<div class="panel-body">
 	    <h4>Synopsis</h4>
