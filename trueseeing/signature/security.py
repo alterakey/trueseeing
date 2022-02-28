@@ -398,7 +398,7 @@ class SecurityInsecureWebViewDetector(Detector):
         try:
           v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
           if v.startswith('file:///android_asset/'):
-            path = v.replace('file:///android_asset/', '/')
+            path = v.replace('file:///android_asset/', 'assets/')
             with open(os.path.join(self._context.wd, path)) as f:
               content = f.read()
               m = re.search('<meta .*Content-Security-Policy.*content="(.*)?">', content, flags=re.IGNORECASE)
