@@ -66,7 +66,9 @@ class HTMLReportGenerator(CIReportGenerator):
     import os.path
     from jinja2 import Environment, FileSystemLoader
     from pkg_resources import resource_filename
+    from trueseeing import __version__
     self._template = Environment(loader=FileSystemLoader(resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
+    self._toolchain = dict(version=__version__)
 
   def generate(self, f: TextIO) -> None:
     super().generate(f)
@@ -88,7 +90,7 @@ class HTMLReportGenerator(CIReportGenerator):
         issues_low=len([_ for _ in issues if _['severity'] == 'Low']),
         issues_info=len([_ for _ in issues if _['severity'] == 'Info'])
       )
-      f.write(self._template.render(app=app, issues=issues))
+      f.write(self._template.render(app=app, issues=issues, toolchain=self._toolchain))
 
 class JSONReportGenerator(CIReportGenerator):
   def generate(self, f: TextIO) -> None:
