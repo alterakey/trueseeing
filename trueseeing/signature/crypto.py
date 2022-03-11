@@ -18,8 +18,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import asyncio
 import re
 import math
+
+from pubsub import pub
 
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
@@ -63,11 +66,10 @@ class CryptoStaticKeyDetector(Detector):
     else:
       yield from range(len(DataFlows.decoded_registers_of_set(k.p[0])))
 
-  def detect(self) -> Iterable[Issue]:
-    from itertools import chain
-    yield from chain(self._do_detect_case1(), self._do_detect_case2())
+  async def detect(self) -> None:
+    await asyncio.gather(self._do_detect_case1(), self._do_detect_case2())
 
-  def _do_detect_case1(self) -> Iterable[Issue]:
+  async def _do_detect_case1(self) -> None:
     import base64
     import binascii
 
@@ -90,7 +92,7 @@ class CryptoStaticKeyDetector(Detector):
                 info1 = f'"{found}" [{len(found)}]'
 
               if looks_like_real_key(found):
-                yield Issue(
+                pub.sendMessage('issue', issue=Issue(
                   detector_id=self.option,
                   cvss3_vector=self._cvss,
                   confidence='firm',
@@ -105,9 +107,9 @@ Traces of cryptographic material has been found in the application binary.  If c
                   solution='''\
 Use a device or installation specific information, or obfuscate them.
 '''
-                )
+                ))
               else:
-                yield Issue(
+                pub.sendMessage('issue', issue=Issue(
                   detector_id=self.option,
                   cvss3_vector=self._cvss_nonkey,
                   confidence='tentative',
@@ -119,11 +121,11 @@ Use a device or installation specific information, or obfuscate them.
                   description='''\
 Possible cryptographic constants has been found in the application binary.
 '''
-                )
+                ))
         except IndexError:
           pass
 
-  def _do_detect_case2(self) -> Iterable[Issue]:
+  async def _do_detect_case2(self) -> None:
     # XXX: Crude detection
     def should_be_secret(store: Store, k: Op, val: str) -> bool:
       name = store.query().qualname_of(k)
@@ -139,7 +141,7 @@ Possible cryptographic constants has been found in the application binary.
         if self._context.is_qualname_excluded(qn):
           continue
         val = cl.p[1].v
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           cvss3_vector=self._cvss,
           confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
@@ -153,10 +155,10 @@ Traces of X.509 certificates has been found in the application binary.  X.509 ce
           solution='''\
 Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
 '''
-        )
+        ))
       for name, val in self._context.string_resources():
         if re.match(pat, val):
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             cvss3_vector=self._cvss,
             confidence='tentative',
@@ -170,7 +172,7 @@ Traces of X.509 certificates has been found in the application binary.  X.509 ce
             solution='''\
 Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
 '''
-          )
+          ))
 
 
 class CryptoEcbDetector(Detector):
@@ -178,7 +180,7 @@ class CryptoEcbDetector(Detector):
   description = 'Detects ECB mode ciphers'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
         qn = store.query().qualname_of(cl)
@@ -187,7 +189,7 @@ class CryptoEcbDetector(Detector):
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               cvss3_vector=self._cvss,
               confidence='certain',
@@ -201,7 +203,7 @@ class CryptoEcbDetector(Detector):
               solution='''\
 Use CBC or CTR mode.
 '''
-            )
+            ))
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -210,7 +212,7 @@ class CryptoNonRandomXorDetector(Detector):
   description = 'Detects Vernum cipher usage with static keys'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for cl in store.query().ops_of('xor-int/lit8'):
         qn = store.query().qualname_of(cl)
@@ -218,11 +220,11 @@ class CryptoNonRandomXorDetector(Detector):
           continue
         target_val = int(cl.p[2].v, 16)
         if (cl.p[0].v == cl.p[1].v) and target_val > 1:
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             cvss3_vector=self._cvss,
             confidence='firm',
             summary='insecure cryptography: non-random XOR cipher',
             info1=f'0x{target_val:02x}',
             source=store.query().qualname_of(cl)
-          )
+          ))

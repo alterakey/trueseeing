@@ -27,7 +27,7 @@ class InspectMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self) -> int:
+  async def invoke(self) -> int:
     assert self._files
     from trueseeing.core.context import Context
 

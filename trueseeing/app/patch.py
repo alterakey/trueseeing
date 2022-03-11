@@ -28,7 +28,7 @@ class PatchMode:
   def __init__(self, files: List[str]):
     self._files = files
 
-  def invoke(self, mode: str) -> int:
+  async def invoke(self, mode: str) -> int:
     from trueseeing.core.patch import Patcher
     for f in self._files:
       if mode == 'all':

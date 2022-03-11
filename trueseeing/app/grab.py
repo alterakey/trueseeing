@@ -34,7 +34,7 @@ class GrabMode:
   def __init__(self, packages: List[str]) -> None:
     self._packages = packages
 
-  def invoke(self) -> int:
+  async def invoke(self) -> int:
     if self._packages:
       for pkg in self._packages:
         if Grab(pkg).exploit():

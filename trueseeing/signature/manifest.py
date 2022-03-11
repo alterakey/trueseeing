@@ -22,21 +22,23 @@ import itertools
 import re
 import os
 
+from pubsub import pub
+
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
-  from typing import Iterable
+  pass
 
 class ManifestOpenPermissionDetector(Detector):
   option = 'manifest-open-permission'
   description = 'Detects declarated permissions'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     # TBD: compare with actual permission needs
-    yield from (
-      Issue(
+    for p in self._context.permissions_declared():
+      pub.sendMessage('issue', issue=Issue(
         detector_id=self.option,
         confidence='certain',
         cvss3_vector=self._cvss,
@@ -45,7 +47,7 @@ class ManifestOpenPermissionDetector(Detector):
         source='AndroidManifest.xml',
         synopsis="Application is requesting one or more permissions.",
         description="Application is requesting one or more permissions.  Permissions are an important security system of Android.  They control accesses to sensitive information (e.g. GPS, IMEI/IMSI, process stats, accounts, contacts, SMSs) or possibly dangerous/costly operation (e.g. SMSs, internet access, controlling system services, obstructing screens.)  Requesting ones are vital for proper functioning of application, though abusage leads to hurt privacy or device availability.  This issue is just an observation; requesting permissions alone does not constitute an security issue.",
-      ) for p in self._context.permissions_declared())
+      ))
 
 class ComponentNamePolicy:
   def __init__(self) -> None:
@@ -66,7 +68,7 @@ class ManifestManipActivity(Detector):
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -76,7 +78,7 @@ class ManifestManipActivity(Detector):
     )):
       filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss1,
@@ -86,9 +88,9 @@ class ManifestManipActivity(Detector):
           synopsis="Application is exporting one or more activities.",
           description="Application is exporting one or more activities.  Activities are entrypoints to the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.  This issue is just an observation; exporting activities alone does not constitute an security issue.",
           solution="Review them, and restrict access with application-specific permissions if necessary."
-        )
+        ))
       else:
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss2,
@@ -99,7 +101,7 @@ class ManifestManipActivity(Detector):
           synopsis="Application is exporting one or more activities using seemingly private action names, suggesting inadvent export.",
           description="Application is exporting one or more activities using seemingly private action names, suggesting inadvent export.  Activities are entrypoints to the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.",
           solution="Review them, and restrict access with application-specific permissions if necessary."
-        )
+        ))
 
 class ManifestManipBroadcastReceiver(Detector):
   option = 'manifest-manip-broadcastreceiver'
@@ -107,7 +109,7 @@ class ManifestManipBroadcastReceiver(Detector):
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -117,7 +119,7 @@ class ManifestManipBroadcastReceiver(Detector):
     )):
       filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss1,
@@ -127,9 +129,9 @@ class ManifestManipBroadcastReceiver(Detector):
           synopsis="Application is exporting one or more broadcast receivers.",
           description="Application is exporting one or more broadcast receivers.  Broadcast receivers are system-wide event listeners of the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.  This issue is just an observation; exporting broadcast receivers alone does not constitute an security issue.",
           solution="Review them and restrict access with application-specific permissions if necessary.  Consider the use of LocalBroadcastReceiver for ones that system-wide reachability is not needed."
-        )
+        ))
       else:
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss2,
@@ -140,7 +142,7 @@ class ManifestManipBroadcastReceiver(Detector):
           synopsis="Application is exporting one or more broadcast receivers using seemingly private action names, suggesting inadvent export.",
           description="Application is exporting one or more broadcast receivers using seemingly private action names, suggesting inadvent export.  Broadcast receivers are system-wide event listeners of the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.",
           solution="Review them, and restrict access with application-specific permissions if necessary."
-        )
+        ))
 
 class ManifestManipContentProvider(Detector):
   option = 'manifest-manip-contentprovider'
@@ -148,7 +150,7 @@ class ManifestManipContentProvider(Detector):
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -158,7 +160,7 @@ class ManifestManipContentProvider(Detector):
     )):
       filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss1,
@@ -172,9 +174,9 @@ class ManifestManipContentProvider(Detector):
 
   android:export="false"
   '''
-        )
+        ))
       else:
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss2,
@@ -189,16 +191,16 @@ class ManifestManipContentProvider(Detector):
 
   android:export="false"
   '''
-        )
+        ))
 
 class ManifestManipBackup(Detector):
   option = 'manifest-manip-backup'
   description = 'Detects enabled backup bit'
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     if self._context.parsed_manifest().getroot().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      yield Issue(
+      pub.sendMessage('issue', issue=Issue(
         detector_id=self.option,
         confidence='certain',
         cvss3_vector=self._cvss,
@@ -211,16 +213,16 @@ Review them and opt-out from the Full Backup feature if necessary.  To opt-out, 
 
 android:allowBackup="false"
 '''
-      )
+      ))
 
 class ManifestDebuggable(Detector):
   option = 'manifest-debuggable'
   description = 'Detects enabled debug bits'
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     if self._context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      yield Issue(
+      pub.sendMessage('issue', issue=Issue(
         detector_id=self.option,
         confidence='certain',
         cvss3_vector=self._cvss,
@@ -233,4 +235,4 @@ Disable the debuggable bit.  To disable it, define the following attribute to th
 
 android:debuggable="false"
 '''
-      )
+      ))

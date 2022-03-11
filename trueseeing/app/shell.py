@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import asyncio
 
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Type, Set, Dict, Optional
+  from typing import List, Type, Set, Dict, Optional, Awaitable
   from trueseeing.signature.base import Detector
   from trueseeing.core.report import ReportFormat
 
@@ -140,6 +141,9 @@ Misc:
       f'  {name:<36s}{signatures[name].description}' for name in sorted(signatures.keys())
     ])
 
+  def _launch(self, coro: Awaitable[int]) -> int:
+    return asyncio.run(coro)
+
   def invoke(self) -> int:
     import sys
     import getopt
@@ -218,27 +222,27 @@ Misc:
 
     if grab_mode:
       from trueseeing.app.grab import GrabMode
-      return GrabMode(packages=files).invoke()
+      return self._launch(GrabMode(packages=files).invoke())
     else:
       if not files:
         ui.fatal("no input files")
       if exploitation_mode:
         from trueseeing.app.exploit import ExploitMode
-        return ExploitMode(files).invoke(exploitation_mode)
+        return self._launch(ExploitMode(files).invoke(exploitation_mode))
       elif patch_mode:
         from trueseeing.app.patch import PatchMode
-        return PatchMode(files).invoke(patch_mode)
+        return self._launch(PatchMode(files).invoke(patch_mode))
       elif fingerprint_mode:
         from trueseeing.app.fingerprint import FingerprintMode
-        return FingerprintMode(files).invoke()
+        return self._launch(FingerprintMode(files).invoke())
       elif inspection_mode:
         from trueseeing.app.inspect import InspectMode
-        return InspectMode(files).invoke()
+        return self._launch(InspectMode(files).invoke())
       else:
         from trueseeing.app.scan import ScanMode
-        return ScanMode(files).invoke(
+        return self._launch(ScanMode(files).invoke(
           ci_mode=ci_mode,
           outfile=output_filename,
           signatures=[v for k, v in sigs.content.items() if k in signature_selected],
           exclude_packages=exclude_packages,
-        )
+        ))
