@@ -23,6 +23,8 @@ import itertools
 import re
 import os
 
+from pubsub import pub
+
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
@@ -39,7 +41,7 @@ class SecurityFilePermissionDetector(Detector):
   _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
   _summary = 'insecure file permission'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
         qn = store.query().qualname_of(cl)
@@ -48,14 +50,14 @@ class SecurityFilePermissionDetector(Detector):
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
           if target_val & 3:
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='certain',
               cvss3_vector=self._cvss,
               summary=self._summary,
               info1={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
               source=store.query().qualname_of(cl)
-            )
+            ))
         except (DataFlows.NoSuchValueError):
           pass
 
@@ -67,7 +69,7 @@ class SecurityTlsInterceptionDetector(Detector):
   _cvss_info = 'CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'insecure TLS connection'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     pin_nsc = False
     if self._context.get_min_sdk_version() > 23:
       if not self._context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
@@ -78,34 +80,34 @@ class SecurityTlsInterceptionDetector(Detector):
         for e in xp.xpath('.//certificates'):
           if e.attrib.get('src') == 'user':
             pin_nsc = False
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss,
               summary=self._summary,
               info1='user-trusting network security config detected'
-            )
+            ))
           for pin in e.xpath('.//pins'):
             algo: str
             dig: str
             algo, dig = pin.attrib('digest', '(unknown)'), pin.text
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss_info,
               summary='explicit ceritifcate pinning',
               info1=f'{algo}:{dig}',
-            )
+            ))
     if not pin_nsc:
       if not self._do_detect_plain_pins_x509():
         if not self._do_detect_plain_pins_hostnameverifier():
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             confidence='firm',
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1='no pinning detected'
-          )
+          ))
 
   def _do_detect_plain_pins_x509(self) -> Set[str]:
     with self._context.store() as store:
@@ -229,7 +231,7 @@ class SecurityTamperableWebViewDetector(Detector):
 
   _xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     import lxml.etree as ET
     from functools import reduce
     with self._context.store() as store:
@@ -251,14 +253,14 @@ class SecurityTamperableWebViewDetector(Detector):
             size = LayoutSizeGuesser().guessed_size(t, fn)
             if size > 0.5:
               try:
-                yield Issue(
+                pub.sendMessage('issue', issue=Issue(
                   detector_id=self.option,
                   confidence='tentative',
                   cvss3_vector=self._cvss1,
                   summary=self._summary1,
                   info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self._xmlns_android}id'], size),
                   source=self._context.source_name_of_disassembled_resource(fn)
-                )
+                ))
               except KeyError as e:
                 ui.warn(f'SecurityTamperableWebViewDetector.do_detect: missing key {e}')
 
@@ -270,14 +272,14 @@ class SecurityTamperableWebViewDetector(Detector):
         try:
           v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
           if v.startswith('http://'):
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss2,
               summary=self._summary2,
               info1=v,
               source=store.query().qualname_of(op)
-            )
+            ))
         except DataFlows.NoSuchValueError:
           pass
 
@@ -306,7 +308,7 @@ class SecurityInsecureWebViewDetector(Detector):
     except IndexError:
       return default
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       targets = set()
       seeds = {'WebView','XWalkView','GeckoView'}
@@ -335,21 +337,21 @@ class SecurityInsecureWebViewDetector(Detector):
                 for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
                   try:
                     if DataFlows.solved_constant_data_in_invocation(store, q, 0):
-                      yield Issue(
+                      pub.sendMessage('issue', issue=Issue(
                         detector_id=self.option,
                         confidence='firm',
                         cvss3_vector=self._cvss,
                         summary=self._summary1,
                         source=store.query().qualname_of(q)
-                      )
+                      ))
                   except (DataFlows.NoSuchValueError):
-                    yield Issue(
+                    pub.sendMessage('issue', issue=Issue(
                       detector_id=self.option,
                       confidence='tentative',
                       cvss3_vector=self._cvss,
                       summary=self._summary1,
                       source=store.query().qualname_of(q)
-                    )
+                    ))
           except (DataFlows.NoSuchValueError):
             pass
 
@@ -362,34 +364,34 @@ class SecurityInsecureWebViewDetector(Detector):
           try:
             val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
             if val == 0:
-              yield Issue(
+              pub.sendMessage('issue', issue=Issue(
                 detector_id=self.option,
                 confidence='firm',
                 cvss3_vector=self._cvss2,
                 summary=self._summary2,
                 info1='MIXED_CONTENT_ALWAYS_ALLOW',
-                source=store.query().qualname_of(q))
+                source=store.query().qualname_of(q)))
             elif val == 2:
-              yield Issue(
+              pub.sendMessage('issue', issue=Issue(
                 detector_id=self.option,
                 confidence='firm',
                 cvss3_vector=self._cvss2b,
                 summary=self._summary2b,
                 info1='MIXED_CONTENT_COMPATIBILITY_MODE',
-                source=store.query().qualname_of(q))
+                source=store.query().qualname_of(q)))
           except (DataFlows.NoSuchValueError):
             pass
       else:
         for target in targets:
           for q in store.query().invocations(InvocationPattern('invoke-virtual', f'{target}->loadUrl')):
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss,
               summary=self._summary2,
               info1='mixed mode always enabled in API < 21',
               source=store.query().qualname_of(q)
-            )
+            ))
 
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
         qn = store.query().qualname_of(op)
@@ -404,7 +406,7 @@ class SecurityInsecureWebViewDetector(Detector):
               m = re.search('<meta .*Content-Security-Policy.*content="(.*)?">', content, flags=re.IGNORECASE)
               csp: Optional[str] = None if m is None else m.group(1)
               if csp is None or any([(x in csp.lower()) for x in ('unsafe', 'http:')]):
-                yield Issue(
+                pub.sendMessage('issue', issue=Issue(
                   detector_id=self.option,
                   confidence='firm',
                   cvss3_vector=self._cvss3,
@@ -412,9 +414,9 @@ class SecurityInsecureWebViewDetector(Detector):
                   info1=path,
                   info2='default' if csp is None else csp,
                   source=store.query().qualname_of(op)
-                )
+                ))
               else:
-                yield Issue(
+                pub.sendMessage('issue', issue=Issue(
                   detector_id=self.option,
                   confidence='firm',
                   cvss3_vector=self._cvss4,
@@ -422,7 +424,7 @@ class SecurityInsecureWebViewDetector(Detector):
                   info1=path,
                   info2=csp,
                   source=store.query().qualname_of(op)
-                )
+                ))
         except DataFlows.NoSuchValueError:
           pass
 
@@ -437,31 +439,31 @@ class FormatStringDetector(Detector):
       if re.search(r'(://|[<>/&?])', x):
         yield dict(confidence='firm', value=x)
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for cl in store.query().consts(InvocationPattern('const-string', r'%s')):
         qn = store.query().qualname_of(cl)
         if self._context.is_qualname_excluded(qn):
           continue
         for t in self._analyzed(cl.p[1].v):
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             confidence=t['confidence'],
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=t['value'],
             source=store.query().qualname_of(cl)
-          )
+          ))
       for name, val in self._context.string_resources():
         for t in self._analyzed(val):
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             confidence=t['confidence'],
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=t['value'],
             source=f'R.string.{name}'
-          )
+          ))
 
 class LogDetector(Detector):
   option = 'security-log'
@@ -469,7 +471,7 @@ class LogDetector(Detector):
   _summary = 'detected logging'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', r'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
         qn = store.query().qualname_of(cl)
@@ -477,7 +479,7 @@ class LogDetector(Detector):
           continue
         if 'print' not in cl.p[1].v:
           try:
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -485,19 +487,19 @@ class LogDetector(Detector):
               info1=cl.p[1].v,
               info2=DataFlows.solved_constant_data_in_invocation(store, cl, 1),
               source=store.query().qualname_of(cl)
-            )
+            ))
           except (DataFlows.NoSuchValueError):
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
               summary=self._summary,
               info1=cl.p[1].v,
               source=store.query().qualname_of(cl)
-            )
+            ))
         elif 'Exception;->' not in cl.p[1].v:
           try:
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -505,25 +507,25 @@ class LogDetector(Detector):
               info1=cl.p[1].v,
               info2=DataFlows.solved_constant_data_in_invocation(store, cl, 0),
               source=store.query().qualname_of(cl)
-            )
+            ))
           except (DataFlows.NoSuchValueError):
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
               summary=self._summary,
               info1=cl.p[1].v,
               source=store.query().qualname_of(cl)
-            )
+            ))
         else:
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             confidence='tentative',
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=cl.p[1].v,
             source=store.query().qualname_of(cl)
-          )
+          ))
 
 class ADBProbeDetector(Detector):
   option = 'security-adb-detect'
@@ -532,7 +534,7 @@ class ADBProbeDetector(Detector):
   _summary = 'USB debugging detection'
   _synopsis = 'The application is probing for USB debugging (adbd.)'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-', r'^Landroid/provider/Settings\$(Global|Secure);->getInt\(')):
         qn = store.query().qualname_of(cl)
@@ -540,14 +542,14 @@ class ADBProbeDetector(Detector):
           continue
         for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 1):
           if found == 'adb_enabled':
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss,
               summary=self._summary,
               source=store.query().qualname_of(cl),
               synopsis=self._synopsis,
-            )
+            ))
 
 class ClientXSSJQDetector(Detector):
   option = 'security-cxss-jq'
@@ -556,20 +558,20 @@ class ClientXSSJQDetector(Detector):
   _summary = 'Potential client-side XSS (JQuery)'
   _synopsis = "The application pours literal HTML in JQuery context."
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     files = [fn for fn in glob.glob(os.path.join(self._context.wd, 'assets', '**/*.js'), recursive=True) if os.path.isfile(fn)]
     for fn in files:
       with open(fn, 'r') as f:
         for l in f:
           for m in re.finditer(r'\.html\(', l):
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss,
               summary=self._summary,
               info1='{match} ({rfn})'.format(rfn=os.path.relpath(fn, self._context.wd), match=l),
               synopsis=self._synopsis,
-            )
+            ))
 
 class SecurityFileWriteDetector(Detector):
   option = 'security-file-write'
@@ -581,7 +583,7 @@ class SecurityFileWriteDetector(Detector):
   _summary2 = 'open files for writing'
   _synopsis2 = 'The application opens files for writing.'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for cl in store.query().invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
         qn = store.query().qualname_of(cl)
@@ -593,7 +595,7 @@ class SecurityFileWriteDetector(Detector):
           target_val = '(unknown name)'
 
         if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             confidence='certain',
             cvss3_vector=self._cvss1,
@@ -601,9 +603,9 @@ class SecurityFileWriteDetector(Detector):
             synopsis=self._synopsis1,
             info1=target_val,
             source=store.query().qualname_of(cl)
-          )
+          ))
         else:
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             confidence='certain',
             cvss3_vector=self._cvss2,
@@ -611,7 +613,7 @@ class SecurityFileWriteDetector(Detector):
             synopsis=self._synopsis2,
             info1=target_val,
             source=store.query().qualname_of(cl)
-          )
+          ))
 
       for cl in store.query().invocations(InvocationPattern('invoke-direct', r'java/io/File(Writer|OutputStream)?;-><init>\(Ljava/lang/String;\)')):
         qn = store.query().qualname_of(cl)
@@ -622,7 +624,7 @@ class SecurityFileWriteDetector(Detector):
 
           if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
             if not re.search(r'^/proc/|^/sys/', target_val):
-              yield Issue(
+              pub.sendMessage('issue', issue=Issue(
                 detector_id=self.option,
                 confidence='tentative',
                 cvss3_vector=self._cvss1,
@@ -630,7 +632,7 @@ class SecurityFileWriteDetector(Detector):
                 synopsis=self._synopsis1,
                 info1=target_val,
                 source=store.query().qualname_of(cl)
-              )
+              ))
         except DataFlows.NoSuchValueError:
           target_val = '(unknown name)'
 
@@ -641,7 +643,7 @@ class SecurityInsecureRootedDetector(Detector):
 
   _pat = r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       found: Set[str] = set()
       attestations: Set[str] = set()
@@ -668,6 +670,6 @@ class SecurityInsecureRootedDetector(Detector):
         if re.search(r'Sup|su|xbin|sbin|root', s):
           path_based_detection_attempt.add(s)
       if path_based_detection_attempt and not attestations:
-        yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(path_based_detection_attempt))
+        pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(path_based_detection_attempt)))
       elif attestations and not path_based_detection_attempt:
-        yield Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(attestations))
+        pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(attestations)))

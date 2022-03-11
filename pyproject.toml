@@ -20,7 +20,8 @@ dependencies = [
     "pyyaml",
     "jinja2",
     "ipython",
-    "attrs"
+    "attrs",
+    "pypubsub",
 ]
 requires-python = ">=3.7"
 dynamic = ['version', 'description']
@@ -43,7 +44,8 @@ enable_error_code = "redundant-expr"
 module = [
   "lxml.*",
   "jinja2",
-  "IPython"
+  "IPython",
+  "pubsub",
 ]
 ignore_missing_imports = true
 

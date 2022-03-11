@@ -18,6 +18,9 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import asyncio
+from pubsub import pub
+
 from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator
 from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
@@ -26,17 +29,18 @@ if TYPE_CHECKING:
   from typing import List, Type, Optional, TextIO
   from trueseeing.core.report import ReportGenerator, ReportFormat
   from trueseeing.signature.base import Detector
+  from trueseeing.core.issue import Issue
 
 class ScanMode:
   _files: List[str]
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = []) -> int:
+  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = []) -> int:
     error_found = False
     session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile, exclude_packages=exclude_packages)
     for f in self._files:
-      if session.invoke(f):
+      if await session.invoke(f):
         error_found = True
     if not error_found:
       return 0
@@ -54,7 +58,7 @@ class AnalyzeSession:
     self._chain = chain
     self._exclude_packages = exclude_packages
 
-  def invoke(self, apkfilename: str) -> bool:
+  async def invoke(self, apkfilename: str) -> bool:
     with Context(apkfilename, self._exclude_packages) as context:
       context.analyze()
       ui.info(f"{apkfilename} -> {context.wd}")
@@ -71,17 +75,21 @@ class AnalyzeSession:
       else:
         reporter = HTMLReportGenerator(context)
 
-      for c in self._chain:
-        with context.store().db as db:
-          for e in c(context).detect():
-            found = True
-            reporter.note(e)
-            db.execute(
-              'insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
-              e.__dict__)
-      else:
-        with self._open_outfile() as f:
-          reporter.generate(f)
+      with context.store().db as db:
+        # XXX
+        def _detected(issue: Issue) -> None:
+          global found
+          found = True # type: ignore[name-defined]
+          reporter.note(issue)
+          db.execute(
+            'insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
+            issue.__dict__)
+        pub.subscribe(_detected, 'issue')
+        await asyncio.gather(*[c(context).detect() for c in self._chain])
+        pub.unsubscribe(_detected, 'issue')
+
+      with self._open_outfile() as f:
+        reporter.generate(f)
       return reporter.return_(found)
 
   def _open_outfile(self) -> TextIO:

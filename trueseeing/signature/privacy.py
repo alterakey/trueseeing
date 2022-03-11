@@ -20,13 +20,15 @@ from typing import TYPE_CHECKING
 
 import re
 
+from pubsub import pub
+
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
-  from typing import Iterable, Optional
+  from typing import Optional
   from trueseeing.core.store import Store
   from trueseeing.core.code.model import Op
 
@@ -58,7 +60,7 @@ class PrivacyDeviceIdDetector(Detector):
       return 'L2 address (Wi-Fi)'
     return None
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
         qn = store.query().qualname_of(op)
@@ -66,14 +68,14 @@ class PrivacyDeviceIdDetector(Detector):
           continue
         val_type = self.analyzed(store, op)
         if val_type is not None:
-          yield Issue(
+          pub.sendMessage('issue', issue=Issue(
             detector_id=self.option,
             confidence='certain',
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=f'getting {val_type}',
             source=store.query().qualname_of(op)
-          )
+          ))
 
 class PrivacySMSDetector(Detector):
   option = 'privacy-sms'
@@ -81,7 +83,7 @@ class PrivacySMSDetector(Detector):
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:N/A:N/'
   _summary = 'privacy concerns'
 
-  def detect(self) -> Iterable[Issue]:
+  async def detect(self) -> None:
     with self._context.store() as store:
       for op in store.query().invocations(InvocationPattern('invoke-', r'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
         qn = store.query().qualname_of(op)
@@ -89,14 +91,14 @@ class PrivacySMSDetector(Detector):
           continue
         try:
           if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
-            yield Issue(
+            pub.sendMessage('issue', issue=Issue(
               detector_id=self.option,
               confidence='certain',
               cvss3_vector=self._cvss,
               summary=self._summary,
               info1='accessing SMS',
               source=store.query().qualname_of(op)
-            )
+            ))
         except DataFlows.NoSuchValueError:
           pass
 
@@ -104,24 +106,24 @@ class PrivacySMSDetector(Detector):
         qn = store.query().qualname_of(op)
         if self._context.is_qualname_excluded(qn):
           continue
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss,
           summary=self._summary,
           info1='sending SMS',
           source=store.query().qualname_of(op)
-        )
+        ))
 
       for op in store.query().invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsMessage;->createFromPdu\(')):
         qn = store.query().qualname_of(op)
         if self._context.is_qualname_excluded(qn):
           continue
-        yield Issue(
+        pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='firm',
           cvss3_vector=self._cvss,
           summary=self._summary,
           info1='intercepting incoming SMS',
           source=store.query().qualname_of(op)
-        )
+        ))

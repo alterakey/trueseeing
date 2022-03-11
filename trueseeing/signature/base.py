@@ -21,9 +21,8 @@ from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
-  from typing import Iterable, ClassVar
+  from typing import ClassVar
   from trueseeing.core.context import Context
-  from trueseeing.core.issue import Issue
 
 class Detector(ABC):
   option: ClassVar[str]
@@ -35,4 +34,4 @@ class Detector(ABC):
     self._context = context
 
   @abstractmethod
-  def detect(self) -> Iterable[Issue]: ...
+  async def detect(self) -> None: ...

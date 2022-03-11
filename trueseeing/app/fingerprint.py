@@ -27,7 +27,7 @@ class FingerprintMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  def invoke(self) -> int:
+  async def invoke(self) -> int:
     from trueseeing.core.context import Context
     for f in self._files:
       ui.stdout(f'{f}: {Context(f, []).fingerprint_of()}')
