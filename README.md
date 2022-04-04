@@ -8,58 +8,65 @@ Currently trueseeing can detect the following class of vulnerabilities:
 
   * Improper Platform Usage (M1)
 
-    * Debuggable
-    * Inadvent publishing of Activities, Services, ContentProviders, BroadcastReceivers
+	* Debuggable
+	* Inadvent publishing of Activities, Services, ContentProviders, BroadcastReceivers
 
   * Insecure Data (M2)
 
-    * Backupable (i.e. suspectible to the backup attack)
-    * Insecure file permissions
-    * Logging
+	* Backupable (i.e. suspectible to the backup attack)
+	* Insecure file permissions
+	* Logging
 
   * Insecure Commnications (M3)
 
-    * Lack of pinning (i.e. suspictible to the TLS interception attack)
-    * Use of cleartext HTTP
-    * Tamperable WebViews
+	* Lack of pinning (i.e. suspictible to the TLS interception attack)
+	* Use of cleartext HTTP
+	* Tamperable WebViews
 
   * Insufficient Cryptography (M5)
 
-    * Hardcoded passphrase/secret keys
-    * Vernum ciphers with static keys
-    * Use of the ECB mode
+	* Hardcoded passphrase/secret keys
+	* Vernum ciphers with static keys
+	* Use of the ECB mode
 
   * Client Code Quality Issues (M7)
 
-    * Reflectable WebViews (i.e. XSSs in such views should be escalatable to remote code executions via JS reflection)
-    * Usage of insecure policy on mixed contents
+	* Reflectable WebViews (i.e. XSSs in such views should be escalatable to remote code executions via JS reflection)
+	* Usage of insecure policy on mixed contents
 
   * Code Tampering (M8)
 
-    * Hardcoded certificates
+	* Hardcoded certificates
 
   * Reverse Engineering (M9)
 
-    * Lack of obfuscation
+	* Lack of obfuscation
 
 ## Installation
 
-    $ pip3 install trueseeing
+	$ pip3 install trueseeing
 
 ## Usage
 
-The following command line is sufficient to scan a APK (target.apk):
+The following command line is sufficient to scan a APK (target.apk), yielding findings listed in stderr:
 
-    $ trueseeing /path/to/target.apk > report.html
+	$ trueseeing /path/to/target.apk
 
-To get a JSON format:
+To generate a report in HTML format:
 
-    $ trueseeing --output=json /path/to/target.apk  > report.json
+	$ trueseeing -o report.html /path/to/target.apk
+	$ trueseeing --format=html -o report.html /path/to/target.apk
 
-To get output in more CI-friendly format:
+To generate a report in JSON format:
 
-    $ trueseeing --output=gcc /path/to/target.apk
+	$ trueseeing --format=json -o report.json /path/to/target.apk
+
+To get report generated in stdout, specify '-' as filename:
+
+	$ trueseeing -o - /path/to/target.apk > report.html
+	$ trueseeing --format=html -o - /path/to/target.apk > report.html
+	$ trueseeing --format=json -o - /path/to/target.apk > report.json
 
 To fix (not all) problems it catches:
 
-    $ trueseeing --patch-all /path/to/target.apk
+	$ trueseeing --patch-all /path/to/target.apk

@@ -100,19 +100,19 @@ class Shell:
 OPTIONS
 
 General:
-  -d                        Debug mode
+  -d/--debug                Debug mode
   --version                 Version information
   --help                    Show this text
   --help-signature          Show signatures
 
 Scan mode:
-  -o <filename>             Speficify output filename (omit or "-" for stdout)
   -W<signame>               Enable signature (use --help-signatures to list signatures)
   -Wno-<signame>            Disable signature (use --help-signatures to list signatures)
   --exclude=<pattern>       Excluding packages matching pattern
   --fingerprint             Print fingerprint
   --grab <package name>     Grab package from device
-  --output=html|gcc|json    Output mode (html: HTML, gcc: Text, json: JSON)
+  -o/--output=<filename>    Report filename ("-" for stdout)
+  --format=html|json        Report format (html: HTML (default), json: JSON)
 
 Exploitation mode:
   --exploit-resign          Exploit mode: Replace signature
@@ -164,15 +164,15 @@ Misc:
     exclude_packages: List[str] = []
 
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
-                                ['exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
+                                ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect',
-                                 'output=', 'version', 'patch-all', 'exclude='])
+                                 'output=', 'format=', 'version', 'patch-all', 'exclude='])
     for o, a in opts:
-      if o in ['-d']:
+      if o in ['-d', '--debug']:
         log_level = ui.DEBUG
         ui.is_debugging = True
-      if o in ['-o']:
-        output_filename = a if a != '-' else None
+      if o in ['-o', '--output']:
+        output_filename = a
       if o in ['-W']:
         if a.startswith('no-'):
           signature_selected.difference_update(sigs.selected_on(a[3:]))
@@ -198,9 +198,9 @@ Misc:
         fingerprint_mode = True
       if o in ['--inspect']:
         inspection_mode = True
-      if o in ['--output']:
+      if o in ['--format']:
         # NB: should check "a" conforms to the literal type, ReportFormat
-        if a in ['html', 'gcc', 'json']:
+        if a in ['html', 'json']:
           ci_mode = a # type: ignore[assignment]
         else:
           ui.fatal(f'unknown output format: {a}')
@@ -213,10 +213,6 @@ Misc:
       if o in ['--help-signatures']:
         ui.stderr(self._help_signatures(sigs.content))
         return 2
-
-    if ci_mode == 'gcc' and output_filename is not None:
-      ui.warn('ignoring output filename in CI mode')
-      output_filename = None
 
     ui.level = log_level
 
