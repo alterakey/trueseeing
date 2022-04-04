@@ -32,7 +32,7 @@ class PatchMode:
     from trueseeing.core.patch import Patcher
     for f in self._files:
       if mode == 'all':
-        Patcher(f, os.path.basename(f).replace('.apk', '-patched.apk')).apply_multi([
+        await Patcher(f, os.path.basename(f).replace('.apk', '-patched.apk')).apply_multi([
           PatchDebuggable(),
           PatchBackupable(),
           PatchLoggers()
