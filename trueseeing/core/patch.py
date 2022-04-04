@@ -57,4 +57,5 @@ class Patcher:
         await invoke_passthru("(mkdir -p {root}/)".format(root=d))
         await invoke_passthru("(cd {wd} && java -jar {apktool} b --use-aapt2 -o {root}/patched.apk .)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')), wd=context.wd))
         await invoke_passthru("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=await SigningKey().key(), sigfile=sigfile))
-        copyfile(os.path.join(d, 'patched.apk'), self.out)
+        await invoke_passthru("(cd {root} && zipalign -p 4 patched.apk aligned.apk && rm -f patched.apk)".format(root=d))
+        copyfile(os.path.join(d, 'aligned.apk'), self.out)
