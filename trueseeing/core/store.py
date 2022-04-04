@@ -22,21 +22,33 @@ import re
 from trueseeing.core.literalquery import StorePrep, Query
 
 if TYPE_CHECKING:
+  import sqlite3
   from typing import Optional, Any, Iterable, Set, Tuple, List
   from trueseeing.core.code.model import Op
 
 class Store:
+  _db: Optional[sqlite3.Connection] = None
+
   def __init__(self, path: str, exclude_packages: List[str] = []) -> None:
-    import os.path
-    import sqlite3
+    self._path = path
     self._excludes = exclude_packages
-    self.path = os.path.join(path, 'store.db')
-    is_creating = not os.path.exists(self.path)
-    self.db = sqlite3.connect(self.path)
-    self.db.create_function("REGEXP", 2, Store._re_fn)
-    StorePrep(self.db).stage0()
-    if is_creating:
-      StorePrep(self.db).stage1()
+
+  @property
+  def db(self) -> sqlite3.Connection:
+    if self._db is not None:
+      return self._db
+    else:
+      import os.path
+      import sqlite3
+      store_path = os.path.join(self._path, 'store.db')
+      is_creating = not os.path.exists(store_path)
+      o = sqlite3.connect(store_path)
+      o.create_function("REGEXP", 2, Store._re_fn)
+      StorePrep(o).stage0()
+      if is_creating:
+        StorePrep(o).stage1()
+      self._db = o
+      return o
 
   @staticmethod
   def _re_fn(expr: str, item: Any) -> bool:
