@@ -66,9 +66,12 @@ class Resigner:
       sigfile = self._sigfile(d)
       await invoke_passthru(f"(cd {d}/t && rm -rf META-INF && zip -qr ../signed.apk .)")
       await invoke_passthru(
-        f"(cd {d} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {SigningKey().key()} -storepass android -keypass android -sigfile {sigfile} signed.apk androiddebugkey)"
+        f"(cd {d} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {await SigningKey().key()} -storepass android -keypass android -sigfile {sigfile} signed.apk androiddebugkey)"
       )
-      shutil.copyfile(os.path.join(d, 'signed.apk'), self.out)
+      await invoke_passthru(
+        f"(cd {d} && zipalign -p 4 signed.apk aligned.apk && rm -f signed.apk)"
+      )
+      shutil.copyfile(os.path.join(d, 'aligned.apk'), self.out)
 
   def _sigfile(self, root: str) -> str:
     import re
