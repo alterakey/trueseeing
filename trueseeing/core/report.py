@@ -28,7 +28,7 @@ if TYPE_CHECKING:
   from typing_extensions import Literal
   from trueseeing.core.context import Context
 
-  ReportFormat = Literal['html', 'gcc', 'json']
+  ReportFormat = Literal['html', 'json']
 
   class ReportGenerator(Protocol):
     def note(self, issue: Issue) -> None: ...

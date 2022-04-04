@@ -68,12 +68,13 @@ class AnalyzeSession:
       found = False
 
       reporter: ReportGenerator
-      if self._ci_mode == 'gcc':
+      if self._outfile is None:
         reporter = CIReportGenerator(context)
-      elif self._ci_mode == 'json':
-        reporter = JSONReportGenerator(context)
       else:
-        reporter = HTMLReportGenerator(context)
+        if self._ci_mode == 'json':
+          reporter = JSONReportGenerator(context)
+        else:
+          reporter = HTMLReportGenerator(context)
 
       with context.store().db as db:
         # XXX
@@ -88,12 +89,15 @@ class AnalyzeSession:
         await asyncio.gather(*[c(context).detect() for c in self._chain])
         pub.unsubscribe(_detected, 'issue')
 
-      with self._open_outfile() as f:
-        reporter.generate(f)
+      if self._outfile is not None:
+        with self._open_outfile() as f:
+          reporter.generate(f)
+
       return reporter.return_(found)
 
   def _open_outfile(self) -> TextIO:
-    if self._outfile is None:
+    assert self._outfile is not None
+    if self._outfile == '-':
       import sys
       return sys.stdout
     else:
