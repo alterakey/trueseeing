@@ -55,7 +55,7 @@ class Context:
     with open(self._apk, 'rb') as f:
       return sha256(f.read()).hexdigest()
 
-  def analyze(self, skip_resources: bool = False) -> None:
+  async def analyze(self, skip_resources: bool = False) -> None:
     if os.path.exists(os.path.join(self.wd, '.done')):
       ui.debug('analyzed once')
     else:
@@ -67,7 +67,7 @@ class Context:
       ui.info('\ranalyze: disassembling... ', nl=False)
       os.makedirs(self.wd, mode=0o700)
       self._copy_target()
-      self._decode_apk(skip_resources)
+      await self._decode_apk(skip_resources)
       ui.info('\ranalyze: disassembling... done.')
 
       SmaliAnalyzer(self.store()).analyze(
@@ -79,11 +79,11 @@ class Context:
     from trueseeing.core.api import Extension
     Extension.get().patch_context(self)
 
-  def _decode_apk(self, skip_resources: bool) -> None:
+  async def _decode_apk(self, skip_resources: bool) -> None:
     import pkg_resources
     from trueseeing.core.tools import invoke
     # XXX insecure
-    invoke("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
+    await invoke("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
       apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
       wd=self.wd,
       apk=self._apk,

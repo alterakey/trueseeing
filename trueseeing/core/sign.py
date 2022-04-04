@@ -29,14 +29,14 @@ if TYPE_CHECKING:
   pass
 
 class SigningKey:
-  def key(self) -> str:
+  async def key(self) -> str:
     path = os.path.join(os.environ['HOME'], '.android', 'debug.keystore')
     if os.path.exists(path):
       return path
     else:
       os.makedirs(os.path.dirname(path))
       ui.info("generating key for repackaging")
-      invoke_passthru(f'keytool -genkey -v -keystore {path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
+      await invoke_passthru(f'keytool -genkey -v -keystore {path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
       return path
 
 
@@ -45,11 +45,11 @@ class Unsigner:
     self.apk = os.path.realpath(apk)
     self.out = out
 
-  def unsign(self) -> None:
+  async def unsign(self) -> None:
     # XXX insecure
     with tempfile.TemporaryDirectory() as d:
-      invoke_passthru(f"(mkdir -p {d}/t)")
-      invoke_passthru(f"(cd {d}/t && unzip -q {self.apk} && rm -rf META-INF && zip -qr ../unsigned.apk .)")
+      await invoke_passthru(f"(mkdir -p {d}/t)")
+      await invoke_passthru(f"(cd {d}/t && unzip -q {self.apk} && rm -rf META-INF && zip -qr ../unsigned.apk .)")
       shutil.copyfile(os.path.join(d, 'unsigned.apk'), self.out)
 
 
@@ -58,14 +58,14 @@ class Resigner:
     self.apk = os.path.realpath(apk)
     self.out = out
 
-  def resign(self) -> None:
+  async def resign(self) -> None:
     # XXX insecure
     with tempfile.TemporaryDirectory() as d:
-      invoke_passthru(f"(mkdir -p {d}/t)")
-      invoke_passthru(f"(cd {d}/t && unzip -q {self.apk})")
+      await invoke_passthru(f"(mkdir -p {d}/t)")
+      await invoke_passthru(f"(cd {d}/t && unzip -q {self.apk})")
       sigfile = self._sigfile(d)
-      invoke_passthru(f"(cd {d}/t && rm -rf META-INF && zip -qr ../signed.apk .)")
-      invoke_passthru(
+      await invoke_passthru(f"(cd {d}/t && rm -rf META-INF && zip -qr ../signed.apk .)")
+      await invoke_passthru(
         f"(cd {d} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {SigningKey().key()} -storepass android -keypass android -sigfile {sigfile} signed.apk androiddebugkey)"
       )
       shutil.copyfile(os.path.join(d, 'signed.apk'), self.out)
