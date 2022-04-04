@@ -46,7 +46,7 @@ def _check_return_code(p: Any, args: Any, out: Any, err: Any) -> None:
     from subprocess import CalledProcessError
     raise CalledProcessError(p.returncode, args, out, err)
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=1)
 def _detect_build_tools() -> str:
   import os.path
   import glob
