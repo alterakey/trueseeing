@@ -34,7 +34,7 @@ class InspectMode:
     f = self._files[0]
     with Context(f, []) as context:
       ui.info(f"inspection mode; analyzing {f}")
-      context.analyze()
+      await context.analyze()
       ui.info("analyzed, context in 'context'")
       from IPython import embed
       embed()

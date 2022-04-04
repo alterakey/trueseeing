@@ -18,8 +18,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import asyncio
+
 if TYPE_CHECKING:
-  from typing import Any, Optional
+  from typing import Any, Optional, AsyncIterable, TypeVar, List
+  T = TypeVar('T')
 
 def noneif(x: Any, defaulter: Any) -> Any:
   if x is not None:
@@ -30,17 +33,33 @@ def noneif(x: Any, defaulter: Any) -> Any:
     else:
       return defaulter
 
-def invoke(as_: str, redir_stderr: bool = False) -> str:
-  from subprocess import run, PIPE, STDOUT
-  return run(as_, shell=True, check=True, stdout=PIPE, stderr=(STDOUT if redir_stderr else None)).stdout.decode('utf-8')
+async def list_async(iter: AsyncIterable[T]) -> List[T]:
+  o = []
+  async for t in iter:
+    o.append(t)
+  return o
 
-def invoke_passthru(as_: str, nocheck: bool = False) -> None:
-  from subprocess import run
-  run(as_, shell=True, check=(not nocheck))
+def _check_return_code(p: Any, args: Any, out: Any, err: Any) -> None:
+  if p.returncode:
+    from subprocess import CalledProcessError
+    raise CalledProcessError(p.returncode, args, out, err)
 
-def try_invoke(as_: str) -> Optional[str]:
+async def invoke(as_: str, redir_stderr: bool = False) -> str:
+  from subprocess import PIPE, STDOUT
+  p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
+  out, _ = await p.communicate()
+  _check_return_code(p, as_, out, None)
+  return out.decode('UTF-8')
+
+async def invoke_passthru(as_: str, nocheck: bool = False) -> None:
+  p = await asyncio.create_subprocess_shell(as_)
+  await p.communicate()
+  if not nocheck:
+    _check_return_code(p, as_, None, None)
+
+async def try_invoke(as_: str) -> Optional[str]:
   from subprocess import CalledProcessError
   try:
-    return invoke(as_)
+    return await invoke(as_)
   except CalledProcessError:
     return None

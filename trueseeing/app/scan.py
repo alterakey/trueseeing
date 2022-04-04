@@ -60,7 +60,7 @@ class AnalyzeSession:
 
   async def invoke(self, apkfilename: str) -> bool:
     with Context(apkfilename, self._exclude_packages) as context:
-      context.analyze()
+      await context.analyze()
       ui.info(f"{apkfilename} -> {context.wd}")
       with context.store().db as db:
         db.execute('delete from analysis_issues')

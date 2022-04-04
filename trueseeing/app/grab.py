@@ -20,11 +20,11 @@ from typing import TYPE_CHECKING
 
 import re
 import os
-from trueseeing.core.tools import try_invoke, invoke
+from trueseeing.core.tools import try_invoke, invoke, list_async
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Iterable, TypeVar, Tuple
+  from typing import List, Iterable, TypeVar, Tuple, AsyncIterable
   T = TypeVar('T')
 
 FALLBACK_VERSION = 8.0
@@ -37,28 +37,27 @@ class GrabMode:
   async def invoke(self) -> int:
     if self._packages:
       for pkg in self._packages:
-        if Grab(pkg).exploit():
+        if await Grab(pkg).exploit():
           ui.info(f'package saved: {pkg}.apk')
           return 0
       else:
         ui.fatal('package not found')
     else:
       ui.info('listing packages')
-      for p in sorted(Grab.get_package_list()):
+      for p in sorted(await list_async(Grab.get_package_list())):
         ui.stdout(p)
       return 0
-
 
 class Grab:
   _target: str
   def __init__(self, target: str) -> None:
     self._target = target
 
-  def exploit(self) -> bool:
-    for from_, to_ in self._path_from(self._target):
-      out = try_invoke(f"adb pull {from_} {to_} 2>/dev/null")
+  async def exploit(self) -> bool:
+    async for from_, to_ in self._path_from(self._target):
+      out = await try_invoke(f"adb pull {from_} {to_} 2>/dev/null")
       if out is None:
-        out = try_invoke(f"adb shell 'cat {from_} 2>/dev/null' > {to_}")
+        out = await try_invoke(f"adb shell 'cat {from_} 2>/dev/null' > {to_}")
         if out is not None and os.path.getsize(to_) > 0:
           return True
         else:
@@ -66,19 +65,23 @@ class Grab:
     return True
 
   @classmethod
-  def get_package_list(cls) -> Iterable[str]:
-    out = invoke("adb shell pm list packages")
-    return (l.replace('package:', '') for l in filter(None, out.split('\n')))
+  async def get_package_list(cls) -> AsyncIterable[str]:
+    out = await invoke("adb shell pm list packages")
+    for l in filter(None, out.split('\n')):
+      yield l.replace('package:', '')
 
   @classmethod
-  def _path_from(cls, package: str) -> Iterable[Tuple[str, str]]:
-    version = cls._version_of_default_device()
+  async def _path_from(cls, package: str) -> AsyncIterable[Tuple[str, str]]:
+    version = await cls._version_of_default_device()
     if version >= 8.0:
-      return cls._path_from_dump(package)
+      async for t in cls._path_from_dump(package):
+        yield t
     elif version >= 4.4:
-      return cls._path_from_multidex(package)
+      for t in cls._path_from_multidex(package):
+        yield t
     else:
-      return cls._path_from_premultidex(package)
+      for t in cls._path_from_premultidex(package):
+        yield t
 
   @classmethod
   def _path_from_premultidex(cls, package: str) -> Iterable[Tuple[str, str]]:
@@ -91,8 +94,8 @@ class Grab:
       yield f'/data/app/{package}-{i}/base.apk', f'{package}.apk'
 
   @classmethod
-  def _path_from_dump(cls, package: str) -> Iterable[Tuple[str, str]]:
-    out = invoke(f'adb shell pm dump "{package}"')
+  async def _path_from_dump(cls, package: str) -> AsyncIterable[Tuple[str, str]]:
+    out = await invoke(f'adb shell pm dump "{package}"')
     m = re.search(f'codePath=(/data/app/.*{package}-.+)', out)
     if m:
       yield os.path.join(m.group(1), 'base.apk'), f'{package}.apk'
@@ -100,8 +103,8 @@ class Grab:
       raise RuntimeError('pm dump does not return codePath')
 
   @classmethod
-  def _version_of_default_device(cls) -> float:
-    out = try_invoke("adb shell cat /system/build.prop")
+  async def _version_of_default_device(cls) -> float:
+    out = await try_invoke("adb shell cat /system/build.prop")
     if out is None:
       return FALLBACK_VERSION
     m = re.search(r'ro.build.version.release=(.+?)', out)
