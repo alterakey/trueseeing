@@ -125,6 +125,7 @@ Patch mode:
   --patch-all               Patch mode: apply fix
 
 Misc:
+  --exp-use-container       Use container to handle APKs (experimental)
   --inspect                 Interactive mode
 '''
     ])
@@ -159,6 +160,7 @@ Misc:
     fingerprint_mode = False
     grab_mode = False
     inspection_mode = False
+    bootstrap_mode = False
     output_filename: Optional[str] = None
     ci_mode: ReportFormat = 'html'
     exclude_packages: List[str] = []
@@ -166,7 +168,7 @@ Misc:
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect',
-                                 'output=', 'format=', 'version', 'patch-all', 'exclude='])
+                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'bootstrap'])
     for o, a in opts:
       if o in ['-d', '--debug']:
         log_level = ui.DEBUG
@@ -192,6 +194,8 @@ Misc:
         exclude_packages.append(a)
       if o in ['--patch-all']:
         patch_mode = 'all'
+      if o in ['--bootstrap']:
+        bootstrap_mode = True
       if o in ['--grab']:
         grab_mode = True
       if o in ['--fingerprint']:
@@ -219,6 +223,9 @@ Misc:
     if grab_mode:
       from trueseeing.app.grab import GrabMode
       return self._launch(GrabMode(packages=files).invoke())
+    elif bootstrap_mode:
+      from trueseeing.app.boot import BootstrapMode
+      return self._launch(BootstrapMode().invoke())
     else:
       if not files:
         ui.fatal("no input files")

@@ -73,10 +73,10 @@ class ManifestManipActivity(Detector):
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
     for name in set(itertools.chain(
-        self._context.parsed_manifest().getroot().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
-        self._context.parsed_manifest().getroot().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
+        self._context.parsed_manifest().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
+        self._context.parsed_manifest().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
     )):
-      filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in self._context.parsed_manifest().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
@@ -114,10 +114,10 @@ class ManifestManipBroadcastReceiver(Detector):
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
     for name in set(itertools.chain(
-        self._context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
-        self._context.parsed_manifest().getroot().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
+        self._context.parsed_manifest().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
+        self._context.parsed_manifest().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
     )):
-      filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in self._context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
@@ -155,10 +155,10 @@ class ManifestManipContentProvider(Detector):
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
     for name in set(itertools.chain(
-        self._context.parsed_manifest().getroot().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-        self._context.parsed_manifest().getroot().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+        self._context.parsed_manifest().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+        self._context.parsed_manifest().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
     )):
-      filter_ = [name for name in self._context.parsed_manifest().getroot().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in self._context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
@@ -199,7 +199,7 @@ class ManifestManipBackup(Detector):
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/'
 
   async def detect(self) -> None:
-    if self._context.parsed_manifest().getroot().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+    if self._context.parsed_manifest().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       pub.sendMessage('issue', issue=Issue(
         detector_id=self.option,
         confidence='certain',
@@ -221,7 +221,7 @@ class ManifestDebuggable(Detector):
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/'
 
   async def detect(self) -> None:
-    if self._context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+    if self._context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       pub.sendMessage('issue', issue=Issue(
         detector_id=self.option,
         confidence='certain',

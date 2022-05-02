@@ -43,8 +43,11 @@ class Store:
     o.create_function("REGEXP", 2, Store._re_fn)
     StorePrep(o).stage0()
     if is_creating:
-      StorePrep(o).stage1()
+      self.prepare_schema()
     return o
+
+  def prepare_schema(self) -> None:
+    StorePrep(self.db).stage1()
 
   @staticmethod
   def _re_fn(expr: str, item: Any) -> bool:

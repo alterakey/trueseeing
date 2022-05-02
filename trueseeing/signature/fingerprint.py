@@ -18,7 +18,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import glob
+import io
 import os
 import re
 
@@ -117,7 +117,7 @@ class LibraryDetector(Detector):
       return not cls._suffixes_public.looks_public(shared)
 
   async def detect(self) -> None:
-    package = self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
+    package = self._context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
     packages: Dict[str, List[str]] = dict()
     for fn in (self._context.source_name_of_disassembled_class(r) for r in self._context.disassembled_classes()):
@@ -174,20 +174,19 @@ class LibraryDetector(Detector):
               info1=f'{ver} ({p})',
             ))
 
-    files = [fn for fn in glob.glob(os.path.join(self._context.wd, 'assets', '**/*.js'), recursive=True) if os.path.isfile(fn)]
-    for fn in files:
-      with open(fn, 'r', encoding='utf-8', errors='ignore') as f:
-        for l in f:
-          for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
-            ver = l
-            if not re.search(r'^/|:[0-9]+|\\|://|[\x00-\x1f]', ver):
-              pub.sendMessage('issue', issue=Issue(
-                detector_id=self.option,
-                confidence='tentative',
-                cvss3_vector=self._cvss,
-                summary='potential version/dated reference in library',
-                info1='{match} ({rfn})'.format(rfn=os.path.relpath(fn, self._context.wd), match=ver),
-              ))
+    for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='assets/%.js')):
+      f = io.StringIO(blob.decode('utf-8', errors='ignore'))
+      for l in f:
+        for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
+          ver = l
+          if not re.search(r'^/|:[0-9]+|\\|://|[\x00-\x1f]', ver):
+            pub.sendMessage('issue', issue=Issue(
+              detector_id=self.option,
+              confidence='tentative',
+              cvss3_vector=self._cvss,
+              summary='potential version/dated reference in library',
+              info1='{match} ({rfn})'.format(rfn=fn, match=ver),
+            ))
 
   def _comp4_looks_like_version(self, xs: List[str]) -> bool:
     if xs[0].lower().startswith('v'):
@@ -297,14 +296,15 @@ class NativeArchDetector(Detector):
   _synopsis = "The application has native codes for some architectures."
 
   async def detect(self) -> None:
-    dirs = [fn for fn in glob.glob(os.path.join(self._context.wd, 'lib', '*')) if os.path.isdir(fn)]
-    for d in dirs:
+    for d, in self._context.store().db.execute('select path from files where path like :pat', dict(pat='lib/%')):
       if re.search(r'arm|x86|mips', d):
+        arch = d.split('/')[1]
         pub.sendMessage('issue', issue=Issue(
           detector_id=self.option,
           confidence='firm',
           cvss3_vector=self._cvss,
           summary=self._summary,
-          info1=os.path.basename(d),
+          info1=arch,
+          info2=os.path.basename(d),
           synopsis=self._synopsis,
         ))

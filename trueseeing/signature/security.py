@@ -18,8 +18,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import glob
 import itertools
+import io
 import re
 import os
 
@@ -72,11 +72,11 @@ class SecurityTlsInterceptionDetector(Detector):
   async def detect(self) -> None:
     pin_nsc = False
     if self._context.get_min_sdk_version() > 23:
-      if not self._context.parsed_manifest().getroot().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+      if not self._context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
         pin_nsc = True
 
     for fn, xp in self._context.xml_resources():
-      if 'network-security-config' in xp.getroot().tag.lower():
+      if 'network-security-config' in xp.tag.lower():
         for e in xp.xpath('.//certificates'):
           if e.attrib.get('src') == 'user':
             pin_nsc = False
@@ -246,23 +246,22 @@ class SecurityTamperableWebViewDetector(Detector):
             targets.add(name)
             more = True
 
-      for fn in (n for n in self._context.disassembled_resources() if 'layout' in n):
-        with open(fn, 'rb') as f:
-          r = ET.parse(f, parser=ET.XMLParser(recover=True)).getroot()
-          for t in reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self._context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
-            size = LayoutSizeGuesser().guessed_size(t, fn)
-            if size > 0.5:
-              try:
-                pub.sendMessage('issue', issue=Issue(
-                  detector_id=self.option,
-                  confidence='tentative',
-                  cvss3_vector=self._cvss1,
-                  summary=self._summary1,
-                  info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self._xmlns_android}id'], size),
-                  source=self._context.source_name_of_disassembled_resource(fn)
-                ))
-              except KeyError as e:
-                ui.warn(f'SecurityTamperableWebViewDetector.do_detect: missing key {e}')
+      for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='res/%layout%.xml')):
+        r = ET.fromstring(blob, parser=ET.XMLParser(recover=True))
+        for t in reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self._context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
+          size = LayoutSizeGuesser().guessed_size(t, fn)
+          if size > 0.5:
+            try:
+              pub.sendMessage('issue', issue=Issue(
+                detector_id=self.option,
+                confidence='tentative',
+                cvss3_vector=self._cvss1,
+                summary=self._summary1,
+                info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self._xmlns_android}id'], size),
+                source=self._context.source_name_of_disassembled_resource(fn)
+              ))
+            except KeyError as e:
+              ui.warn(f'SecurityTamperableWebViewDetector.do_detect: missing key {e}')
 
       # XXX: crude detection
       for op in store.query().invocations(InvocationPattern('invoke-', ';->loadUrl')):
@@ -401,8 +400,8 @@ class SecurityInsecureWebViewDetector(Detector):
           v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
           if v.startswith('file:///android_asset/'):
             path = v.replace('file:///android_asset/', 'assets/')
-            with open(os.path.join(self._context.wd, path)) as f:
-              content = f.read()
+            for blob, in store.db.execute('select blob from files where path=:path', dict(path=path)):
+              content = blob.decode('utf-8', errors='ignore')
               m = re.search('<meta .*Content-Security-Policy.*content="(.*)?">', content, flags=re.IGNORECASE)
               csp: Optional[str] = None if m is None else m.group(1)
               if csp is None or any([(x in csp.lower()) for x in ('unsafe', 'http:')]):
@@ -559,19 +558,18 @@ class ClientXSSJQDetector(Detector):
   _synopsis = "The application pours literal HTML in JQuery context."
 
   async def detect(self) -> None:
-    files = [fn for fn in glob.glob(os.path.join(self._context.wd, 'assets', '**/*.js'), recursive=True) if os.path.isfile(fn)]
-    for fn in files:
-      with open(fn, 'r') as f:
-        for l in f:
-          for m in re.finditer(r'\.html\(', l):
-            pub.sendMessage('issue', issue=Issue(
-              detector_id=self.option,
-              confidence='firm',
-              cvss3_vector=self._cvss,
-              summary=self._summary,
-              info1='{match} ({rfn})'.format(rfn=os.path.relpath(fn, self._context.wd), match=l),
-              synopsis=self._synopsis,
-            ))
+    for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='assets/%.js')):
+      f = io.StringIO(blob.decode('utf-8', errors='ignore'))
+      for l in f:
+        for m in re.finditer(r'\.html\(', l):
+          pub.sendMessage('issue', issue=Issue(
+            detector_id=self.option,
+            confidence='firm',
+            cvss3_vector=self._cvss,
+            summary=self._summary,
+            info1='{match} ({rfn})'.format(rfn=fn, match=l),
+            synopsis=self._synopsis,
+          ))
 
 class SecurityFileWriteDetector(Detector):
   option = 'security-file-write'

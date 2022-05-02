@@ -24,7 +24,7 @@ from trueseeing.core.code.model import Op, Annotation
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Iterable, Optional, Type, TextIO, List, Tuple, TypeVar, Set
+  from typing import Iterable, Optional, Type, List, Tuple, TypeVar, Set
   from types import TracebackType
   from trueseeing.core.store import Store
 
@@ -41,7 +41,7 @@ class SmaliAnalyzer:
   def __exit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
     pass
 
-  def analyze(self, fs: Iterable[TextIO]) -> None:
+  def analyze(self) -> None:
     import time
     analyzed_ops = 0
     analyzed_methods = 0
@@ -55,9 +55,9 @@ class SmaliAnalyzer:
       base_id = 1
       last_seen = analyzed_ops
 
-      for f in fs:
+      for f, in c.execute('select blob from files where path like :path', dict(path='smali%/%.smali')):
         ops = []
-        for op in P.parsed_flat(f.read()):
+        for op in P.parsed_flat(f.decode('utf-8')):
           analyzed_ops += 1
           for idx, o in enumerate(tuple([op] + op.p)):
             o._idx = idx
