@@ -60,6 +60,7 @@ class Context:
     if os.path.exists(os.path.join(self.wd, '.done')):
       ui.debug('analyzed once')
     else:
+      from trueseeing.core.asm import APKDisassembler
       from trueseeing.core.code.parse import SmaliAnalyzer
       if os.path.exists(self.wd):
         ui.info('analyze: removing leftover')
@@ -68,11 +69,10 @@ class Context:
       ui.info('\ranalyze: disassembling... ', nl=False)
       os.makedirs(self.wd, mode=0o700)
       self._copy_target()
-      await self._decode_apk(skip_resources)
+      APKDisassembler(self, skip_resources).disassemble()
       ui.info('\ranalyze: disassembling... done.')
 
-      SmaliAnalyzer(self.store()).analyze(
-        open(fn, 'r', encoding='utf-8') for fn in self.disassembled_classes())
+      SmaliAnalyzer(self.store()).analyze()
 
       with open(os.path.join(self.wd, '.done'), 'w'):
         pass
@@ -80,24 +80,14 @@ class Context:
     from trueseeing.core.api import Extension
     Extension.get().patch_context(self)
 
-  async def _decode_apk(self, skip_resources: bool) -> None:
-    import pkg_resources
-    from trueseeing.core.tools import invoke
-    # XXX insecure
-    await invoke("java -jar {apktool} d -f {skipresflag} -o {wd} {apk}".format(
-      apktool=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
-      wd=self.wd,
-      apk=self._apk,
-      skipresflag=('-r' if skip_resources else '')
-    ), redir_stderr=True)
-
   def _copy_target(self) -> None:
     if not os.path.exists(os.path.join(self.wd, 'target.apk')):
       shutil.copyfile(self._apk, os.path.join(self.wd, 'target.apk'))
 
   def parsed_manifest(self) -> Any:
-    with open(os.path.join(self.wd, 'AndroidManifest.xml'), 'rb') as f:
-      return ET.parse(f, parser=ET.XMLParser(recover=True))
+    with self.store().db as db:
+      for o, in db.execute('select blob from files where path=:path', dict(path='AndroidManifest.xml')):
+        return ET.fromstring(o, parser=ET.XMLParser(recover=True))
 
   def manifest_as_xml(self, manifest: Any) -> bytes:
     assert manifest is not None
@@ -106,8 +96,9 @@ class Context:
   def _parsed_apktool_yml(self) -> Any:
     # FIXME: using ruamel.yaml?
     import yaml
-    with open(os.path.join(self.wd, 'apktool.yml'), 'r') as f:
-      return yaml.safe_load(re.sub(r'!!brut\.androlib\.meta\.MetaInfo', '', f.read()))
+    with self.store().db as db:
+      for o, in db.execute('select blob from files where path=:path', dict(path='apktool.yml')):
+        return yaml.safe_load(re.sub(r'!!brut\.androlib\.meta\.MetaInfo', '', o.decode('utf-8')))
 
   # FIXME: Handle invalid values
   def get_min_sdk_version(self) -> int:
@@ -115,65 +106,53 @@ class Context:
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self) -> List[str]:
-    from itertools import chain
-    from glob import glob
-    o: List[str] = []
-    for root, dirs, files in chain(*(os.walk(p) for p in glob(os.path.join(self.wd, 'smali*/')))):
-      o.extend([os.path.join(root, f) for f in files if f.endswith('.smali')])
-    return o
+    with self.store().db as db:
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='smali%.smali'))]
 
   @functools.lru_cache(maxsize=1)
   def disassembled_resources(self) -> List[str]:
-    o: List[str] = []
-    for root, dirs, files in os.walk(os.path.join(self.wd, 'res')):
-      o.extend(os.path.join(root, f) for f in files if f.endswith('.xml'))
-    return o
+    with self.store().db as db:
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='res/%.xml'))]
 
   @functools.lru_cache(maxsize=1)
   def disassembled_assets(self) -> List[str]:
-    o: List[str] = []
-    for root, dirs, files in os.walk(os.path.join(self.wd, 'assets')):
-      o.extend(os.path.join(root, f) for f in files)
-    return o
+    with self.store().db as db:
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='assets/%'))]
 
   def source_name_of_disassembled_class(self, fn: str) -> str:
-    return os.path.join(*os.path.relpath(fn, self.wd).split(os.sep)[1:])
+    return os.path.join(*fn.split('/')[1:])
 
   def dalvik_type_of_disassembled_class(self, fn: str) -> str:
     return 'L{};'.format((self.source_name_of_disassembled_class(fn).replace('.smali', '')))
 
   def source_name_of_disassembled_resource(self, fn: str) -> str:
-    return os.path.relpath(fn, os.path.join(self.wd, 'res'))
+    return os.path.join(*fn.split('/')[1:])
 
   def class_name_of_dalvik_class_type(self, dc: str) -> str:
     return re.sub(r'^L|;$', '', dc).replace('/', '.')
 
   def permissions_declared(self) -> Iterable[Any]:
-    yield from self.parsed_manifest().getroot().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
+    yield from self.parsed_manifest().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
 
   @functools.lru_cache(maxsize=1)
   def _string_resource_files(self) -> List[str]:
-    o: List[str] = []
-    for root, dirs, files in os.walk(os.path.join(self.wd, 'res', 'values')):
-      o.extend(os.path.join(root, f) for f in files if 'strings' in f)
-    return o
+    with self.store().db as db:
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='res/values/%strings%'))]
 
   def string_resources(self) -> Iterable[Tuple[str, str]]:
-    for fn in self._string_resource_files():
-      with open(fn, 'rb') as f:
-        yield from ((c.attrib['name'], c.text) for c in ET.parse(f, parser=ET.XMLParser(recover=True)).getroot().xpath('//resources/string') if c.text)
+    with self.store().db as db:
+      for o, in db.execute('select blob from files where path like :path', dict(path='res/values/%strings%')):
+        yield from ((c.attrib['name'], c.text) for c in ET.fromstring(o, parser=ET.XMLParser(recover=True)).xpath('//resources/string') if c.text)
 
   @functools.lru_cache(maxsize=1)
   def _xml_resource_files(self) -> List[str]:
-    o: List[str] = []
-    for root, dirs, files in os.walk(os.path.join(self.wd, 'res', 'xml')):
-      o.extend(os.path.join(root, f) for f in files if f.endswith('.xml'))
-    return o
+    with self.store().db as db:
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='res/xml/%.xml'))]
 
   def xml_resources(self) -> Iterable[Tuple[str, Any]]:
-    for fn in self._xml_resource_files():
-      with open(fn, 'rb') as f:
-        yield (fn, ET.parse(f, parser=ET.XMLParser(recover=True)))
+    with self.store().db as db:
+      for fn, o in db.execute('select path, blob from files where path like :path', dict(path='res/xml/%.xml')):
+        yield (fn, ET.fromstring(o, parser=ET.XMLParser(recover=True)))
 
   def is_qualname_excluded(self, qualname: Optional[str]) -> bool:
     if qualname is not None:

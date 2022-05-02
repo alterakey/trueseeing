@@ -82,7 +82,7 @@ class HTMLReportGenerator(CIReportGenerator):
           instances.append(dict(info=issue.brief_info(), source=issue.source, row=issue.row, col=issue.col))
 
       app = dict(
-        package=self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
+        package=self._context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
         issues=len(issues),
         issues_critical=len([_ for _ in issues if _['severity'] == 'Critical']),
         issues_high=len([_ for _ in issues if _['severity'] == 'High']),
@@ -121,7 +121,7 @@ class JSONReportGenerator(CIReportGenerator):
             col=issue.col))
 
       app = dict(
-        package=self._context.parsed_manifest().getroot().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
+        package=self._context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
         issues=len(issues)
       )
       f.write(dumps({"app": app, "issues": issues}, indent=2))

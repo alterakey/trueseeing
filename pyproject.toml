@@ -22,6 +22,7 @@ dependencies = [
     "ipython<9",
     "attrs~=21.4",
     "pypubsub~=4.0",
+    "docker~=5.0.3",
 ]
 requires-python = ">=3.7"
 dynamic = ['version', 'description']
@@ -46,6 +47,7 @@ module = [
   "jinja2",
   "IPython",
   "pubsub",
+  "docker",
 ]
 ignore_missing_imports = true
 
