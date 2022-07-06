@@ -42,6 +42,7 @@ class APKDisassembler:
       ui.fatal('docker is not available')
     else:
       cli.images.build(tag='trueseeing-apk', path=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'container')))
+      cli.images.build(tag='trueseeing-apk-zipalign', path=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'container')), dockerfile='Dockerfile-zipalign', platform='linux/amd64')
 
   def disassemble(self) -> None:
     self._do()
@@ -93,7 +94,7 @@ class APKDisassembler:
 
       with c:
         _ = subprocess.run('java -jar {apktooljar} d --use-aapt2 -o files {apk}'.format(
-          apktooljar=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
+          apktooljar=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'container', 'apktool.jar')),
           apk=apk
         ), shell=True, capture_output=True)
         os.chdir('files')
