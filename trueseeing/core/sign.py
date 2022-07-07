@@ -28,12 +28,12 @@ from trueseeing.core.tools import invoke_passthru
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  pass
+  from typing import Any, Optional
 
 class SigningKey:
   _path: str
 
-  def __init__(self):
+  def __init__(self) -> None:
     self._path = os.path.join(os.environ['HOME'], '.trueseeing2', 'sign.keystore')
 
   async def key(self) -> str:
@@ -70,7 +70,6 @@ class SigningKey:
   async def _do_without_container(self) -> None:
     ui.info("generating key for repackaging")
     await invoke_passthru(f'keytool -genkey -v -keystore {self._path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
-    return path
 
 class ZipAligner:
   _path: str
@@ -106,8 +105,7 @@ class ZipAligner:
         raise
 
   async def _do_without_container(self) -> None:
-    await invoke_passthru(f'rm -f {self._outpath} && zipalign -p 4 {self._path} {self._outpath}', shell=True)
-    return path
+    await invoke_passthru(f'rm -f {self._outpath} && zipalign -p 4 {self._path} {self._outpath}')
 
 class Unsigner:
   _path: str

@@ -56,6 +56,7 @@ class PatchBackupable:
       f.write(context.manifest_as_xml(manifest))
 
 class PatchLoggers:
+
   def apply(self, context: Context) -> None:
     import re
     for fn in context.disassembled_classes():
