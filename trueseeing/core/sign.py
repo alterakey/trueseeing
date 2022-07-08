@@ -93,9 +93,11 @@ class ZipAligner:
         await self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
-    con = cli.containers.run('trueseeing-apk-zipalign', command=['-fp', '4', os.path.basename(self._path), os.path.basename(self._outpath)], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
+    tmpfile = 'aligned.apk'
+    con = cli.containers.run('trueseeing-apk-zipalign', command=['-fp', '4', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
+      shutil.move(os.path.join(os.path.dirname(self._path), tmpfile), self._outpath)
     except KeyboardInterrupt:
       try:
         con.kill()
@@ -129,9 +131,11 @@ class Unsigner:
         self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
-    con = cli.containers.run('trueseeing-apk', command=['unsign.py', os.path.basename(self._path), os.path.basename(self._outpath)], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
+    tmpfile = 'unsigned.apk'
+    con = cli.containers.run('trueseeing-apk', command=['unsign.py', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
+      shutil.move(os.path.join(os.path.dirname(self._path), tmpfile), self._outpath)
     except KeyboardInterrupt:
       try:
         con.kill()

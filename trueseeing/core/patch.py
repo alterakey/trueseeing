@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import os
+from shutil import copyfile
 
 import docker
 
@@ -119,7 +120,6 @@ class Patcher:
       return None
 
   async def _build_without_container(self, context: Context) -> None:
-    from shutil import copyfile
     from tempfile import TemporaryDirectory
     from pkg_resources import resource_filename
 
