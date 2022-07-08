@@ -41,28 +41,26 @@ class PatchMode:
 
 class PatchDebuggable:
   def apply(self, context: Context) -> None:
-    manifest = context.parsed_manifest()
+    manifest = context.parsed_manifest(patched=True)
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "false"
-    with open(os.path.join(context.wd, 'AndroidManifest.xml'), 'wb') as f:
-      f.write(context.manifest_as_xml(manifest))
+    with context.store().db as c:
+      c.execute('replace into patches (path, blob) values (:path,:blob)', dict(path='AndroidManifest.xml', blob=context.manifest_as_xml(manifest)))
 
 class PatchBackupable:
   def apply(self, context: Context) -> None:
-    manifest = context.parsed_manifest()
+    manifest = context.parsed_manifest(patched=True)
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "false"
-    with open(os.path.join(context.wd, 'AndroidManifest.xml'), 'wb') as f:
-      f.write(context.manifest_as_xml(manifest))
+    with context.store().db as c:
+      c.execute('replace into patches (path, blob) values (:path,:blob)', dict(path='AndroidManifest.xml', blob=context.manifest_as_xml(manifest)))
 
 class PatchLoggers:
-
   def apply(self, context: Context) -> None:
     import re
-    for fn in context.disassembled_classes():
-      with open(fn, 'r') as f:
-        content = f.read()
-      with open(fn, 'w') as f:
-        stage0 = re.sub(r'^.*?invoke-static.*?Landroid/util/Log;->.*?\(.*?$', '', content, flags=re.MULTILINE)
-        stage1 = re.sub(r'^.*?invoke-virtual.*?Ljava/io/Print(Writer|Stream);->.*?\(.*?$', '', stage0, flags=re.MULTILINE)
-        f.write(stage1)
+    with context.store().db as c:
+      for fn, content in c.execute('select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path like :path', dict(path='smali%.smali')):
+        stage0 = re.sub(rb'^.*?invoke-static.*?Landroid/util/Log;->.*?\(.*?$', b'', content, flags=re.MULTILINE)
+        stage1 = re.sub(rb'^.*?invoke-virtual.*?Ljava/io/Print(Writer|Stream);->.*?\(.*?$', b'', stage0, flags=re.MULTILINE)
+        if content != stage1:
+          c.execute('replace into patches (path, blob) values (:path,:blob)', dict(path=fn, blob=stage1))

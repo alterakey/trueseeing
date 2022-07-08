@@ -84,9 +84,11 @@ class Context:
     if not os.path.exists(os.path.join(self.wd, 'target.apk')):
       shutil.copyfile(self._apk, os.path.join(self.wd, 'target.apk'))
 
-  def parsed_manifest(self) -> Any:
+  def parsed_manifest(self, patched: bool = False) -> Any:
+    stmt0 = 'select blob from files where path=:path'
+    stmt1 = 'select coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path=:path'
     with self.store().db as db:
-      for o, in db.execute('select blob from files where path=:path', dict(path='AndroidManifest.xml')):
+      for o, in db.execute(stmt1 if patched else stmt0, dict(path='AndroidManifest.xml')):
         return ET.fromstring(o, parser=ET.XMLParser(recover=True))
 
   def manifest_as_xml(self, manifest: Any) -> bytes:
