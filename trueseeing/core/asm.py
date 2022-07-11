@@ -81,7 +81,7 @@ class APKDisassembler:
     import shutil
     from trueseeing.core.literalquery import StorePrep
 
-    apk, archive = os.path.join(self._context.wd, 'target.apk'), os.path.join(self._context.wd, 'store.db')
+    apk, archive = 'target.apk', 'store.db'
 
     cwd = os.getcwd()
     try:
@@ -107,4 +107,4 @@ class APKDisassembler:
         c.commit()
     finally:
       os.chdir(cwd)
-      shutil.rmtree(os.path.join(self._context.wd, 'files'))
+      shutil.rmtree(os.path.join(self._context.wd, 'files'), ignore_errors=True)
