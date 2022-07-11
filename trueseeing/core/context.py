@@ -45,7 +45,7 @@ class Context:
     dirname = os.path.join(os.path.dirname(self._apk), f'.trueseeing2-{hashed}')
     return dirname
 
-  @functools.cache
+  @functools.lru_cache(maxsize=None)
   def store(self) -> Store:
     assert self.wd is not None
     from trueseeing.core.store import Store
