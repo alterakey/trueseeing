@@ -36,13 +36,14 @@ class APKDisassembler:
   @classmethod
   def bootstrap(cls) -> None:
     try:
-      import pkg_resources
       cli = docker.from_env()
     except docker.errors.DockerException:
       ui.fatal('docker is not available')
     else:
-      cli.images.build(tag='trueseeing-apk', path=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'container')))
-      cli.images.build(tag='trueseeing-apk-zipalign', path=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'container')), dockerfile='Dockerfile-zipalign', platform='linux/amd64')
+      from pkg_resources import get_distribution
+      version = get_distribution('trueseeing').version
+      cli.images.pull('alterakey/trueseeing-apk', tag=version)
+      cli.images.pull('alterakey/trueseeing-apk-zipalign', tag=version, platform='linux/amd64')
 
   def disassemble(self) -> None:
     self._do()
@@ -55,14 +56,14 @@ class APKDisassembler:
       ui.warn('docker is not available; disassmebling directly')
       self._do_without_container()
     else:
-      if cli.images.list('trueseeing-apk'):
+      if cli.images.list('alterakey/trueseeing-apk'):
         self._do_with_container(cli)
       else:
         ui.warn('container not found (use --bootstrap to build it); disassmebling directly')
         self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
-    con = cli.containers.run('trueseeing-apk', command=['disasm.py', 'target.apk', 'store.db'], volumes={os.path.realpath(self._context.wd):dict(bind='/out')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk', command=['disasm.py', 'target.apk', 'store.db'], volumes={os.path.realpath(self._context.wd):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
     except KeyboardInterrupt:

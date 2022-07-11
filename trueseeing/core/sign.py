@@ -49,14 +49,14 @@ class SigningKey:
       ui.warn('docker is not available; disassmebling directly')
       await self._do_without_container()
     else:
-      if cli.images.list('trueseeing-apk'):
+      if cli.images.list('alterakey/trueseeing-apk'):
         self._do_with_container(cli)
       else:
         ui.warn('container not found (use --bootstrap to build it); generating keystore directly')
         await self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
-    con = cli.containers.run('trueseeing-apk', command=['genkey.py', 'sign.keystore'], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk', command=['genkey.py', 'sign.keystore'], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
     except KeyboardInterrupt:
@@ -86,7 +86,7 @@ class ZipAligner:
       ui.warn('docker is not available; disassmebling directly')
       await self._do_without_container()
     else:
-      if cli.images.list('trueseeing-apk-zipalign'):
+      if cli.images.list('alterakey/trueseeing-apk-zipalign'):
         self._do_with_container(cli)
       else:
         ui.warn('container not found (use --bootstrap to build it); zipaligning directly')
@@ -94,7 +94,7 @@ class ZipAligner:
 
   def _do_with_container(self, cli: Any) -> None:
     tmpfile = 'aligned.apk'
-    con = cli.containers.run('trueseeing-apk-zipalign', command=['-fp', '4', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk-zipalign', command=['-fp', '4', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
       shutil.move(os.path.join(os.path.dirname(self._path), tmpfile), self._outpath)
@@ -124,7 +124,7 @@ class Unsigner:
       ui.warn('docker is not available; disassmebling directly')
       await self._do_without_container()
     else:
-      if cli.images.list('trueseeing-apk'):
+      if cli.images.list('alterakey/trueseeing-apk'):
         self._do_with_container(cli)
       else:
         ui.warn('container not found (use --bootstrap to build it); unsigning directly')
@@ -132,7 +132,7 @@ class Unsigner:
 
   def _do_with_container(self, cli: Any) -> None:
     tmpfile = 'unsigned.apk'
-    con = cli.containers.run('trueseeing-apk', command=['unsign.py', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk', command=['unsign.py', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
       shutil.move(os.path.join(os.path.dirname(self._path), tmpfile), self._outpath)
@@ -166,7 +166,7 @@ class Resigner:
       ui.warn('docker is not available; disassmebling directly')
       await self._do_without_container()
     else:
-      if cli.images.list('trueseeing-apk'):
+      if cli.images.list('alterakey/trueseeing-apk'):
         signed_but_aligned = await self._do_with_container_resign_only(cli)
         if signed_but_aligned:
           try:
@@ -184,7 +184,7 @@ class Resigner:
     # generate key
     storepath = await SigningKey().key()
 
-    con = cli.containers.run('trueseeing-apk', command=['resign.py', os.path.basename(self._path), tmpfile, os.path.basename(storepath)], volumes={os.path.dirname(self._path):dict(bind='/out'),os.path.dirname(storepath):dict(bind='/key')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk', command=['resign.py', os.path.basename(self._path), tmpfile, os.path.basename(storepath)], volumes={os.path.dirname(self._path):dict(bind='/out'),os.path.dirname(storepath):dict(bind='/key')}, remove=True, detach=True)
     try:
       con.wait()
       return os.path.join(os.path.dirname(self._path), tmpfile)
