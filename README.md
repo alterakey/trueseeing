@@ -45,6 +45,7 @@ Currently trueseeing can detect the following class of vulnerabilities:
 ## Installation
 
 	$ pip3 install trueseeing
+	$ trueseeing --bootstrap
 
 ## Usage
 
