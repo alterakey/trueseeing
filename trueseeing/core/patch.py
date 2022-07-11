@@ -57,7 +57,7 @@ class Patcher:
       ui.warn('docker is not available; disassmebling directly')
       await self._build_without_container(context)
     else:
-      if all(cli.images.list(x) for x in ['trueseeing-apk', 'trueseeing-apk-zipalign']):
+      if all(cli.images.list(x) for x in ['alterakey/trueseeing-apk', 'alterakey/trueseeing-apk-zipalign']):
         built: Optional[str] = None
         signed: Optional[str] = None
         try:
@@ -86,7 +86,7 @@ class Patcher:
     # XXX: insecure
     tmpfile = 'assembled.apk'
 
-    con = cli.containers.run('trueseeing-apk', command=['asm.py', tmpfile, 'store.db'], volumes={context.wd:dict(bind='/out')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk', command=['asm.py', tmpfile, 'store.db'], volumes={context.wd:dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
       return os.path.join(context.wd, tmpfile)
@@ -106,7 +106,7 @@ class Patcher:
     # generate key
     storepath = await SigningKey().key()
 
-    con = cli.containers.run('trueseeing-apk', command=['sign.py', os.path.basename(target), tmpfile, os.path.basename(storepath)], volumes={context.wd:dict(bind='/out'),os.path.dirname(storepath):dict(bind='/key')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk', command=['sign.py', os.path.basename(target), tmpfile, os.path.basename(storepath)], volumes={context.wd:dict(bind='/out'),os.path.dirname(storepath):dict(bind='/key')}, remove=True, detach=True)
     try:
       con.wait()
       return os.path.join(context.wd, tmpfile)

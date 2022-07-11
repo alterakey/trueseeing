@@ -34,7 +34,8 @@ Source = "https://github.com/alterakey/trueseeing"
 exclude=[
     'trueseeing/libs/container/*.tar*',
     'trueseeing/libs/container/Dockerfile*',
-    'trueseeing/libs/container/*.py'
+    'trueseeing/libs/container/*.sh',
+    'trueseeing/libs/container/*.py',
 ]
 
 [project.scripts]
