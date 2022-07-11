@@ -1,5 +1,9 @@
+from python:3.9-alpine as builder
+run apk add openjdk17-jdk
+
 from python:3.9-alpine
-run apk add --no-cache openjdk17-jdk zip
+run apk add --no-cache openjdk17-jre-headless zip
+copy --from=0 /usr/lib/jvm/java-17-openjdk/bin/jarsigner /usr/lib/jvm/java-17-openjdk/bin/
 copy apktool.jar /app/apktool.jar
 copy disasm.py /app/disasm.py
 copy genkey.py /app/genkey.py
