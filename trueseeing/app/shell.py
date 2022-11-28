@@ -125,7 +125,7 @@ Patch mode:
   --patch-all               Patch mode: apply fix
 
 Misc:
-  --exp-use-container       Use container to handle APKs (experimental)
+  --bootstrap               Bootstrap toolchain container
   --inspect                 Interactive mode
 '''
     ])
