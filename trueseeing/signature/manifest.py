@@ -22,8 +22,6 @@ import itertools
 import re
 import os
 
-from pubsub import pub
-
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
 
@@ -38,7 +36,7 @@ class ManifestOpenPermissionDetector(Detector):
   async def detect(self) -> None:
     # TBD: compare with actual permission needs
     for p in self._context.permissions_declared():
-      pub.sendMessage('issue', issue=Issue(
+      self._raise_issue(Issue(
         detector_id=self.option,
         confidence='certain',
         cvss3_vector=self._cvss,
@@ -78,7 +76,7 @@ class ManifestManipActivity(Detector):
     )):
       filter_ = [name for name in self._context.parsed_manifest().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss1,
@@ -90,7 +88,7 @@ class ManifestManipActivity(Detector):
           solution="Review them, and restrict access with application-specific permissions if necessary."
         ))
       else:
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss2,
@@ -119,7 +117,7 @@ class ManifestManipBroadcastReceiver(Detector):
     )):
       filter_ = [name for name in self._context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss1,
@@ -131,7 +129,7 @@ class ManifestManipBroadcastReceiver(Detector):
           solution="Review them and restrict access with application-specific permissions if necessary.  Consider the use of LocalBroadcastReceiver for ones that system-wide reachability is not needed."
         ))
       else:
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss2,
@@ -160,7 +158,7 @@ class ManifestManipContentProvider(Detector):
     )):
       filter_ = [name for name in self._context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss1,
@@ -176,7 +174,7 @@ class ManifestManipContentProvider(Detector):
   '''
         ))
       else:
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss2,
@@ -200,7 +198,7 @@ class ManifestManipBackup(Detector):
 
   async def detect(self) -> None:
     if self._context.parsed_manifest().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      pub.sendMessage('issue', issue=Issue(
+      self._raise_issue(Issue(
         detector_id=self.option,
         confidence='certain',
         cvss3_vector=self._cvss,
@@ -222,7 +220,7 @@ class ManifestDebuggable(Detector):
 
   async def detect(self) -> None:
     if self._context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      pub.sendMessage('issue', issue=Issue(
+      self._raise_issue(Issue(
         detector_id=self.option,
         confidence='certain',
         cvss3_vector=self._cvss,

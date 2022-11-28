@@ -22,8 +22,6 @@ import io
 import os
 import re
 
-from pubsub import pub
-
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
@@ -133,7 +131,7 @@ class LibraryDetector(Detector):
     packages = {k:v for k,v in packages.items() if not self._is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
     for p in sorted(packages.keys()):
-      pub.sendMessage('issue', issue=Issue(
+      self._raise_issue(Issue(
         detector_id=self.option,
         confidence='firm',
         cvss3_vector=self._cvss,
@@ -150,7 +148,7 @@ class LibraryDetector(Detector):
             continue
           if ' and ' not in ver and re.match('^[0-9]|^v[0-9]', ver):
             if len(comps) < 4 or self._comp4_looks_like_version(comps):
-              pub.sendMessage('issue', issue=Issue(
+              self._raise_issue(Issue(
                 detector_id=self.option,
                 confidence='firm',
                 cvss3_vector=self._cvss,
@@ -158,7 +156,7 @@ class LibraryDetector(Detector):
                 info1=f'{ver} ({p})',
               ))
             else:
-              pub.sendMessage('issue', issue=Issue(
+              self._raise_issue(Issue(
                 detector_id=self.option,
                 confidence='tentative',
                 cvss3_vector=self._cvss,
@@ -166,7 +164,7 @@ class LibraryDetector(Detector):
                 info1=f'{ver} ({p})',
               ))
           else:
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -180,7 +178,7 @@ class LibraryDetector(Detector):
         for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
           ver = l
           if not re.search(r'^/|:[0-9]+|\\|://|[\x00-\x1f]', ver):
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -217,10 +215,10 @@ class ProGuardDetector(Detector):
   async def detect(self) -> None:
     for c in (self._class_name_of(self._context.source_name_of_disassembled_class(r)) for r in self._context.disassembled_classes()):
       if re.search(r'(?:^|\.)a$', c):
-        pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
+        self._raise_issue(Issue(detector_id=self.option, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
         break
     else:
-      pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation'))
+      self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation'))
 
 class UrlLikeDetector(Detector):
   option = 'detect-url'
@@ -258,11 +256,11 @@ class UrlLikeDetector(Detector):
           continue
         for match in self._analyzed(cl.p[1].v):
           for v in match['value']:
-            pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
+            self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
       for name, val in self._context.string_resources():
         for match in self._analyzed(val):
           for v in match['value']:
-            pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
+            self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
 
 class NativeMethodDetector(Detector):
   option = 'detect-native-method'
@@ -275,7 +273,7 @@ class NativeMethodDetector(Detector):
   async def detect(self) -> None:
     with self._context.store() as store:
       for op in self._nativeish_methods(store.db):
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='firm',
           cvss3_vector=self._cvss,
@@ -299,7 +297,7 @@ class NativeArchDetector(Detector):
     for d, in self._context.store().db.execute('select path from files where path like :pat', dict(pat='lib/%')):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[1]
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='firm',
           cvss3_vector=self._cvss,

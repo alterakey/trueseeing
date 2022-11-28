@@ -22,8 +22,6 @@ import asyncio
 import re
 import math
 
-from pubsub import pub
-
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
@@ -92,7 +90,7 @@ class CryptoStaticKeyDetector(Detector):
                 info1 = f'"{found}" [{len(found)}]'
 
               if looks_like_real_key(found):
-                pub.sendMessage('issue', issue=Issue(
+                self._raise_issue(Issue(
                   detector_id=self.option,
                   cvss3_vector=self._cvss,
                   confidence='firm',
@@ -109,7 +107,7 @@ Use a device or installation specific information, or obfuscate them.
 '''
                 ))
               else:
-                pub.sendMessage('issue', issue=Issue(
+                self._raise_issue(Issue(
                   detector_id=self.option,
                   cvss3_vector=self._cvss_nonkey,
                   confidence='tentative',
@@ -141,7 +139,7 @@ Possible cryptographic constants has been found in the application binary.
         if self._context.is_qualname_excluded(qn):
           continue
         val = cl.p[1].v
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           cvss3_vector=self._cvss,
           confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
@@ -158,7 +156,7 @@ Use a device or installation specific information, or obfuscate them.  Especiall
         ))
       for name, val in self._context.string_resources():
         if re.match(pat, val):
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             cvss3_vector=self._cvss,
             confidence='tentative',
@@ -189,7 +187,7 @@ class CryptoEcbDetector(Detector):
         try:
           target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
           if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               cvss3_vector=self._cvss,
               confidence='certain',
@@ -220,7 +218,7 @@ class CryptoNonRandomXorDetector(Detector):
           continue
         target_val = int(cl.p[2].v, 16)
         if (cl.p[0].v == cl.p[1].v) and target_val > 1:
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             cvss3_vector=self._cvss,
             confidence='firm',

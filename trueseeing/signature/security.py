@@ -23,8 +23,6 @@ import io
 import re
 import os
 
-from pubsub import pub
-
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
@@ -50,7 +48,7 @@ class SecurityFilePermissionDetector(Detector):
         try:
           target_val = int(DataFlows.solved_constant_data_in_invocation(store, cl, 1), 16)
           if target_val & 3:
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='certain',
               cvss3_vector=self._cvss,
@@ -80,7 +78,7 @@ class SecurityTlsInterceptionDetector(Detector):
         for e in xp.xpath('.//certificates'):
           if e.attrib.get('src') == 'user':
             pin_nsc = False
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss,
@@ -91,7 +89,7 @@ class SecurityTlsInterceptionDetector(Detector):
             algo: str
             dig: str
             algo, dig = pin.attrib('digest', '(unknown)'), pin.text
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss_info,
@@ -101,7 +99,7 @@ class SecurityTlsInterceptionDetector(Detector):
     if not pin_nsc:
       if not self._do_detect_plain_pins_x509():
         if not self._do_detect_plain_pins_hostnameverifier():
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence='firm',
             cvss3_vector=self._cvss,
@@ -252,7 +250,7 @@ class SecurityTamperableWebViewDetector(Detector):
           size = LayoutSizeGuesser().guessed_size(t, fn)
           if size > 0.5:
             try:
-              pub.sendMessage('issue', issue=Issue(
+              self._raise_issue(Issue(
                 detector_id=self.option,
                 confidence='tentative',
                 cvss3_vector=self._cvss1,
@@ -271,7 +269,7 @@ class SecurityTamperableWebViewDetector(Detector):
         try:
           v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
           if v.startswith('http://'):
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss2,
@@ -336,7 +334,7 @@ class SecurityInsecureWebViewDetector(Detector):
                 for q in store.query().invocations_in_class(p, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
                   try:
                     if DataFlows.solved_constant_data_in_invocation(store, q, 0):
-                      pub.sendMessage('issue', issue=Issue(
+                      self._raise_issue(Issue(
                         detector_id=self.option,
                         confidence='firm',
                         cvss3_vector=self._cvss,
@@ -344,7 +342,7 @@ class SecurityInsecureWebViewDetector(Detector):
                         source=store.query().qualname_of(q)
                       ))
                   except (DataFlows.NoSuchValueError):
-                    pub.sendMessage('issue', issue=Issue(
+                    self._raise_issue(Issue(
                       detector_id=self.option,
                       confidence='tentative',
                       cvss3_vector=self._cvss,
@@ -363,7 +361,7 @@ class SecurityInsecureWebViewDetector(Detector):
           try:
             val = int(DataFlows.solved_constant_data_in_invocation(store, q, 0), 16)
             if val == 0:
-              pub.sendMessage('issue', issue=Issue(
+              self._raise_issue(Issue(
                 detector_id=self.option,
                 confidence='firm',
                 cvss3_vector=self._cvss2,
@@ -371,7 +369,7 @@ class SecurityInsecureWebViewDetector(Detector):
                 info1='MIXED_CONTENT_ALWAYS_ALLOW',
                 source=store.query().qualname_of(q)))
             elif val == 2:
-              pub.sendMessage('issue', issue=Issue(
+              self._raise_issue(Issue(
                 detector_id=self.option,
                 confidence='firm',
                 cvss3_vector=self._cvss2b,
@@ -383,7 +381,7 @@ class SecurityInsecureWebViewDetector(Detector):
       else:
         for target in targets:
           for q in store.query().invocations(InvocationPattern('invoke-virtual', f'{target}->loadUrl')):
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss,
@@ -405,7 +403,7 @@ class SecurityInsecureWebViewDetector(Detector):
               m = re.search('<meta .*Content-Security-Policy.*content="(.*)?">', content, flags=re.IGNORECASE)
               csp: Optional[str] = None if m is None else m.group(1)
               if csp is None or any([(x in csp.lower()) for x in ('unsafe', 'http:')]):
-                pub.sendMessage('issue', issue=Issue(
+                self._raise_issue(Issue(
                   detector_id=self.option,
                   confidence='firm',
                   cvss3_vector=self._cvss3,
@@ -415,7 +413,7 @@ class SecurityInsecureWebViewDetector(Detector):
                   source=store.query().qualname_of(op)
                 ))
               else:
-                pub.sendMessage('issue', issue=Issue(
+                self._raise_issue(Issue(
                   detector_id=self.option,
                   confidence='firm',
                   cvss3_vector=self._cvss4,
@@ -445,7 +443,7 @@ class FormatStringDetector(Detector):
         if self._context.is_qualname_excluded(qn):
           continue
         for t in self._analyzed(cl.p[1].v):
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence=t['confidence'],
             cvss3_vector=self._cvss,
@@ -455,7 +453,7 @@ class FormatStringDetector(Detector):
           ))
       for name, val in self._context.string_resources():
         for t in self._analyzed(val):
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence=t['confidence'],
             cvss3_vector=self._cvss,
@@ -478,7 +476,7 @@ class LogDetector(Detector):
           continue
         if 'print' not in cl.p[1].v:
           try:
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -488,7 +486,7 @@ class LogDetector(Detector):
               source=store.query().qualname_of(cl)
             ))
           except (DataFlows.NoSuchValueError):
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -498,7 +496,7 @@ class LogDetector(Detector):
             ))
         elif 'Exception;->' not in cl.p[1].v:
           try:
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -508,7 +506,7 @@ class LogDetector(Detector):
               source=store.query().qualname_of(cl)
             ))
           except (DataFlows.NoSuchValueError):
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='tentative',
               cvss3_vector=self._cvss,
@@ -517,7 +515,7 @@ class LogDetector(Detector):
               source=store.query().qualname_of(cl)
             ))
         else:
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence='tentative',
             cvss3_vector=self._cvss,
@@ -541,7 +539,7 @@ class ADBProbeDetector(Detector):
           continue
         for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 1):
           if found == 'adb_enabled':
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='firm',
               cvss3_vector=self._cvss,
@@ -562,7 +560,7 @@ class ClientXSSJQDetector(Detector):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
         for m in re.finditer(r'\.html\(', l):
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence='firm',
             cvss3_vector=self._cvss,
@@ -593,7 +591,7 @@ class SecurityFileWriteDetector(Detector):
           target_val = '(unknown name)'
 
         if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence='certain',
             cvss3_vector=self._cvss1,
@@ -603,7 +601,7 @@ class SecurityFileWriteDetector(Detector):
             source=store.query().qualname_of(cl)
           ))
         else:
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence='certain',
             cvss3_vector=self._cvss2,
@@ -622,7 +620,7 @@ class SecurityFileWriteDetector(Detector):
 
           if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
             if not re.search(r'^/proc/|^/sys/', target_val):
-              pub.sendMessage('issue', issue=Issue(
+              self._raise_issue(Issue(
                 detector_id=self.option,
                 confidence='tentative',
                 cvss3_vector=self._cvss1,
@@ -668,6 +666,6 @@ class SecurityInsecureRootedDetector(Detector):
         if re.search(r'Sup|su|xbin|sbin|root', s):
           path_based_detection_attempt.add(s)
       if path_based_detection_attempt and not attestations:
-        pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(path_based_detection_attempt)))
+        self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(path_based_detection_attempt)))
       elif attestations and not path_based_detection_attempt:
-        pub.sendMessage('issue', issue=Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(attestations)))
+        self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(attestations)))

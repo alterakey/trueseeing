@@ -20,8 +20,6 @@ from typing import TYPE_CHECKING
 
 import re
 
-from pubsub import pub
-
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
@@ -68,7 +66,7 @@ class PrivacyDeviceIdDetector(Detector):
           continue
         val_type = self.analyzed(store, op)
         if val_type is not None:
-          pub.sendMessage('issue', issue=Issue(
+          self._raise_issue(Issue(
             detector_id=self.option,
             confidence='certain',
             cvss3_vector=self._cvss,
@@ -91,7 +89,7 @@ class PrivacySMSDetector(Detector):
           continue
         try:
           if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
-            pub.sendMessage('issue', issue=Issue(
+            self._raise_issue(Issue(
               detector_id=self.option,
               confidence='certain',
               cvss3_vector=self._cvss,
@@ -106,7 +104,7 @@ class PrivacySMSDetector(Detector):
         qn = store.query().qualname_of(op)
         if self._context.is_qualname_excluded(qn):
           continue
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='certain',
           cvss3_vector=self._cvss,
@@ -119,7 +117,7 @@ class PrivacySMSDetector(Detector):
         qn = store.query().qualname_of(op)
         if self._context.is_qualname_excluded(qn):
           continue
-        pub.sendMessage('issue', issue=Issue(
+        self._raise_issue(Issue(
           detector_id=self.option,
           confidence='firm',
           cvss3_vector=self._cvss,
