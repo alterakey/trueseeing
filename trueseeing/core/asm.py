@@ -34,14 +34,18 @@ class APKDisassembler:
     self._skip_resources = skip_resources
 
   @classmethod
+  def _get_version(cls) -> str:
+    from pkg_resources import get_distribution
+    return get_distribution('trueseeing').version
+
+  @classmethod
   def bootstrap(cls) -> None:
     try:
       cli = docker.from_env()
     except docker.errors.DockerException:
       ui.fatal('docker is not available')
     else:
-      from pkg_resources import get_distribution
-      version = get_distribution('trueseeing').version
+      version = cls._get_version()
       cli.images.pull('alterakey/trueseeing-apk', tag=version)
       cli.images.pull('alterakey/trueseeing-apk-zipalign', tag=version, platform='linux/amd64')
 
@@ -63,7 +67,8 @@ class APKDisassembler:
         self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
-    con = cli.containers.run('alterakey/trueseeing-apk', command=['disasm.py', 'target.apk', 'store.db'], volumes={os.path.realpath(self._context.wd):dict(bind='/out')}, remove=True, detach=True)
+    version = self._get_version()
+    con = cli.containers.run(f'alterakey/trueseeing-apk:{version}', command=['disasm.py', 'target.apk', 'store.db'], volumes={os.path.realpath(self._context.wd):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
     except KeyboardInterrupt:
