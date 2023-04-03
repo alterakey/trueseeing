@@ -128,7 +128,7 @@ class Unsigner:
         self._do_with_container(cli)
       else:
         ui.warn('container not found (use --bootstrap to build it); unsigning directly')
-        self._do_without_container()
+        await self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
     tmpfile = 'unsigned.apk'
