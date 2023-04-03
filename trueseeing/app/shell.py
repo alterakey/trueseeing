@@ -22,7 +22,7 @@ import asyncio
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Type, Set, Dict, Optional, Awaitable
+  from typing import List, Type, Set, Dict, Optional, Coroutine, Any
   from trueseeing.signature.base import Detector
   from trueseeing.core.report import ReportFormat
 
@@ -142,7 +142,7 @@ Misc:
       f'  {name:<36s}{signatures[name].description}' for name in sorted(signatures.keys())
     ])
 
-  def _launch(self, coro: Awaitable[int]) -> int:
+  def _launch(self, coro: Coroutine[Any, Any, int]) -> int:
     return asyncio.run(coro)
 
   def invoke(self) -> int:

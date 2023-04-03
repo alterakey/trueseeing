@@ -37,5 +37,5 @@ class InspectMode:
       await context.analyze()
       ui.info("analyzed, context in 'context'")
       from IPython import embed
-      embed()
+      embed() # type: ignore[no-untyped-call]
       return 0
