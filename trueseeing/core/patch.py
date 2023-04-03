@@ -131,7 +131,6 @@ class Patcher:
       with context.store().db as c:
         cwd = os.getcwd()
         try:
-          print(d)
           os.chdir(d)
           os.makedirs('files')
           os.chdir('files')
