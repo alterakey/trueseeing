@@ -35,6 +35,9 @@ class GrabMode:
     self._packages = packages
 
   async def invoke(self) -> int:
+    if os.environ.get('TS2_IN_DOCKER'):
+      ui.fatal('grab mode in docker is not supported yet')
+
     if self._packages:
       for pkg in self._packages:
         if await Grab(pkg).exploit():

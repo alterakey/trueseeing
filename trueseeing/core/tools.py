@@ -60,7 +60,8 @@ def _detect_build_tools() -> str:
 def _invoke_path() -> Any:
   import os
   env = os.environ
-  env.update(dict(PATH=os.pathsep.join([_detect_build_tools(), env.get('PATH', '')])))
+  if not env.get('TS2_IN_DOCKER'):
+    env.update(dict(PATH=os.pathsep.join([_detect_build_tools(), env.get('PATH', '')])))
   return env
 
 async def invoke(as_: str, redir_stderr: bool = False) -> str:
