@@ -57,7 +57,7 @@ class Patcher:
       ui.warn('docker is not available; disassmebling directly')
       await self._build_without_container(context)
     else:
-      if all(cli.images.list(x) for x in ['alterakey/trueseeing-apk', 'alterakey/trueseeing-apk-zipalign']):
+      if all(cli.images.list(x) for x in ['alterakey/trueseeing-apk']):
         built: Optional[str] = None
         signed: Optional[str] = None
         try:
@@ -155,5 +155,5 @@ class Patcher:
       await invoke_passthru("(mkdir -p {root}/files)".format(root=d))
       await invoke_passthru("(cd {root} && java -jar {apktool} b --use-aapt2 -o patched.apk files)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'apktool.jar'))))
       await invoke_passthru("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=await SigningKey().key(), sigfile=sigfile))
-      await invoke_passthru("(cd {root} && zipalign -p 4 patched.apk aligned.apk && rm -f patched.apk)".format(root=d))
+      await invoke_passthru("(cd {root} && java -jar {zipalign} patched.apk aligned.apk && rm -f patched.apk)".format(root=d, zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'zipalign.jar'))))
       copyfile(os.path.join(d, 'aligned.apk'), self._outpath)
