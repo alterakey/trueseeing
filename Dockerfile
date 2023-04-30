@@ -1,7 +1,7 @@
-from python:3.9-alpine as builder
+from python:3.11-alpine as builder
 run apk add openjdk17-jdk
 
-from python:3.9-alpine
+from python:3.11-alpine
 run apk add --no-cache openjdk17-jre-headless zip
 run mkdir /data /cache /out
 copy --from=0 /usr/lib/jvm/java-17-openjdk/bin/jarsigner /usr/lib/jvm/java-17-openjdk/bin/
