@@ -42,7 +42,10 @@ class Context:
 
   def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
-    dirname = os.path.join(os.path.dirname(self._apk), f'.trueseeing2-{hashed}')
+    if os.environ.get('TS2_CACHEDIR'):
+      dirname = os.path.join(os.environ['TS2_CACHEDIR'], hashed)
+    else:
+      dirname = os.path.join(os.path.dirname(self._apk), f'.trueseeing2-{hashed}')
     return dirname
 
   @functools.lru_cache(maxsize=None)

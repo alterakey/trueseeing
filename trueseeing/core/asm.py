@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import os
 import os.path
 
 import docker
@@ -54,17 +55,20 @@ class APKDisassembler:
     self._context.store().prepare_schema()
 
   def _do(self) -> None:
-    try:
-      cli = docker.from_env()
-    except docker.errors.DockerException:
-      ui.warn('docker is not available; disassmebling directly')
+    if os.environ.get('TS2_IN_DOCKER'):
       self._do_without_container()
     else:
-      if cli.images.list('alterakey/trueseeing-apk'):
-        self._do_with_container(cli)
-      else:
-        ui.warn('container not found (use --bootstrap to build it); disassmebling directly')
+      try:
+        cli = docker.from_env()
+      except docker.errors.DockerException:
+        ui.warn('docker is not available; disassmebling directly')
         self._do_without_container()
+      else:
+        if cli.images.list('alterakey/trueseeing-apk'):
+          self._do_with_container(cli)
+        else:
+          ui.warn('container not found (use --bootstrap to build it); disassmebling directly')
+          self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
     version = self._get_version()

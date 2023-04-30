@@ -34,7 +34,7 @@ class SigningKey:
   _path: str
 
   def __init__(self) -> None:
-    self._path = os.path.join(os.environ['HOME'], '.trueseeing2', 'sign.keystore')
+    self._path = os.path.join(os.environ.get('TS2_HOME', os.path.join(os.environ['HOME'], '.trueseeing2')), 'sign.keystore')
 
   async def key(self) -> str:
     os.makedirs(os.path.dirname(self._path), exist_ok=True)
@@ -43,17 +43,20 @@ class SigningKey:
     return self._path
 
   async def _generate(self) -> None:
-    try:
-      cli = docker.from_env()
-    except docker.errors.DockerException:
-      ui.warn('docker is not available; disassmebling directly')
+    if os.environ.get('TS2_IN_DOCKER'):
       await self._do_without_container()
     else:
-      if cli.images.list('alterakey/trueseeing-apk'):
-        self._do_with_container(cli)
-      else:
-        ui.warn('container not found (use --bootstrap to build it); generating keystore directly')
+      try:
+        cli = docker.from_env()
+      except docker.errors.DockerException:
+        ui.warn('docker is not available; disassmebling directly')
         await self._do_without_container()
+      else:
+        if cli.images.list('alterakey/trueseeing-apk'):
+          self._do_with_container(cli)
+        else:
+          ui.warn('container not found (use --bootstrap to build it); generating keystore directly')
+          await self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
     con = cli.containers.run('alterakey/trueseeing-apk', command=['genkey.py', 'sign.keystore'], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
@@ -80,17 +83,20 @@ class ZipAligner:
     self._outpath = os.path.realpath(outpath)
 
   async def align(self) -> None:
-    try:
-      cli = docker.from_env()
-    except docker.errors.DockerException:
-      ui.warn('docker is not available; disassmebling directly')
+    if os.environ.get('TS2_IN_DOCKER'):
       await self._do_without_container()
     else:
-      if cli.images.list('alterakey/trueseeing-apk-zipalign'):
-        self._do_with_container(cli)
-      else:
-        ui.warn('container not found (use --bootstrap to build it); zipaligning directly')
+      try:
+        cli = docker.from_env()
+      except docker.errors.DockerException:
+        ui.warn('docker is not available; disassmebling directly')
         await self._do_without_container()
+      else:
+        if cli.images.list('alterakey/trueseeing-apk-zipalign'):
+          self._do_with_container(cli)
+        else:
+          ui.warn('container not found (use --bootstrap to build it); zipaligning directly')
+          await self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
     tmpfile = 'aligned.apk'
@@ -118,17 +124,20 @@ class Unsigner:
     self._outpath = os.path.realpath(outpath)
 
   async def unsign(self) -> None:
-    try:
-      cli = docker.from_env()
-    except docker.errors.DockerException:
-      ui.warn('docker is not available; disassmebling directly')
+    if os.environ.get('TS2_IN_DOCKER'):
       await self._do_without_container()
     else:
-      if cli.images.list('alterakey/trueseeing-apk'):
-        self._do_with_container(cli)
-      else:
-        ui.warn('container not found (use --bootstrap to build it); unsigning directly')
+      try:
+        cli = docker.from_env()
+      except docker.errors.DockerException:
+        ui.warn('docker is not available; disassmebling directly')
         await self._do_without_container()
+      else:
+        if cli.images.list('alterakey/trueseeing-apk'):
+          self._do_with_container(cli)
+        else:
+          ui.warn('container not found (use --bootstrap to build it); unsigning directly')
+          await self._do_without_container()
 
   def _do_with_container(self, cli: Any) -> None:
     tmpfile = 'unsigned.apk'
@@ -160,22 +169,25 @@ class Resigner:
     self._outpath = os.path.realpath(outpath)
 
   async def resign(self) -> None:
-    try:
-      cli = docker.from_env()
-    except docker.errors.DockerException:
-      ui.warn('docker is not available; disassmebling directly')
+    if os.environ.get('TS2_IN_DOCKER'):
       await self._do_without_container()
     else:
-      if cli.images.list('alterakey/trueseeing-apk'):
-        signed_but_aligned = await self._do_with_container_resign_only(cli)
-        if signed_but_aligned:
-          try:
-            await ZipAligner(signed_but_aligned, self._outpath).align()
-          finally:
-            os.remove(signed_but_aligned)
-      else:
-        ui.warn('container not found (use --bootstrap to build it); unsigning directly')
+      try:
+        cli = docker.from_env()
+      except docker.errors.DockerException:
+        ui.warn('docker is not available; disassmebling directly')
         await self._do_without_container()
+      else:
+        if cli.images.list('alterakey/trueseeing-apk'):
+          signed_but_aligned = await self._do_with_container_resign_only(cli)
+          if signed_but_aligned:
+            try:
+              await ZipAligner(signed_but_aligned, self._outpath).align()
+            finally:
+              os.remove(signed_but_aligned)
+        else:
+          ui.warn('container not found (use --bootstrap to build it); unsigning directly')
+          await self._do_without_container()
 
   async def _do_with_container_resign_only(self, cli: Any) -> Optional[str]:
     # XXX: insecure
