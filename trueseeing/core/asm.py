@@ -48,7 +48,6 @@ class APKDisassembler:
     else:
       version = cls._get_version()
       cli.images.pull('alterakey/trueseeing-apk', tag=version)
-      cli.images.pull('alterakey/trueseeing-apk-zipalign', tag=version, platform='linux/amd64')
 
   def disassemble(self) -> None:
     self._do()

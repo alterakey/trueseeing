@@ -92,7 +92,7 @@ class ZipAligner:
         ui.warn('docker is not available; disassmebling directly')
         await self._do_without_container()
       else:
-        if cli.images.list('alterakey/trueseeing-apk-zipalign'):
+        if cli.images.list('alterakey/trueseeing-apk'):
           self._do_with_container(cli)
         else:
           ui.warn('container not found (use --bootstrap to build it); zipaligning directly')
@@ -100,7 +100,7 @@ class ZipAligner:
 
   def _do_with_container(self, cli: Any) -> None:
     tmpfile = 'aligned.apk'
-    con = cli.containers.run('alterakey/trueseeing-apk-zipalign', command=['-fp', '4', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
+    con = cli.containers.run('alterakey/trueseeing-apk', command=['zipalign.py', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
     try:
       con.wait()
       shutil.move(os.path.join(os.path.dirname(self._path), tmpfile), self._outpath)
@@ -113,7 +113,12 @@ class ZipAligner:
         raise
 
   async def _do_without_container(self) -> None:
-    await invoke_passthru(f'rm -f {self._outpath} && zipalign -p 4 {self._path} {self._outpath}')
+    from pkg_resources import resource_filename
+    await invoke_passthru('rm -f {outpath} && java -jar {zipalign} {path} {outpath}'.format(
+      path=self._path,
+      outpath=self._outpath,
+      zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'zipalign.jar'))
+    ))
 
 class Unsigner:
   _path: str
@@ -210,6 +215,7 @@ class Resigner:
       return None
 
   async def _do_without_container(self) -> None:
+    from pkg_resources import resource_filename
     with tempfile.TemporaryDirectory() as d:
       await invoke_passthru(f"(mkdir -p {d}/t)")
       await invoke_passthru(f"(cd {d}/t && unzip -q {self._path})")
@@ -219,7 +225,10 @@ class Resigner:
         f"(cd {d} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {await SigningKey().key()} -storepass android -keypass android -sigfile {sigfile} signed.apk androiddebugkey)"
       )
       await invoke_passthru(
-        f"(cd {d} && zipalign -p 4 signed.apk aligned.apk && rm -f signed.apk)"
+        "(cd {d} && java -jar {zipalign} signed.apk aligned.apk && rm -f signed.apk)".format(
+          d=d,
+          zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'zipalign.jar'))
+        )
       )
       shutil.copyfile(os.path.join(d, 'aligned.apk'), self._outpath)
 
