@@ -40,7 +40,7 @@ class Store:
     store_path = os.path.join(self._path, 'store.db')
     is_creating = not os.path.exists(store_path)
     o = sqlite3.connect(store_path)
-    o.create_function("REGEXP", 2, Store._re_fn)
+    o.create_function("REGEXP", 2, Store._re_fn, deterministic=True)
     StorePrep(o).stage0()
     if is_creating:
       self.prepare_schema()
