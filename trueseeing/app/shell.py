@@ -126,7 +126,6 @@ Patch mode:
 
 Misc:
   --bootstrap               Bootstrap toolchain container
-  --inspect                 Interactive mode
 '''
     ])
 
@@ -159,7 +158,6 @@ Misc:
     patch_mode = ''
     fingerprint_mode = False
     grab_mode = False
-    inspection_mode = False
     bootstrap_mode = False
     output_filename: Optional[str] = None
     ci_mode: ReportFormat = 'html'
@@ -167,7 +165,7 @@ Misc:
 
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
-                                 'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures', 'inspect',
+                                 'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
                                  'output=', 'format=', 'version', 'patch-all', 'exclude=', 'bootstrap'])
     for o, a in opts:
       if o in ['-d', '--debug']:
@@ -200,8 +198,6 @@ Misc:
         grab_mode = True
       if o in ['--fingerprint']:
         fingerprint_mode = True
-      if o in ['--inspect']:
-        inspection_mode = True
       if o in ['--format']:
         # NB: should check "a" conforms to the literal type, ReportFormat
         if a in ['html', 'json']:
@@ -238,9 +234,6 @@ Misc:
       elif fingerprint_mode:
         from trueseeing.app.fingerprint import FingerprintMode
         return self._launch(FingerprintMode(files).invoke())
-      elif inspection_mode:
-        from trueseeing.app.inspect import InspectMode
-        return self._launch(InspectMode(files).invoke())
       else:
         from trueseeing.app.scan import ScanMode
         return self._launch(ScanMode(files).invoke(
