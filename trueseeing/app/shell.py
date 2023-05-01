@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Trueseeing: Non-decompiling Android application vulnerability scanner
-# Copyright (C) 2017-22 Takahiro Yoshimura <altakey@gmail.com>
+# Copyright (C) 2017-23 Takahiro Yoshimura <altakey@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ class Shell:
     #   ..............................................................................80
     return (
       f'Trueseeing {version}, the app vulnerability scanner\n'
-       'Copyright (C) 2017-22 Takahiro Yoshimura <altakey@gmail.com>\n' # noqa: E131
+       'Copyright (C) 2017-23 Takahiro Yoshimura <altakey@gmail.com>\n' # noqa: E131
        'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
     )
 
