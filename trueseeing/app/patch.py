@@ -28,15 +28,21 @@ class PatchMode:
   def __init__(self, files: List[str]):
     self._files = files
 
-  async def invoke(self, mode: str) -> int:
+  async def invoke(self, mode: str, no_cache_mode: bool = False) -> int:
     from trueseeing.core.patch import Patcher
     for f in self._files:
-      if mode == 'all':
-        await Patcher(f, os.path.basename(f).replace('.apk', '-patched.apk')).apply_multi([
-          PatchDebuggable(),
-          PatchBackupable(),
-          PatchLoggers()
-        ])
+      try:
+        if mode == 'all':
+          await Patcher(f, os.path.basename(f).replace('.apk', '-patched.apk')).apply_multi([
+            PatchDebuggable(),
+            PatchBackupable(),
+            PatchLoggers()
+          ])
+      finally:
+        if no_cache_mode:
+          from trueseeing.core.context import Context
+          Context(f, []).remove()
+
     return 0
 
 class PatchDebuggable:
