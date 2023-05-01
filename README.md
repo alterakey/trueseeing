@@ -44,8 +44,14 @@ Currently trueseeing can detect the following class of vulnerabilities:
 
 ## Installation
 
+Plain installation (esp. for interacting with actual devices):
+
 	$ pip3 install trueseeing
 	$ trueseeing --bootstrap
+
+From 2.1.7, we provide containers so you can use right away as follows (i.e. you don't need to bootstrap):
+
+	$ docker run --rm -v $(pwd):/out alterakey/trueseeing
 
 ## Usage
 

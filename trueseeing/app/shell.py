@@ -126,6 +126,8 @@ Patch mode:
 
 Misc:
   --bootstrap               Bootstrap toolchain container
+  --update-cache            Analyze and rebuild codebase cache
+  --no-cache                Do not keep codebase cache
 '''
     ])
 
@@ -159,6 +161,8 @@ Misc:
     fingerprint_mode = False
     grab_mode = False
     bootstrap_mode = False
+    no_cache_mode = False
+    update_cache_mode = False
     output_filename: Optional[str] = None
     ci_mode: ReportFormat = 'html'
     exclude_packages: List[str] = []
@@ -166,7 +170,7 @@ Misc:
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
-                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'bootstrap'])
+                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'bootstrap', 'update-cache', 'no-cache'])
     for o, a in opts:
       if o in ['-d', '--debug']:
         log_level = ui.DEBUG
@@ -194,6 +198,10 @@ Misc:
         patch_mode = 'all'
       if o in ['--bootstrap']:
         bootstrap_mode = True
+      if o in ['--update-cache']:
+        update_cache_mode = True
+      if o in ['--no-cache']:
+        no_cache_mode = True
       if o in ['--grab']:
         grab_mode = True
       if o in ['--fingerprint']:
@@ -227,10 +235,16 @@ Misc:
         ui.fatal("no input files")
       if exploitation_mode:
         from trueseeing.app.exploit import ExploitMode
-        return self._launch(ExploitMode(files).invoke(exploitation_mode))
+        return self._launch(ExploitMode(files).invoke(
+          exploitation_mode,
+          no_cache_mode=no_cache_mode
+        ))
       elif patch_mode:
         from trueseeing.app.patch import PatchMode
-        return self._launch(PatchMode(files).invoke(patch_mode))
+        return self._launch(PatchMode(files).invoke(
+          patch_mode,
+          no_cache_mode=no_cache_mode
+        ))
       elif fingerprint_mode:
         from trueseeing.app.fingerprint import FingerprintMode
         return self._launch(FingerprintMode(files).invoke())
@@ -241,4 +255,6 @@ Misc:
           outfile=output_filename,
           signatures=[v for k, v in sigs.content.items() if k in signature_selected],
           exclude_packages=exclude_packages,
+          no_cache_mode=no_cache_mode,
+          update_cache_mode=update_cache_mode,
         ))

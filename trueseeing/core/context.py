@@ -59,6 +59,10 @@ class Context:
     with open(self._apk, 'rb') as f:
       return sha256(f.read()).hexdigest()
 
+  def remove(self) -> None:
+    if os.path.exists(self.wd):
+      shutil.rmtree(self.wd)
+
   async def analyze(self, skip_resources: bool = False) -> None:
     if os.path.exists(os.path.join(self.wd, '.done')):
       ui.debug('analyzed once')
@@ -67,7 +71,7 @@ class Context:
       from trueseeing.core.code.parse import SmaliAnalyzer
       if os.path.exists(self.wd):
         ui.info('analyze: removing leftover')
-        shutil.rmtree(self.wd)
+        self.remove()
 
       ui.info('\ranalyze: disassembling... ', nl=False)
       os.makedirs(self.wd, mode=0o700)

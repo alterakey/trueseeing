@@ -36,16 +36,30 @@ class ScanMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = []) -> int:
-    error_found = False
-    session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile, exclude_packages=exclude_packages)
-    for f in self._files:
-      if await session.invoke(f):
-        error_found = True
-    if not error_found:
+  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False) -> int:
+    if update_cache_mode:
+      from trueseeing.core.context import Context
+      for f in self._files:
+        ctx = Context(f, [])
+        ctx.remove()
+        await ctx.analyze()
       return 0
     else:
-      return 1
+      error_found = False
+      session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile, exclude_packages=exclude_packages)
+      for f in self._files:
+        try:
+          if await session.invoke(f):
+            error_found = True
+        finally:
+          if no_cache_mode:
+            from trueseeing.core.context import Context
+            Context(f, []).remove()
+
+      if not error_found:
+        return 0
+      else:
+        return 1
 
 class AnalyzeSession:
   _chain: List[Type[Detector]]
