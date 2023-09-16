@@ -22,13 +22,11 @@ import os
 import shutil
 import tempfile
 
-import docker
-
 from trueseeing.core.tools import invoke_passthru
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Any, Optional
+  pass
 
 class SigningKey:
   _path: str
@@ -43,34 +41,6 @@ class SigningKey:
     return self._path
 
   async def _generate(self) -> None:
-    if os.environ.get('TS2_IN_DOCKER'):
-      await self._do_without_container()
-    else:
-      try:
-        cli = docker.from_env()
-      except docker.errors.DockerException:
-        ui.warn('docker is not available; disassmebling directly')
-        await self._do_without_container()
-      else:
-        if cli.images.list('alterakey/trueseeing-apk'):
-          self._do_with_container(cli)
-        else:
-          ui.warn('container not found (use --bootstrap to build it); generating keystore directly')
-          await self._do_without_container()
-
-  def _do_with_container(self, cli: Any) -> None:
-    con = cli.containers.run('alterakey/trueseeing-apk', command=['genkey.py', 'sign.keystore'], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
-    try:
-      con.wait()
-    except KeyboardInterrupt:
-      try:
-        con.kill()
-      except docker.errors.APIError:
-        pass
-      else:
-        raise
-
-  async def _do_without_container(self) -> None:
     ui.info("generating key for repackaging")
     await invoke_passthru(f'keytool -genkey -v -keystore {self._path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
 
@@ -83,41 +53,11 @@ class ZipAligner:
     self._outpath = os.path.realpath(outpath)
 
   async def align(self) -> None:
-    if os.environ.get('TS2_IN_DOCKER'):
-      await self._do_without_container()
-    else:
-      try:
-        cli = docker.from_env()
-      except docker.errors.DockerException:
-        ui.warn('docker is not available; disassmebling directly')
-        await self._do_without_container()
-      else:
-        if cli.images.list('alterakey/trueseeing-apk'):
-          self._do_with_container(cli)
-        else:
-          ui.warn('container not found (use --bootstrap to build it); zipaligning directly')
-          await self._do_without_container()
-
-  def _do_with_container(self, cli: Any) -> None:
-    tmpfile = 'aligned.apk'
-    con = cli.containers.run('alterakey/trueseeing-apk', command=['zipalign.py', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
-    try:
-      con.wait()
-      shutil.move(os.path.join(os.path.dirname(self._path), tmpfile), self._outpath)
-    except KeyboardInterrupt:
-      try:
-        con.kill()
-      except docker.errors.APIError:
-        pass
-      else:
-        raise
-
-  async def _do_without_container(self) -> None:
     from pkg_resources import resource_filename
     await invoke_passthru('rm -f {outpath} && java -jar {zipalign} {path} {outpath}'.format(
       path=self._path,
       outpath=self._outpath,
-      zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'zipalign.jar'))
+      zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'zipalign.jar'))
     ))
 
 class Unsigner:
@@ -129,36 +69,6 @@ class Unsigner:
     self._outpath = os.path.realpath(outpath)
 
   async def unsign(self) -> None:
-    if os.environ.get('TS2_IN_DOCKER'):
-      await self._do_without_container()
-    else:
-      try:
-        cli = docker.from_env()
-      except docker.errors.DockerException:
-        ui.warn('docker is not available; disassmebling directly')
-        await self._do_without_container()
-      else:
-        if cli.images.list('alterakey/trueseeing-apk'):
-          self._do_with_container(cli)
-        else:
-          ui.warn('container not found (use --bootstrap to build it); unsigning directly')
-          await self._do_without_container()
-
-  def _do_with_container(self, cli: Any) -> None:
-    tmpfile = 'unsigned.apk'
-    con = cli.containers.run('alterakey/trueseeing-apk', command=['unsign.py', os.path.basename(self._path), tmpfile], volumes={os.path.dirname(self._path):dict(bind='/out')}, remove=True, detach=True)
-    try:
-      con.wait()
-      shutil.move(os.path.join(os.path.dirname(self._path), tmpfile), self._outpath)
-    except KeyboardInterrupt:
-      try:
-        con.kill()
-      except docker.errors.APIError:
-        pass
-      else:
-        raise
-
-  async def _do_without_container(self) -> None:
     with tempfile.TemporaryDirectory() as d:
       await invoke_passthru(f"(mkdir -p {d}/t)")
       await invoke_passthru(f"(cd {d}/t && unzip -q {self._path} && rm -rf META-INF && zip -qr ../unsigned.apk .)")
@@ -174,47 +84,6 @@ class Resigner:
     self._outpath = os.path.realpath(outpath)
 
   async def resign(self) -> None:
-    if os.environ.get('TS2_IN_DOCKER'):
-      await self._do_without_container()
-    else:
-      try:
-        cli = docker.from_env()
-      except docker.errors.DockerException:
-        ui.warn('docker is not available; disassmebling directly')
-        await self._do_without_container()
-      else:
-        if cli.images.list('alterakey/trueseeing-apk'):
-          signed_but_aligned = await self._do_with_container_resign_only(cli)
-          if signed_but_aligned:
-            try:
-              await ZipAligner(signed_but_aligned, self._outpath).align()
-            finally:
-              os.remove(signed_but_aligned)
-        else:
-          ui.warn('container not found (use --bootstrap to build it); unsigning directly')
-          await self._do_without_container()
-
-  async def _do_with_container_resign_only(self, cli: Any) -> Optional[str]:
-    # XXX: insecure
-    tmpfile = 'to-align.apk'
-
-    # generate key
-    storepath = await SigningKey().key()
-
-    con = cli.containers.run('alterakey/trueseeing-apk', command=['resign.py', os.path.basename(self._path), tmpfile, os.path.basename(storepath)], volumes={os.path.dirname(self._path):dict(bind='/out'),os.path.dirname(storepath):dict(bind='/key')}, remove=True, detach=True)
-    try:
-      con.wait()
-      return os.path.join(os.path.dirname(self._path), tmpfile)
-    except KeyboardInterrupt:
-      try:
-        con.kill()
-      except docker.errors.APIError:
-        pass
-      else:
-        raise
-      return None
-
-  async def _do_without_container(self) -> None:
     from pkg_resources import resource_filename
     with tempfile.TemporaryDirectory() as d:
       await invoke_passthru(f"(mkdir -p {d}/t)")
@@ -227,7 +96,7 @@ class Resigner:
       await invoke_passthru(
         "(cd {d} && java -jar {zipalign} signed.apk aligned.apk && rm -f signed.apk)".format(
           d=d,
-          zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'zipalign.jar'))
+          zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'zipalign.jar'))
         )
       )
       shutil.copyfile(os.path.join(d, 'aligned.apk'), self._outpath)

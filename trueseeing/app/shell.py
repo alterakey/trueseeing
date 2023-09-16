@@ -160,7 +160,6 @@ Misc:
     patch_mode = ''
     fingerprint_mode = False
     grab_mode = False
-    bootstrap_mode = False
     no_cache_mode = False
     update_cache_mode = False
     inspect_mode = False
@@ -171,7 +170,7 @@ Misc:
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
-                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'bootstrap', 'update-cache', 'no-cache', 'inspect'])
+                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect'])
     for o, a in opts:
       if o in ['-d', '--debug']:
         log_level = ui.DEBUG
@@ -196,8 +195,6 @@ Misc:
         exclude_packages.append(a)
       if o in ['--patch-all']:
         patch_mode = 'all'
-      if o in ['--bootstrap']:
-        bootstrap_mode = True
       if o in ['--update-cache']:
         update_cache_mode = True
       if o in ['--no-cache']:
@@ -229,9 +226,6 @@ Misc:
     if grab_mode:
       from trueseeing.app.grab import GrabMode
       return self._launch(GrabMode(packages=files).invoke())
-    elif bootstrap_mode:
-      from trueseeing.app.boot import BootstrapMode
-      return self._launch(BootstrapMode().invoke())
     elif inspect_mode:
       if len(files) > 1:
         ui.fatal("inspect mode accepts at most only one target file")

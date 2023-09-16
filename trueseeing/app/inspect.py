@@ -27,7 +27,7 @@ from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Type, Dict
+  from typing import Mapping, Optional, Any, NoReturn, List, Type
   from trueseeing.signature.base import Detector
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context

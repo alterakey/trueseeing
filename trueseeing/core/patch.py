@@ -21,14 +21,12 @@ from typing import TYPE_CHECKING
 import os
 from shutil import copyfile
 
-import docker
-
 from trueseeing.core.sign import SigningKey
 from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Protocol, Any, Optional
+  from typing import List, Protocol
 
   class Patch(Protocol):
     def apply(self, context: Context) -> None: ...
@@ -51,75 +49,6 @@ class Patcher:
       await self._build(context)
 
   async def _build(self, context: Context) -> None:
-    try:
-      cli = docker.from_env()
-    except docker.errors.DockerException:
-      ui.warn('docker is not available; disassmebling directly')
-      await self._build_without_container(context)
-    else:
-      if all(cli.images.list(x) for x in ['alterakey/trueseeing-apk']):
-        built: Optional[str] = None
-        signed: Optional[str] = None
-        try:
-          built = await self._build_with_container_build(cli, context)
-          if built:
-            signed = await self._build_with_container_sign(cli, context, built)
-            if signed:
-              from trueseeing.core.sign import ZipAligner
-              await ZipAligner(signed, self._outpath).align()
-        finally:
-          if built:
-            try:
-              os.remove(built)
-            except OSError:
-              pass
-          if signed:
-            try:
-              os.remove(signed)
-            except OSError:
-              pass
-      else:
-        ui.warn('container not found (use --bootstrap to build it); patching directly')
-        await self._build_without_container(context)
-
-  async def _build_with_container_build(self, cli: Any, context: Context) -> Optional[str]:
-    # XXX: insecure
-    tmpfile = 'assembled.apk'
-
-    con = cli.containers.run('alterakey/trueseeing-apk', command=['asm.py', tmpfile, 'store.db'], volumes={context.wd:dict(bind='/out')}, remove=True, detach=True)
-    try:
-      con.wait()
-      return os.path.join(context.wd, tmpfile)
-    except KeyboardInterrupt:
-      try:
-        con.kill()
-      except docker.errors.APIError:
-        pass
-      else:
-        raise
-      return None
-
-  async def _build_with_container_sign(self, cli: Any, context: Context, target: str) -> Optional[str]:
-    # XXX: insecure
-    tmpfile = 'signed.apk'
-
-    # generate key
-    storepath = await SigningKey().key()
-
-    con = cli.containers.run('alterakey/trueseeing-apk', command=['sign.py', os.path.basename(target), tmpfile, os.path.basename(storepath)], volumes={context.wd:dict(bind='/out'),os.path.dirname(storepath):dict(bind='/key')}, remove=True, detach=True)
-    try:
-      con.wait()
-      return os.path.join(context.wd, tmpfile)
-    except KeyboardInterrupt:
-      try:
-        con.kill()
-      except docker.errors.APIError:
-        pass
-      else:
-        raise
-      return None
-
-  async def _build_without_container(self, context: Context) -> None:
     from tempfile import TemporaryDirectory
     from pkg_resources import resource_filename
 
@@ -153,7 +82,7 @@ class Patcher:
 
       from trueseeing.core.tools import invoke_passthru
       await invoke_passthru("(mkdir -p {root}/files)".format(root=d))
-      await invoke_passthru("(cd {root} && java -jar {apktool} b --use-aapt2 -o patched.apk files)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'apktool.jar'))))
+      await invoke_passthru("(cd {root} && java -jar {apktool} b --use-aapt2 -o patched.apk files)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar'))))
       await invoke_passthru("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=await SigningKey().key(), sigfile=sigfile))
-      await invoke_passthru("(cd {root} && java -jar {zipalign} patched.apk aligned.apk && rm -f patched.apk)".format(root=d, zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'container', 'zipalign.jar'))))
+      await invoke_passthru("(cd {root} && java -jar {zipalign} patched.apk aligned.apk && rm -f patched.apk)".format(root=d, zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'zipalign.jar'))))
       copyfile(os.path.join(d, 'aligned.apk'), self._outpath)
