@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import sys
+from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
   from typing import NoReturn, Optional, TextIO
@@ -33,30 +34,72 @@ class UI:
 
   level = DEBUG
   is_debugging = False
+  _is_inspecting = False
+
+  def enter_inspect(self) -> None:
+    self._is_inspecting = True
+
+  def exit_inspect(self) -> None:
+    self._is_inspecting = False
+
+  def set_level(self, level: int) -> None:
+    self.level = level
+    self.is_debugging = (self.level == self.DEBUG)
 
   def fatal(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> NoReturn:
-    self.stderr(f'fatal: {msg}', nl=nl, exc=exc)
-    sys.exit(2)
+    if not self._is_inspecting:
+      self.stderr(f'fatal: {msg}', nl=nl, exc=exc)
+      sys.exit(2)
+    else:
+      self.failure(f'fatal: {msg}', nl=nl, exc=exc)
+      raise FatalError()
 
   def critical(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.CRITICAL:
-      self.stderr(msg, nl=nl, exc=exc)
+      if not self._is_inspecting:
+        self.stderr(msg, nl=nl, exc=exc)
+      else:
+        self.stderr(f'[!] {msg}', nl=nl, exc=exc)
 
   def error(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.ERROR:
-      self.stderr(msg, nl=nl, exc=exc)
+      if not self._is_inspecting:
+        self.stderr(msg, nl=nl, exc=exc)
+      else:
+        self.stderr(f'[-] {msg}', nl=nl, exc=exc)
 
   def warn(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.WARN:
-      self.stderr(msg, nl=nl, exc=exc)
+      if not self._is_inspecting:
+        self.stderr(msg, nl=nl, exc=exc)
+      else:
+        self.stderr(f'[*] {msg}', nl=nl, exc=exc)
 
   def info(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.INFO:
-      self.stderr(msg, nl=nl, exc=exc)
+      if not self._is_inspecting:
+        self.stderr(msg, nl=nl, exc=exc)
+      else:
+        self.stderr(f'[*] {msg}', nl=nl, exc=exc)
 
   def debug(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.DEBUG:
+      if not self._is_inspecting:
+        self.stderr(msg, nl=nl, exc=exc)
+      else:
+        self.stderr(f'[.] {msg}', nl=nl, exc=exc)
+
+  def success(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+    if not self._is_inspecting:
       self.stderr(msg, nl=nl, exc=exc)
+    else:
+      self.stderr(f'[+] {msg}', nl=nl, exc=exc)
+
+  def failure(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+    if not self._is_inspecting:
+      self.stderr(msg, nl=nl, exc=exc)
+    else:
+      self.stderr(f'[-] {msg}', nl=nl, exc=exc)
 
   def stdout(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     sys.stdout.write(msg)
