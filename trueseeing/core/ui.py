@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import sys
+from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
   from typing import NoReturn, Optional, TextIO
@@ -34,9 +35,13 @@ class UI:
   level = DEBUG
   is_debugging = False
 
+  def set_level(self, level: int) -> None:
+    self.level = level
+    self.is_debugging = (self.level == self.DEBUG)
+
   def fatal(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> NoReturn:
     self.stderr(f'fatal: {msg}', nl=nl, exc=exc)
-    sys.exit(2)
+    raise FatalError()
 
   def critical(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.CRITICAL:
@@ -57,6 +62,12 @@ class UI:
   def debug(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     if self.level <= self.DEBUG:
       self.stderr(msg, nl=nl, exc=exc)
+
+  def success(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+    self.info(f'[+] {msg}', nl=nl, exc=exc)
+
+  def failure(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+    self.error(f'[-] {msg}', nl=nl, exc=exc)
 
   def stdout(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
     sys.stdout.write(msg)
