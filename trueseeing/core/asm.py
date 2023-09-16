@@ -20,11 +20,8 @@ from typing import TYPE_CHECKING
 import os
 import os.path
 
-import docker
-from trueseeing.core.ui import ui
-
 if TYPE_CHECKING:
-  from typing import Any, Tuple
+  from typing import Tuple
   from trueseeing.core.context import Context
 
 class APKDisassembler:
@@ -39,50 +36,11 @@ class APKDisassembler:
     from pkg_resources import get_distribution
     return get_distribution('trueseeing').version
 
-  @classmethod
-  def bootstrap(cls) -> None:
-    try:
-      cli = docker.from_env()
-    except docker.errors.DockerException:
-      ui.fatal('docker is not available')
-    else:
-      version = cls._get_version()
-      cli.images.pull('alterakey/trueseeing-apk', tag=version)
-
   def disassemble(self) -> None:
     self._do()
     self._context.store().prepare_schema()
 
   def _do(self) -> None:
-    if os.environ.get('TS2_IN_DOCKER'):
-      self._do_without_container()
-    else:
-      try:
-        cli = docker.from_env()
-      except docker.errors.DockerException:
-        ui.warn('docker is not available; disassmebling directly')
-        self._do_without_container()
-      else:
-        if cli.images.list('alterakey/trueseeing-apk'):
-          self._do_with_container(cli)
-        else:
-          ui.warn('container not found (use --bootstrap to build it); disassmebling directly')
-          self._do_without_container()
-
-  def _do_with_container(self, cli: Any) -> None:
-    version = self._get_version()
-    con = cli.containers.run(f'alterakey/trueseeing-apk:{version}', command=['disasm.py', 'target.apk', 'store.db'], volumes={os.path.realpath(self._context.wd):dict(bind='/out')}, remove=True, detach=True)
-    try:
-      con.wait()
-    except KeyboardInterrupt:
-      try:
-        con.kill()
-      except docker.errors.APIError:
-        pass
-      else:
-        raise
-
-  def _do_without_container(self) -> None:
     import sqlite3
     import glob
     import subprocess
@@ -103,7 +61,7 @@ class APKDisassembler:
 
       with c:
         _ = subprocess.run('java -jar {apktooljar} d --use-aapt2 -o files {apk}'.format(
-          apktooljar=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'container', 'apktool.jar')),
+          apktooljar=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
           apk=apk
         ), shell=True, capture_output=True)
         os.chdir('files')
