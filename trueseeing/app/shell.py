@@ -162,6 +162,7 @@ Misc:
     grab_mode = False
     no_cache_mode = False
     update_cache_mode = False
+    inspect_mode = False
     output_filename: Optional[str] = None
     ci_mode: ReportFormat = 'html'
     exclude_packages: List[str] = []
@@ -169,11 +170,10 @@ Misc:
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
-                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache'])
+                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect'])
     for o, a in opts:
       if o in ['-d', '--debug']:
         log_level = ui.DEBUG
-        ui.is_debugging = True
       if o in ['-o', '--output']:
         output_filename = a
       if o in ['-W']:
@@ -203,6 +203,8 @@ Misc:
         grab_mode = True
       if o in ['--fingerprint']:
         fingerprint_mode = True
+      if o in ['--inspect']:
+        inspect_mode = True
       if o in ['--format']:
         # NB: should check "a" conforms to the literal type, ReportFormat
         if a in ['html', 'json']:
@@ -219,11 +221,16 @@ Misc:
         ui.stderr(self._help_signatures(sigs.content))
         return 2
 
-    ui.level = log_level
+    ui.set_level(log_level)
 
     if grab_mode:
       from trueseeing.app.grab import GrabMode
       return self._launch(GrabMode(packages=files).invoke())
+    elif inspect_mode:
+      if len(files) > 1:
+        ui.fatal("inspect mode accepts at most only one target file")
+      from trueseeing.app.inspect import InspectMode
+      InspectMode().do(files[0] if files else '', signatures=sigs)
     else:
       if not files:
         ui.fatal("no input files")
