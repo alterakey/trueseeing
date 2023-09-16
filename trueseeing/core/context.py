@@ -63,6 +63,10 @@ class Context:
     if os.path.exists(self.wd):
       shutil.rmtree(self.wd)
 
+  def create(self, exist_ok: bool = False) -> None:
+    os.makedirs(self.wd, mode=0o700, exist_ok=exist_ok)
+    self._copy_target()
+
   async def analyze(self, skip_resources: bool = False) -> None:
     if os.path.exists(os.path.join(self.wd, '.done')):
       ui.debug('analyzed once')
@@ -74,8 +78,7 @@ class Context:
         self.remove()
 
       ui.info('\ranalyze: disassembling... ', nl=False)
-      os.makedirs(self.wd, mode=0o700)
-      self._copy_target()
+      self.create()
       APKDisassembler(self, skip_resources).disassemble()
       ui.info('\ranalyze: disassembling... done.')
 
