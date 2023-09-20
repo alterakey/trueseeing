@@ -232,6 +232,11 @@ Misc:
     elif bootstrap_mode:
       from trueseeing.app.boot import BootstrapMode
       return self._launch(BootstrapMode().invoke())
+    elif inspect_mode:
+      if len(files) > 1:
+        ui.fatal("inspect mode accepts at most only one target file")
+      from trueseeing.app.inspect import InspectMode
+      InspectMode().do(files[0] if files else '', signatures=sigs)
     else:
       if not files:
         ui.fatal("no input files")
@@ -250,11 +255,6 @@ Misc:
       elif fingerprint_mode:
         from trueseeing.app.fingerprint import FingerprintMode
         return self._launch(FingerprintMode(files).invoke())
-      elif inspect_mode:
-        if len(files) > 1:
-          ui.fatal("inspect mode accepts only one target file")
-        from trueseeing.app.inspect import InspectMode
-        InspectMode().do(files[0], signatures=sigs)
       else:
         from trueseeing.app.scan import ScanMode
         return self._launch(ScanMode(files).invoke(
