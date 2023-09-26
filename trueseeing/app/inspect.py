@@ -197,7 +197,10 @@ class Runner:
       else:
         try:
           ent: Any = self._cmds[c]['e']
-          await ent(tokens)
+          try:
+            await ent(tokens)
+          except KeyboardInterrupt:
+            ui.fatal('interrupted')
         except FatalError:
           pass
     finally:
