@@ -6,7 +6,7 @@ create index ops_class_class on ops_class (class);
 
 create table ops_p (p integer primary key, idx integer not null, op integer not null);
 insert into ops_p select op as p, idx, op-idx as op from ops;
-create index ops_p_op_idx on ops_p (op,idx);
+create index ops_p_idx_op on ops_p (idx,op);
 
 -- vector view
 create view op_vecs as
