@@ -77,10 +77,10 @@ class Context:
         ui.info('analyze: removing leftover')
         self.remove()
 
-      ui.info('\ranalyze: disassembling... ', nl=False)
+      ui.info('analyze: disassembling... ', nl=False, ow=True)
       self.create()
       APKDisassembler(self, skip_resources).disassemble()
-      ui.info('\ranalyze: disassembling... done.')
+      ui.info('analyze: disassembling... done.', ow=True)
 
       SmaliAnalyzer(self.store()).analyze()
 
