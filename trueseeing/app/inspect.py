@@ -1096,7 +1096,7 @@ class Runner:
         with store.db as c:
           for nr, in c.execute('select count(1) from analysis_issues'):
             ui.info('issues       {}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))
-          for nr, in c.execute('select count(1) from ops'):
+          for nr, in c.execute('select count(1) from ops where idx=0'):
             ui.info('ops          {}'.format(nr))
           for nr, in c.execute('select count(1) from class_class_name'):
             ui.info('classes      {}'.format(nr))
