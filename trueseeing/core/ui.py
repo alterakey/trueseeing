@@ -46,77 +46,83 @@ class UI:
     self.level = level
     self.is_debugging = (self.level == self.DEBUG)
 
-  def fatal(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> NoReturn:
+  def fatal(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> NoReturn:
     if not self._is_inspecting:
-      self.stderr(f'fatal: {msg}', nl=nl, exc=exc)
+      self.stderr(f'fatal: {msg}', nl=nl, ow=ow, exc=exc)
       sys.exit(2)
     else:
-      self.failure(f'fatal: {msg}', nl=nl, exc=exc)
+      self.failure(f'fatal: {msg}', nl=nl, ow=ow, exc=exc)
       raise FatalError()
 
-  def critical(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def critical(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.CRITICAL:
       if not self._is_inspecting:
-        self.stderr(msg, nl=nl, exc=exc)
+        self.stderr(msg, nl=nl, ow=ow, exc=exc)
       else:
-        self.stderr(f'[!] {msg}', nl=nl, exc=exc)
+        self.stderr(f'[!] {msg}', nl=nl, ow=ow, exc=exc)
 
-  def error(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def error(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.ERROR:
       if not self._is_inspecting:
-        self.stderr(msg, nl=nl, exc=exc)
+        self.stderr(msg, nl=nl, ow=ow, exc=exc)
       else:
-        self.stderr(f'[-] {msg}', nl=nl, exc=exc)
+        self.stderr(f'[-] {msg}', nl=nl, ow=ow, exc=exc)
 
-  def warn(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def warn(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.WARN:
       if not self._is_inspecting:
-        self.stderr(msg, nl=nl, exc=exc)
+        self.stderr(msg, nl=nl, ow=ow, exc=exc)
       else:
-        self.stderr(f'[*] {msg}', nl=nl, exc=exc)
+        self.stderr(f'[*] {msg}', nl=nl, ow=ow, exc=exc)
 
-  def info(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def info(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.INFO:
       if not self._is_inspecting:
-        self.stderr(msg, nl=nl, exc=exc)
+        self.stderr(msg, nl=nl, ow=ow, exc=exc)
       else:
-        self.stderr(f'[*] {msg}', nl=nl, exc=exc)
+        self.stderr(f'[*] {msg}', nl=nl, ow=ow, exc=exc)
 
-  def debug(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def debug(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.DEBUG:
       if not self._is_inspecting:
-        self.stderr(msg, nl=nl, exc=exc)
+        self.stderr(msg, nl=nl, ow=ow, exc=exc)
       else:
-        self.stderr(f'[.] {msg}', nl=nl, exc=exc)
+        self.stderr(f'[.] {msg}', nl=nl, ow=ow, exc=exc)
 
-  def success(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def success(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if not self._is_inspecting:
-      self.stderr(msg, nl=nl, exc=exc)
+      self.stderr(msg, nl=nl, ow=ow, exc=exc)
     else:
-      self.stderr(f'[+] {msg}', nl=nl, exc=exc)
+      self.stderr(f'[+] {msg}', nl=nl, ow=ow, exc=exc)
 
-  def failure(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def failure(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if not self._is_inspecting:
-      self.stderr(msg, nl=nl, exc=exc)
+      self.stderr(msg, nl=nl, ow=ow, exc=exc)
     else:
-      self.stderr(f'[-] {msg}', nl=nl, exc=exc)
+      self.stderr(f'[-] {msg}', nl=nl, ow=ow, exc=exc)
 
-  def stdout(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def stdout(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
+    if ow:
+      sys.stdout.write('\r')
     sys.stdout.write(msg)
     if nl:
       sys.stdout.write('\n')
     if exc is not None:
-      self._format_exception(sys.stdout, exc, nl=nl)
+      self._format_exception(sys.stdout, exc, nl=nl, ow=ow)
 
-  def stderr(self, msg: str, nl: bool = True, exc: Optional[Exception] = None) -> None:
+  def stderr(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
+    if ow:
+      sys.stderr.write('\r')
     sys.stderr.write(msg)
     if nl:
       sys.stderr.write('\n')
     if exc is not None:
-      self._format_exception(sys.stderr, exc, nl=nl)
+      self._format_exception(sys.stderr, exc, nl=nl, ow=ow)
 
   def _format_exception(self, f: TextIO, exc: Exception, nl: bool = True) -> None:
     from traceback import format_exception
+    if ow:
+      f.write('\r')
     f.write(''.join(format_exception(type(exc), exc, exc.__traceback__)))
     if nl:
       f.write('\n')

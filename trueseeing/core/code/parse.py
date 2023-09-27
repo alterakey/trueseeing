@@ -77,20 +77,20 @@ class SmaliAnalyzer:
 
         if analyzed_ops - last_seen > 65536:
           elapsed = time.time() - begin_at
-          ui.info(f"\ranalyze: {analyzed_ops} ops... ({analyzed_ops / elapsed:.02f} ops/s){' '*20}", nl=False)
+          ui.info(f"analyze: {analyzed_ops} ops... ({analyzed_ops / elapsed:.02f} ops/s){' '*20}", nl=False, ow=True)
           last_seen = analyzed_ops
 
       analyzed_ops = self._store.op_count_ops(c=c)
 
-    ui.info(f"\ranalyze: {analyzed_ops} ops, classes... {' '*20}", nl=False)
+    ui.info(f"analyze: {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
     with self._store.db as c:
       analyzed_classes = self._store.op_store_classmap(classmap, c=c)
 
-    ui.info(f"\ranalyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False)
+    ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
     with self._store.db as c:
       analyzed_methods = self._store.op_generate_methodmap(c=c)
 
-    ui.info(f"\ranalyze: {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}")
+    ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}", ow=True)
     ui.stderr("analyze: finalizing")
     self._store.op_finalize()
     ui.stderr(f"analyze: done ({time.time() - started:.02f} sec)")
