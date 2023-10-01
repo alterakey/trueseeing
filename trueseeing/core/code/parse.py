@@ -52,6 +52,7 @@ class SmaliAnalyzer:
 
     begin_at = started
     with self._store.db as c:
+      c.execute('begin exclusive')
       base_id = 1
       last_seen = analyzed_ops
 
@@ -82,18 +83,16 @@ class SmaliAnalyzer:
 
       analyzed_ops = self._store.op_count_ops(c=c)
 
-    ui.info(f"analyze: {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
-    with self._store.db as c:
+      ui.info(f"analyze: {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
       analyzed_classes = self._store.op_store_classmap(classmap, c=c)
 
-    ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
-    with self._store.db as c:
+      ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
       analyzed_methods = self._store.op_generate_methodmap(c=c)
 
     ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}", ow=True)
-    ui.stderr("analyze: finalizing")
+    ui.info("analyze: finalizing")
     self._store.op_finalize()
-    ui.stderr(f"analyze: done ({time.time() - started:.02f} sec)")
+    ui.info(f"analyze: done ({time.time() - started:.02f} sec)")
 
 class P:
   @classmethod

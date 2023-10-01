@@ -119,7 +119,7 @@ class UI:
     if exc is not None:
       self._format_exception(sys.stderr, exc, nl=nl, ow=ow)
 
-  def _format_exception(self, f: TextIO, exc: Exception, nl: bool = True) -> None:
+  def _format_exception(self, f: TextIO, exc: Exception, nl: bool = True, ow: bool = False) -> None:
     from traceback import format_exception
     if ow:
       f.write('\r')

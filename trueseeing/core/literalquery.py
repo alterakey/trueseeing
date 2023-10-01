@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 import os.path
 import pkg_resources
 
+from trueseeing.core.ui import ui
 from trueseeing.core.code.model import Op
 
 if TYPE_CHECKING:
@@ -43,7 +44,6 @@ class StorePrep:
   def stage2(self) -> None:
     with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'store.1.sql')), 'r', encoding='utf-8') as f:
       self.c.executescript(f.read())
-
 
 class Query:
   def __init__(self, store: Store) -> None:
