@@ -110,7 +110,7 @@ class Context:
     import yaml
     with self.store().db as db:
       for o, in db.execute('select blob from files where path=:path', dict(path='apktool.yml')):
-        return yaml.safe_load(re.sub(r'!!brut\.androlib\.meta\.MetaInfo', '', o.decode('utf-8')))
+        return yaml.safe_load(re.sub(r'!!brut\.androlib\..*', '', o.decode('utf-8')))
 
   # FIXME: Handle invalid values
   def get_min_sdk_version(self) -> int:
