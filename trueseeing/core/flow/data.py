@@ -22,12 +22,12 @@ import itertools
 
 from trueseeing.core.flow.code import CodeFlows
 from trueseeing.core.ui import ui
+from trueseeing.core.code.model import Op
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict
   from typing_extensions import Final
   from trueseeing.core.store import Store
-  from trueseeing.core.code.model import Op
 
   DataGraph = Union[Op, Mapping[Op, Any]]
 
@@ -38,6 +38,9 @@ class DataFlows:
     pass
 
   class RegisterDecodeError(Exception):
+    pass
+
+  class GraphSizeError(Exception):
     pass
 
   @classmethod
@@ -154,7 +157,40 @@ class DataFlows:
       return set()
 
   @classmethod
-  def analyze(cls, store: Store, op: Optional[Op], state:Optional[Dict[Optional[int], Optional[DataGraph]]]=None, stage:int = 0) -> Optional[DataGraph]:
+  def _approximated_size_of_graph(cls, d: Optional[DataGraph], /, _cache:Optional[Dict[int, int]] = None) -> int:
+    if _cache is None:
+      _cache = dict()
+
+    if d is None:
+      return 0
+    elif isinstance(d, Op):
+      return 1
+    elif isinstance(d, dict):
+      o = 0
+      assert len(d) == 1
+      for k,v in d.items():
+        assert isinstance(k, Op)
+        assert k._id is not None
+        if k._id in _cache:
+          return _cache[k._id]
+        else:
+          for vk, vv in v.items():
+            assert isinstance(vk, str)
+            o += cls._approximated_size_of_graph(vv, _cache=_cache)
+          _cache[k._id] = o
+      return o
+    else:
+      assert False
+
+  @classmethod
+  def _check_graph(cls, d: Optional[DataGraph]) -> int:
+    n = cls._approximated_size_of_graph(d)
+    if n > (48 * 1048576): # XXX: make it tunable
+      raise cls.GraphSizeError()
+    return n
+
+  @classmethod
+  def analyze(cls, store: Store, op: Optional[Op], state:Optional[Dict[int, Any]]=None, stage:int = 0) -> Optional[DataGraph]:
     if op is None or stage > 64: # XXX: Is it sufficient? Might be better if we make it tunable?
       return None
     if state is None:
@@ -163,43 +199,55 @@ class DataFlows:
     o: Optional[DataGraph] = None
 
     if op.t == 'id':
+      assert op._id is not None
       if op._id in state:
-        return state[op._id]
-      if any(op.v.startswith(x) for x in ['const','new-','move-exception']):
-        o = op
-        state[op._id] = o
-        return o
-      elif op.v in ['move', 'array-length']:
-        o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[1])}}
-        state[op._id] = o
-        return o
-      elif any(op.v.startswith(x) for x in ['aget-']):
-        assert len(op.p) == 3
-        o = {op:{k:cls.analyze(store, cls.analyze_recent_array_load_of(store, op, k), state, stage=stage+1) for k in (cls.decoded_registers_of_set(op.p[1]) | cls.decoded_registers_of_set(op.p[2]))}}
-        state[op._id] = o
-        return o
-      elif any(op.v.startswith(x) for x in ['sget-']):
-        assert len(op.p) == 2
-        o = {op:{k:cls.analyze(store, cls.analyze_recent_static_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
-        state[op._id] = o
-        return o
-      elif any(op.v.startswith(x) for x in ['iget-']):
-        assert len(op.p) == 3
-        o = {op:{k:cls.analyze(store, cls.analyze_recent_instance_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
-        state[op._id] = o
-        return o
-      elif op.v.startswith('move-result'):
-        o = cls.analyze(store, cls.analyze_recent_invocation(store, op), state, stage=stage+1)
-        state[op._id] = o
-        return o
-      else:
-        try:
-          o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+        return state[op._id] # type: ignore[no-any-return]
+      try:
+        if any(op.v.startswith(x) for x in ['const','new-','move-exception']):
+          o = op
           state[op._id] = o
           return o
-        except cls.RegisterDecodeError:
-          state[op._id] = None
-          return None
+        elif op.v in ['move', 'array-length']:
+          o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[1])}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          state[op._id] = o
+          return o
+        elif any(op.v.startswith(x) for x in ['aget-']):
+          assert len(op.p) == 3
+          o = {op:{k:cls.analyze(store, cls.analyze_recent_array_load_of(store, op, k), state, stage=stage+1) for k in (cls.decoded_registers_of_set(op.p[1]) | cls.decoded_registers_of_set(op.p[2]))}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='aget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          state[op._id] = o
+          return o
+        elif any(op.v.startswith(x) for x in ['sget-']):
+          assert len(op.p) == 2
+          o = {op:{k:cls.analyze(store, cls.analyze_recent_static_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='sget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          state[op._id] = o
+          return o
+        elif any(op.v.startswith(x) for x in ['iget-']):
+          assert len(op.p) == 3
+          o = {op:{k:cls.analyze(store, cls.analyze_recent_instance_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='iget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          state[op._id] = o
+          return o
+        elif op.v.startswith('move-result'):
+          o = cls.analyze(store, cls.analyze_recent_invocation(store, op), state, stage=stage+1)
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move-result', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          state[op._id] = o
+          return o
+        else:
+          try:
+            o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+            ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='gen.', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+            state[op._id] = o
+            return o
+          except cls.RegisterDecodeError:
+            state[op._id] = None
+            return None
+      except cls.GraphSizeError:
+        ui.warn('analyze: op #{id} stage: {stage}: too many nodes'.format(id=op._id, stage=stage))
+        state[op._id] = None
+        return None
     else:
       return None
 
