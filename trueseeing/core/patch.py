@@ -52,9 +52,6 @@ class Patcher:
     from tempfile import TemporaryDirectory
     from pkg_resources import resource_filename
 
-    # XXX
-    sigfile = 'CERT'
-
     # XXX insecure
     with TemporaryDirectory() as d:
       with context.store().db as c:
@@ -81,8 +78,11 @@ class Patcher:
           os.chdir(cwd)
 
       from trueseeing.core.tools import invoke_passthru
-      await invoke_passthru("(mkdir -p {root}/files)".format(root=d))
-      await invoke_passthru("(cd {root} && java -jar {apktool} b --use-aapt2 -o patched.apk files)".format(root=d, apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar'))))
-      await invoke_passthru("(cd {root} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {keystore} -storepass android -keypass android -sigfile {sigfile} patched.apk androiddebugkey)".format(root=d, keystore=await SigningKey().key(), sigfile=sigfile))
-      await invoke_passthru("(cd {root} && java -jar {zipalign} patched.apk aligned.apk && rm -f patched.apk)".format(root=d, zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'zipalign.jar'))))
-      copyfile(os.path.join(d, 'aligned.apk'), self._outpath)
+      await invoke_passthru('(cd {root} && java -jar {apkeditor} b -i files -o patched.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android patched.apk && cp -a pacthed.apk)'.format(
+        root=d,
+        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar')),
+        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner-31.0.2.jar')),
+        keystore=await SigningKey().key(),
+      ))
+      copyfile(os.path.join(d, 'patched.apk'), self._outpath)
+      copyfile(os.path.join(d, 'patched.apk.idsig'), self._outpath + '.idsig')

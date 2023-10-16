@@ -244,7 +244,7 @@ class SecurityTamperableWebViewDetector(Detector):
             targets.add(name)
             more = True
 
-      for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='res/%layout%.xml')):
+      for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='%/res/%layout%.xml')):
         r = ET.fromstring(blob, parser=ET.XMLParser(recover=True))
         for t in reduce(lambda x,y: x+y, (r.xpath('//{}'.format(self._context.class_name_of_dalvik_class_type(c).replace('$', '_'))) for c in targets)):
           size = LayoutSizeGuesser().guessed_size(t, fn)
@@ -398,7 +398,7 @@ class SecurityInsecureWebViewDetector(Detector):
           v = DataFlows.solved_constant_data_in_invocation(store, op, 0)
           if v.startswith('file:///android_asset/'):
             path = v.replace('file:///android_asset/', 'assets/')
-            for blob, in store.db.execute('select blob from files where path=:path', dict(path=path)):
+            for blob, in store.db.execute('select blob from files where path=:path', dict(path=f'root/{path}')):
               content = blob.decode('utf-8', errors='ignore')
               m = re.search('<meta .*Content-Security-Policy.*content="(.*)?">', content, flags=re.IGNORECASE)
               csp: Optional[str] = None if m is None else m.group(1)
@@ -556,7 +556,7 @@ class ClientXSSJQDetector(Detector):
   _synopsis = "The application pours literal HTML in JQuery context."
 
   async def detect(self) -> None:
-    for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='assets/%.js')):
+    for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='root/assets/%.js')):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
         for m in re.finditer(r'\.html\(', l):

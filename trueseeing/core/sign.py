@@ -44,22 +44,6 @@ class SigningKey:
     ui.info("generating key for repackaging")
     await invoke_passthru(f'keytool -genkey -v -keystore {self._path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
 
-class ZipAligner:
-  _path: str
-  _outpath: str
-
-  def __init__(self, path: str, outpath: str):
-    self._path = os.path.realpath(path)
-    self._outpath = os.path.realpath(outpath)
-
-  async def align(self) -> None:
-    from pkg_resources import resource_filename
-    await invoke_passthru('rm -f {outpath} && java -jar {zipalign} {path} {outpath}'.format(
-      path=self._path,
-      outpath=self._outpath,
-      zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'zipalign.jar'))
-    ))
-
 class Unsigner:
   _path: str
   _outpath: str
@@ -86,28 +70,13 @@ class Resigner:
   async def resign(self) -> None:
     from pkg_resources import resource_filename
     with tempfile.TemporaryDirectory() as d:
-      await invoke_passthru(f"(mkdir -p {d}/t)")
-      await invoke_passthru(f"(cd {d}/t && unzip -q {self._path})")
-      sigfile = self._sigfile(d)
-      await invoke_passthru(f"(cd {d}/t && rm -rf META-INF && zip -qr ../signed.apk .)")
       await invoke_passthru(
-        f"(cd {d} && jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore {await SigningKey().key()} -storepass android -keypass android -sigfile {sigfile} signed.apk androiddebugkey)"
-      )
-      await invoke_passthru(
-        "(cd {d} && java -jar {zipalign} signed.apk aligned.apk && rm -f signed.apk)".format(
+        "java -jar {apksigner} sign --ks {ks} --ks-pass pass:android --in {path} --out {d}/signed.apk".format(
           d=d,
-          zipalign=resource_filename(__name__, os.path.join('..', 'libs', 'zipalign.jar'))
+          apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner-31.0.2.jar')),
+          ks=await SigningKey().key(),
+          path=self._path,
         )
       )
-      shutil.copyfile(os.path.join(d, 'aligned.apk'), self._outpath)
-
-  def _sigfile(self, root: str) -> str:
-    import re
-    from glob import glob
-    try:
-      fn = [os.path.basename(fn) for fn in glob(f"{root}/t/META-INF/*.SF")][0]
-      ui.debug(f"found existing signature: {fn}")
-      return re.sub(r'\.[A-Z]+$', '', fn)
-    except IndexError:
-      ui.debug("signature not found")
-      return 'CERT'
+      shutil.copyfile(os.path.join(d, 'signed.apk'), self._outpath)
+      shutil.copyfile(os.path.join(d, 'signed.apk.idsig'), self._outpath.replace('.apk', '.apk.idsig'))

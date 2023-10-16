@@ -60,8 +60,8 @@ class APKDisassembler:
         c.execute('create table files(path text not null unique, blob bytes not null)')
 
       with c:
-        _ = subprocess.run('java -jar {apktooljar} d --use-aapt2 -o files {apk}'.format(
-          apktooljar=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
+        _ = subprocess.run('java -jar {apkeditor} d -i {apk} -o files'.format(
+          apkeditor=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar')),
           apk=apk
         ), shell=True, capture_output=True)
         os.chdir('files')

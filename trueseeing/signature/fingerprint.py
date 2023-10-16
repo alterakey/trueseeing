@@ -172,7 +172,7 @@ class LibraryDetector(Detector):
               info1=f'{ver} ({p})',
             ))
 
-    for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='assets/%.js')):
+    for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='root/assets/%.js')):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
         for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
@@ -294,7 +294,7 @@ class NativeArchDetector(Detector):
   _synopsis = "The application has native codes for some architectures."
 
   async def detect(self) -> None:
-    for d, in self._context.store().db.execute('select path from files where path like :pat', dict(pat='lib/%')):
+    for d, in self._context.store().db.execute('select path from files where path like :pat', dict(pat='root/lib/%')):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[1]
         self._raise_issue(Issue(

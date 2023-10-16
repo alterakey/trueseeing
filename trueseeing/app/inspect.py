@@ -27,7 +27,7 @@ from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Type
+  from typing import Mapping, Optional, Any, NoReturn, List, Type, Tuple
   from trueseeing.signature.base import Detector
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context
@@ -116,14 +116,10 @@ class Runner:
       'cf':dict(e=self._use_framework, n='cf framework.apk', d='use framework'),
       'ca':dict(e=self._assemble, n='ca[!] /path', d='assemble as target from path'),
       'ca!':dict(e=self._assemble),
-      'cd':dict(e=self._disassemble, n='cd[r][s][!] /path', d='disassemble target into path'),
+      'cd':dict(e=self._disassemble, n='cd[s][!] /path', d='disassemble target into path'),
       'cd!':dict(e=self._disassemble),
-      'cdr':dict(e=self._disassemble),
       'cds':dict(e=self._disassemble),
-      'cdrs':dict(e=self._disassemble),
-      'cdr!':dict(e=self._disassemble),
       'cds!':dict(e=self._disassemble),
-      'cdrs!':dict(e=self._disassemble),
       'xq':dict(e=self._exploit_discard, n='xq', d='exploit: discard changes'),
       'xx':dict(e=self._exploit_apply, n='xx[!]', d='exploit: apply and rebuild apk'),
       'xx!':dict(e=self._exploit_apply),
@@ -747,6 +743,29 @@ class Runner:
         apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
       ))
 
+  async def _assemble_apk_from_path(self, wd: str, path: str) -> Tuple[str, str]:
+    import os
+    from pkg_resources import resource_filename
+    from trueseeing.core.sign import SigningKey
+    from trueseeing.core.tools import invoke_passthru
+    await invoke_passthru(
+      '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
+        wd=wd, path=path,
+        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar')),
+        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner-31.0.2.jar')),
+        keystore=await SigningKey().key(),
+      )
+    )
+    return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
+
+  def _move_apk(self, src: str, dest: str) -> None:
+    import shutil
+    shutil.move(src, dest)
+    try:
+      shutil.move(src.replace('.apk', '.apk.idsig'), dest.replace('.apk', '.apk.idsig'))
+    except OSError:
+      pass
+
   async def _assemble(self, args: deque[str]) -> None:
     self._require_target('need target (i.e. output apk filename)')
     assert self._target is not None
@@ -760,8 +779,6 @@ class Runner:
     import time
     import shutil
     from tempfile import TemporaryDirectory
-    from trueseeing.core.tools import invoke_passthru
-    from pkg_resources import resource_filename
 
     root = args.popleft()
     apk = self._target
@@ -784,16 +801,12 @@ class Runner:
         path = os.path.join(td, 'f')
         shutil.copytree(os.path.join(root, '.'), path)
 
-      await invoke_passthru(
-        'java -jar {apktool} b --use-aapt2 -o {td}/output.apk {path}'.format(
-          td=td, path=path,
-          apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar'))
-        )
-      )
+      outapk, outsig = await self._assemble_apk_from_path(td, path)
 
       if os.path.exists(apk):
-        shutil.move(apk, origapk)
-      shutil.move(os.path.join(td, 'output.apk'), apk)
+        self._move_apk(apk, origapk)
+
+      self._move_apk(outapk, apk)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -825,11 +838,10 @@ class Runner:
 
     with TemporaryDirectory() as td:
       await invoke_passthru(
-        'java -jar {apktool} d -m{r}{s}o {td}/f {apk}'.format(
-          td=td, apk=f"'{apk}'",
-          r='r' if 'r' in cmd else '',
-          s='s' if 's' in cmd else '',
-          apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar'))
+        '(java -jar {apkeditor} d -o {td}/f -i {apk} {s})'.format(
+          td=td, apk=apk,
+          s='-dex' if 's' in cmd else '',
+          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar'))
         )
       )
 
@@ -870,11 +882,8 @@ class Runner:
 
     import os
     import time
-    import shutil
     from tempfile import TemporaryDirectory
     from trueseeing.core.context import Context
-    from trueseeing.core.tools import invoke_passthru
-    from pkg_resources import resource_filename
 
     apk = self._target
     origapk = apk.replace('.apk', '.apk.orig')
@@ -891,16 +900,12 @@ class Runner:
 
       with TemporaryDirectory() as td:
         ui.info('applying patches to {apk}'.format(apk=apk))
-        await invoke_passthru(
-          'java -jar {apktool} b --use-aapt2 -o {td}/output.apk {path}'.format(
-            td=td, path=path,
-            apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar'))
-          )
-        )
+        outapk, outsig = await self._assemble_apk_from_path(td, path)
 
         if os.path.exists(apk):
-          shutil.move(apk, origapk)
-        shutil.move(os.path.join(td, 'output.apk'), apk)
+          self._move_apk(apk, origapk)
+
+        self._move_apk(outapk, apk)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -915,9 +920,9 @@ class Runner:
     path = os.path.join(ctx.wd, 'p')
     if not os.path.exists(path):
       await invoke_passthru(
-        'java -jar {apktool} d -mso {path} {apk}'.format(
-          path=path, apk=apk,
-          apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar'))
+        '(java -jar {apkeditor} d -o {path} -i {apk} -dex)'.format(
+          apk=apk, path=path,
+          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar'))
         )
       )
 
