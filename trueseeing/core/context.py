@@ -77,7 +77,7 @@ class Context:
         ui.info('analyze: removing leftover')
         self.remove()
 
-      ui.info('analyze: disassembling... ', nl=False, ow=True)
+      ui.info('analyze: disassembling... ', nl=False)
       self.create()
       APKDisassembler(self, skip_resources).disassemble()
       ui.info('analyze: disassembling... done.', ow=True)
@@ -114,7 +114,12 @@ class Context:
 
   # FIXME: Handle invalid values
   def get_min_sdk_version(self) -> int:
-    return int(self._parsed_apktool_yml()['sdkInfo']['minSdkVersion'])
+    manif = self.parsed_manifest()
+    try:
+      e = manif.xpath('.//uses-sdk')[0]
+      return int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
+    except IndexError:
+      return int(self._parsed_apktool_yml()['sdkInfo']['minSdkVersion'])
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self) -> List[str]:
@@ -124,21 +129,21 @@ class Context:
   @functools.lru_cache(maxsize=1)
   def disassembled_resources(self) -> List[str]:
     with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='res/%.xml'))]
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='%/res/%.xml'))]
 
   @functools.lru_cache(maxsize=1)
   def disassembled_assets(self) -> List[str]:
     with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='assets/%'))]
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='root/%/assets/%'))]
 
   def source_name_of_disassembled_class(self, fn: str) -> str:
-    return os.path.join(*fn.split('/')[1:])
+    return os.path.join(*fn.split('/')[2:])
 
   def dalvik_type_of_disassembled_class(self, fn: str) -> str:
     return 'L{};'.format((self.source_name_of_disassembled_class(fn).replace('.smali', '')))
 
   def source_name_of_disassembled_resource(self, fn: str) -> str:
-    return os.path.join(*fn.split('/')[1:])
+    return os.path.join(*fn.split('/')[3:])
 
   def class_name_of_dalvik_class_type(self, dc: str) -> str:
     return re.sub(r'^L|;$', '', dc).replace('/', '.')
@@ -149,21 +154,21 @@ class Context:
   @functools.lru_cache(maxsize=1)
   def _string_resource_files(self) -> List[str]:
     with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='res/values/%strings%'))]
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='%/res/values/%strings%'))]
 
   def string_resources(self) -> Iterable[Tuple[str, str]]:
     with self.store().db as db:
-      for o, in db.execute('select blob from files where path like :path', dict(path='res/values/%strings%')):
+      for o, in db.execute('select blob from files where path like :path', dict(path='%/res/values/%strings%')):
         yield from ((c.attrib['name'], c.text) for c in ET.fromstring(o, parser=ET.XMLParser(recover=True)).xpath('//resources/string') if c.text)
 
   @functools.lru_cache(maxsize=1)
   def _xml_resource_files(self) -> List[str]:
     with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='res/xml/%.xml'))]
+      return [f for f, in db.execute('select path from files where path like :path', dict(path='%/res/xml/%.xml'))]
 
   def xml_resources(self) -> Iterable[Tuple[str, Any]]:
     with self.store().db as db:
-      for fn, o in db.execute('select path, blob from files where path like :path', dict(path='res/xml/%.xml')):
+      for fn, o in db.execute('select path, blob from files where path like :path', dict(path='%/res/xml/%.xml')):
         yield (fn, ET.fromstring(o, parser=ET.XMLParser(recover=True)))
 
   def is_qualname_excluded(self, qualname: Optional[str]) -> bool:

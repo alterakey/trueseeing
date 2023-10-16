@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import re
 from collections import deque
 
-from trueseeing.core.code.model import Op, Annotation
+from trueseeing.core.code.model import Op, Annotation, Param
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -56,10 +56,14 @@ class SmaliAnalyzer:
       base_id = 1
       last_seen = analyzed_ops
 
-      for f, in c.execute('select blob from files where path like :path', dict(path='smali%/%.smali')):
+      for f, in c.execute('select blob from files where path like :path', dict(path='smali/%.smali')):
         ops = []
         for op in P.parsed_flat(f.decode('utf-8')):
           analyzed_ops += 1
+          if op.eq('directive', 'line'):
+            continue
+          if op.t == 'annotation' or op.t == 'param':
+            continue
           for idx, o in enumerate(tuple([op] + op.p)):
             o._idx = idx
             ops.append(o)
@@ -104,6 +108,8 @@ class P:
         t = cls._parsed_as_op(l)
         if t.eq('directive', 'annotation'):
           yield Annotation(t.v, t.p, P._parsed_as_annotation_content(q))
+        elif t.eq('directive', 'param'):
+          yield Param(t.v, t.p, P._parsed_as_param_content(q))
         else:
           yield t
 
@@ -125,6 +131,16 @@ class P:
     content = []
     try:
       while '.end annotation' not in q[0]:
+        content.append(q.popleft())
+    except IndexError:
+      pass
+    return content
+
+  @classmethod
+  def _parsed_as_param_content(cls, q: deque[str]) -> List[str]:
+    content = []
+    try:
+      while '.end param' not in q[0]:
         content.append(q.popleft())
     except IndexError:
       pass

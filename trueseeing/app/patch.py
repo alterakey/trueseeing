@@ -65,7 +65,7 @@ class PatchLoggers:
   def apply(self, context: Context) -> None:
     import re
     with context.store().db as c:
-      for fn, content in c.execute('select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path like :path', dict(path='smali%.smali')):
+      for fn, content in c.execute('select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path like :path', dict(path='smali/%.smali')):
         stage0 = re.sub(rb'^.*?invoke-static.*?Landroid/util/Log;->.*?\(.*?$', b'', content, flags=re.MULTILINE)
         stage1 = re.sub(rb'^.*?invoke-virtual.*?Ljava/io/Print(Writer|Stream);->.*?\(.*?$', b'', stage0, flags=re.MULTILINE)
         if content != stage1:

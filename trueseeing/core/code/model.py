@@ -55,6 +55,16 @@ class Annotation(Op):
   def __repr__(self) -> str:
     return f'<Annotation {self.t}:{self.v}:{self.p}, content:{self.content}>'
 
+class Param(Op):
+  content: List[str]
+  def __init__(self, v: str, p: List[Op], content: List[str]) -> None:
+    super().__init__('param', v, p)
+    self.name = None
+    self.content = content
+
+  def __repr__(self) -> str:
+    return f'<Param {self.t}:{self.v}:{self.p}, content:{self.content}>'
+
 @attr.s(auto_attribs=True, frozen=True)
 class InvocationPattern:
   insn: str
