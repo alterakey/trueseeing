@@ -302,7 +302,11 @@ class Runner:
 
     apk = self._target
 
+    import time
     from trueseeing.app.scan import ScanMode
+    from trueseeing.core.context import Context
+
+    at = time.time()
     await ScanMode([apk]).invoke(
       ci_mode='html',
       outfile=None,
@@ -311,6 +315,10 @@ class Runner:
       no_cache_mode=False,
       update_cache_mode=False,
     )
+    with Context(apk, []) as context:
+      with context.store().db as db:
+        for nr, in db.execute('select count(1) from analysis_issues'):
+          ui.success("done, found {nr} issues ({t:.02f} sec.)".format(nr=nr, t=(time.time() - at)))
 
   async def _show_file(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
