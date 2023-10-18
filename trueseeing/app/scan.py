@@ -38,22 +38,26 @@ class ScanMode:
 
   async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False) -> int:
     if update_cache_mode:
-      from trueseeing.core.context import Context
       for f in self._files:
         ctx = Context(f, [])
         ctx.remove()
         await ctx.analyze()
       return 0
     else:
+      import time
       error_found = False
       session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile, exclude_packages=exclude_packages)
       for f in self._files:
+        at = time.time()
         try:
           if await session.invoke(f):
             error_found = True
+          with Context(f, []) as context:
+            with context.store().db as db:
+              for nr, in db.execute('select count(1) from analysis_issues'):
+                ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=f, nr=nr, t=(time.time() - at)))
         finally:
           if no_cache_mode:
-            from trueseeing.core.context import Context
             Context(f, []).remove()
 
       if not error_found:
