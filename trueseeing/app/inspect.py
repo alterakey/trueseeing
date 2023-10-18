@@ -314,6 +314,7 @@ class Runner:
       exclude_packages=[],
       no_cache_mode=False,
       update_cache_mode=False,
+      from_inspect_mode=True,
     )
     with Context(apk, []) as context:
       with context.store().db as db:

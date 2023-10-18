@@ -36,7 +36,7 @@ class ScanMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False) -> int:
+  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False, from_inspect_mode: bool = False) -> int:
     if update_cache_mode:
       for f in self._files:
         ctx = Context(f, [])
@@ -52,10 +52,11 @@ class ScanMode:
         try:
           if await session.invoke(f):
             error_found = True
-          with Context(f, []) as context:
-            with context.store().db as db:
-              for nr, in db.execute('select count(1) from analysis_issues'):
-                ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=f, nr=nr, t=(time.time() - at)))
+          if not from_inspect_mode:
+            with Context(f, []) as context:
+              with context.store().db as db:
+                for nr, in db.execute('select count(1) from analysis_issues'):
+                  ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=f, nr=nr, t=(time.time() - at)))
         finally:
           if no_cache_mode:
             Context(f, []).remove()
