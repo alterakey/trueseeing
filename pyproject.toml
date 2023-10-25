@@ -22,6 +22,7 @@ dependencies = [
     "attrs~=21.4",
     "pypubsub~=4.0",
     "docker~=5.0.3",
+    "termcolor~=2.3.0",
 ]
 requires-python = ">=3.7"
 dynamic = ['version', 'description']

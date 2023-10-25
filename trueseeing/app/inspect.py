@@ -218,9 +218,9 @@ class Runner:
 
   def reset_prompt(self) -> None:
     if self._target:
-      sys.ps1, sys.ps2 = f'ts[{self.get_target()}]> ', '... '
+      sys.ps1, sys.ps2 = ui.colored(f'ts[{self.get_target()}]> ', color='yellow'), ui.colored('... ', color='yellow')
     else:
-      sys.ps1, sys.ps2 = 'ts> ', '... '
+      sys.ps1, sys.ps2 = ui.colored('ts> ', color='yellow'), ui.colored('... ', color='yellow')
 
   async def _help(self, args: deque[str]) -> None:
     ui.success('Commands:')

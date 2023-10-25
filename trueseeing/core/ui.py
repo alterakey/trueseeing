@@ -18,10 +18,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import sys
+from functools import cache
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import NoReturn, Optional, TextIO
+  from typing import NoReturn, Optional, TextIO, Any
   from typing_extensions import Final
 
 class UI:
@@ -46,6 +47,11 @@ class UI:
     self.level = level
     self.is_debugging = (self.level == self.DEBUG)
 
+  @cache
+  def colored(self, x: str, **kw: Any) -> str:
+    from termcolor import colored
+    return colored(x, **kw)
+
   def fatal(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> NoReturn:
     if not self._is_inspecting:
       self.stderr(f'fatal: {msg}', nl=nl, ow=ow, exc=exc)
@@ -56,50 +62,29 @@ class UI:
 
   def critical(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.CRITICAL:
-      if not self._is_inspecting:
-        self.stderr(msg, nl=nl, ow=ow, exc=exc)
-      else:
-        self.stderr(f'[!] {msg}', nl=nl, ow=ow, exc=exc)
+      self.stderr(self._format_msg(msg, '!', color='red', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def error(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.ERROR:
-      if not self._is_inspecting:
-        self.stderr(msg, nl=nl, ow=ow, exc=exc)
-      else:
-        self.stderr(f'[-] {msg}', nl=nl, ow=ow, exc=exc)
+      self.stderr(self._format_msg(msg, '-', color='red', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def warn(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.WARN:
-      if not self._is_inspecting:
-        self.stderr(msg, nl=nl, ow=ow, exc=exc)
-      else:
-        self.stderr(f'[*] {msg}', nl=nl, ow=ow, exc=exc)
+      self.stderr(self._format_msg(msg, '*', color='yellow', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def info(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.INFO:
-      if not self._is_inspecting:
-        self.stderr(msg, nl=nl, ow=ow, exc=exc)
-      else:
-        self.stderr(f'[*] {msg}', nl=nl, ow=ow, exc=exc)
+      self.stderr(self._format_msg(msg, '*', color='blue', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def debug(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.DEBUG:
-      if not self._is_inspecting:
-        self.stderr(msg, nl=nl, ow=ow, exc=exc)
-      else:
-        self.stderr(f'[.] {msg}', nl=nl, ow=ow, exc=exc)
+      self.stderr(self._format_msg(msg, '.', color='gray', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def success(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
-    if not self._is_inspecting:
-      self.stderr(msg, nl=nl, ow=ow, exc=exc)
-    else:
-      self.stderr(f'[+] {msg}', nl=nl, ow=ow, exc=exc)
+    self.stderr(self._format_msg(msg, '+', color='green', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def failure(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
-    if not self._is_inspecting:
-      self.stderr(msg, nl=nl, ow=ow, exc=exc)
-    else:
-      self.stderr(f'[-] {msg}', nl=nl, ow=ow, exc=exc)
+    self.stderr(self._format_msg(msg, '-', color='red', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def stdout(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if ow:
@@ -126,6 +111,12 @@ class UI:
     f.write(''.join(format_exception(type(exc), exc, exc.__traceback__)))
     if nl:
       f.write('\n')
+
+  def _format_msg(self, msg: str, flag: str, **kw: Any) -> str:
+    if not self._is_inspecting:
+      return msg
+    else:
+      return '{flag} {msg}'.format(flag=self.colored(f'[{flag}]', **kw), msg=msg)
 
 
 ui = UI()
