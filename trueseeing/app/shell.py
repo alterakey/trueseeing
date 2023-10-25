@@ -46,6 +46,7 @@ class Signatures:
       manifest.ManifestManipContentProvider,
       manifest.ManifestManipBackup,
       manifest.ManifestDebuggable,
+      manifest.ManifestCleartextPermitted,
       privacy.PrivacyDeviceIdDetector,
       privacy.PrivacySMSDetector,
       security.SecurityFilePermissionDetector,
