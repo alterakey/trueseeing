@@ -21,7 +21,6 @@ dependencies = [
     "jinja2~=3.1",
     "attrs~=21.4",
     "pypubsub~=4.0",
-    "docker~=5.0.3",
     "termcolor~=2.3.0",
 ]
 requires-python = ">=3.7"
@@ -29,14 +28,6 @@ dynamic = ['version', 'description']
 
 [project.urls]
 Source = "https://github.com/alterakey/trueseeing"
-
-[tool.flit.sdist]
-exclude=[
-    'trueseeing/libs/container/*.tar*',
-    'trueseeing/libs/container/Dockerfile*',
-    'trueseeing/libs/container/*.sh',
-    'trueseeing/libs/container/*.py',
-]
 
 [project.scripts]
 trueseeing = "trueseeing.app._dummy:invoke"
