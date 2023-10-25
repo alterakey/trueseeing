@@ -234,3 +234,45 @@ Disable the debuggable bit.  To disable it, define the following attribute to th
 android:debuggable="false"
 '''
       ))
+
+class ManifestCleartextPermitted(Detector):
+  option = 'manifest-cleartext-permitted'
+  description = 'Detects usesCleartextTraffic flag'
+  _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N/'
+
+  async def detect(self) -> None:
+    manif = self._context.parsed_manifest()
+    api_level = self._context.get_min_sdk_version()
+    if api_level < 24:
+      if not manif.xpath('//application[@android:usesCleartextTraffic="false"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+        self._raise('AndroidManifest.xml')
+    else:
+      for e in manif.xpath('//application', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+        if e.attrib.get('{{{ns}}}networkSecurityConfig'.format(ns='http://schemas.android.com/apk/res/android')) is None:
+          if e.attrib.get('{{{ns}}}usesCleartextTraffic'.format(ns='http://schemas.android.com/apk/res/android'), 'true' if api_level < 28 else 'false').lower == 'true':
+            self._raise('AndroidManifest.xml')
+            break
+      for fn, xp in self._context.xml_resources():
+        if 'network-security-config' in xp.tag.lower():
+          if api_level < 28:
+            if not xp.xpath('.//*[cleartextTrafficPermitted="false"]'):
+              self._raise(self._context.source_name_of_disassembled_resource(fn))
+          else:
+            if xp.xpath('.//*[cleartextTrafficPermitted="true"]'):
+              self._raise(self._context.source_name_of_disassembled_resource(fn))
+
+  def _raise(self, path: str) -> None:
+    self._raise_issue(Issue(
+      detector_id=self.option,
+      confidence='certain',
+      cvss3_vector=self._cvss,
+      summary='cleartext traffic is permitted',
+      source=path,
+      synopsis="Application can use cleartext traffic.",
+      description="Application can use cleartext traffic.  Cleartext traffic are prone to be intercept and/or manipulated by an active attacker on the wire.",
+      solution='''\
+Consider migrating all the servers on TLS and disable use of cleartext traffic.  To disable one, associate an Network Security Config disallowing one (API > 24), or discourage ones use in <application> tag as follows (API > 23):
+
+<application android:useCleartextTraffic="false">
+'''
+    ))
