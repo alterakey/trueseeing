@@ -152,6 +152,8 @@ class Runner:
       '/dcx':dict(e=self._search_derived_class, n='/dcx class [pat]', d='search classes extending ones matching pattern'),
       '/dci':dict(e=self._search_implementing_class, n='/dci interface [pat]', d='search classes implementing interfaces matching pattern'),
       '/dm':dict(e=self._search_defined_method, n='/dm class [pat]', d='search classes defining methods matching pattern'),
+      '/f':dict(e=self._search_file, n='/f [pat]', d='search files those names matching pattern'),
+      '/s':dict(e=self._search_string, n='/s pat', d='search files for string'),
     }
 
   def _get_modifiers(self, args: deque[str]) -> List[str]:
@@ -520,6 +522,46 @@ class Runner:
       else:
         with open(outfn, 'w') as f1:
           gen.generate(f1)
+
+  async def _search_file(self, args: deque[str]) -> None:
+    self._require_target()
+    assert self._target is not None
+
+    _ = args.popleft()
+    apk = self._target
+
+    if args:
+      pat = args.popleft()
+    else:
+      pat = '.'
+
+    from trueseeing.core.context import Context
+    with Context(apk, []) as context:
+      await context.analyze()
+      store = context.store()
+      for path, in store.db.execute('select path from files where path regexp :pat', dict(pat=pat)):
+        ui.info(f'{path}')
+
+  async def _search_string(self, args: deque[str]) -> None:
+    self._require_target()
+    assert self._target is not None
+
+    _ = args.popleft()
+    apk = self._target
+
+    if not args:
+      ui.fatal('need pattern')
+
+    pat = args.popleft()
+
+    ui.info('searching in files: {pat}'.format(pat=pat))
+
+    from trueseeing.core.context import Context
+    with Context(apk, []) as context:
+      await context.analyze()
+      store = context.store()
+      for path, in store.db.execute('select path from files where blob regexp :pat', dict(pat=pat.encode('latin1'))):
+        ui.info(f'{path}')
 
   async def _search_call(self, args: deque[str]) -> None:
     self._require_target()
