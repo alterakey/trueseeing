@@ -197,21 +197,29 @@ class ManifestManipBackup(Detector):
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/'
 
   async def detect(self) -> None:
-    if self._context.parsed_manifest().xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      self._raise_issue(Issue(
-        detector_id=self.option,
-        confidence='certain',
-        cvss3_vector=self._cvss,
-        summary='manipulatable backups',
-        source='AndroidManifest.xml',
-        synopsis="Application data can be backed up and restored with the Full Backup feature.",
-        description="Application data can be backed up and restored with the Full Backup feature, thusly making it subjectible to the backup attack.",
-        solution='''\
-Review them and opt-out from the Full Backup feature if necessary.  To opt-out, define the following attribute to the <application> tag in the manifest:
+    manif = self._context.parsed_manifest()
+    for e in manif.xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+      if e.attrib.get('{{{ns}}}fullBackupContent'.format(ns='http://schemas.android.com/apk/res/android')) is None:
+        self._raise_issue(Issue(
+          detector_id=self.option,
+          confidence='certain',
+          cvss3_vector=self._cvss,
+          summary='manipulatable backups',
+          source='AndroidManifest.xml',
+          synopsis="Application data can be backed up and restored with the Auto Backup feature.",
+          description="Application data can be backed up and restored with the Auto Backup feature, thusly making it subjectible to the backup attack.",
+          solution='''\
+Review them, and consider controlling backupable data with the Auto Backup feature or completely opt-out from it if necessary.  To control backupable data, associate XML with the following attribute to the <application> tag.
+
+android:fullBackupContent="@xml/fbc"
+
+(Please refer https://developer.android.com/guide/topics/data/autobackup#XMLSyntax for details)
+
+To opt-out, define the following attribute to the <application> tag in the manifest:
 
 android:allowBackup="false"
 '''
-      ))
+        ))
 
 class ManifestDebuggable(Detector):
   option = 'manifest-debuggable'
