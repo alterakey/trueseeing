@@ -227,7 +227,7 @@ class UrlLikeDetector(Detector):
 
   _re_tlds: Optional[re.Pattern[str]] = None
 
-  def _analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
+  def _analyzed(self, x: str, qn: Optional[str] = None) -> Iterable[Dict[str, Any]]:
     assert self._re_tlds is not None
     if '://' in x:
       yield dict(type_='URL', value=re.findall(r'\S+://\S+', x))
@@ -239,9 +239,12 @@ class UrlLikeDetector(Detector):
         hostlike = m.group(1)
         components = hostlike.split('.')
         if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components) and all(int(c) < 256 for c in components):
-          yield dict(type_='possible IPv4 address', value=[hostlike])
+          if re.match(r'1\.[239]\.|2\.(1|5|160)\.|3\.1\.', hostlike) and qn is not None and re.search(r'asn1|x509|X509|KeyUsage', qn):
+            pass
+          else:
+            yield dict(type_='possible IPv4 address', value=[hostlike])
         elif self._re_tlds.search(components[-1]):
-          if not re.search(r'^android\.(intent|media)\.|^[A-Z][a-z0-9].*\.java$', hostlike):
+          if not re.search(r'^android\.(intent|media)\.|^os\.name$|^java\.vm\.name|^[A-Z]+.*\.(java|EC|name|secure)$', hostlike):
             yield dict(type_='possible FQDN', value=[hostlike])
 
   async def detect(self) -> None:
@@ -254,7 +257,7 @@ class UrlLikeDetector(Detector):
         qn = store.query().qualname_of(cl)
         if self._context.is_qualname_excluded(qn):
           continue
-        for match in self._analyzed(cl.p[1].v):
+        for match in self._analyzed(cl.p[1].v, qn):
           for v in match['value']:
             self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
       for name, val in self._context.string_resources():
