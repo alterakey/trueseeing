@@ -23,7 +23,7 @@ from trueseeing.core.literalquery import StorePrep, Query
 
 if TYPE_CHECKING:
   import sqlite3
-  from typing import Optional, Any, Iterable, Set, Tuple, List
+  from typing import Optional, Any, Iterable, Set, Tuple, List, AnyStr
   from trueseeing.core.code.model import Op
 
 class Store:
@@ -50,7 +50,7 @@ class Store:
     StorePrep(self.db).stage1()
 
   @staticmethod
-  def _re_fn(expr: str, item: Any) -> bool:
+  def _re_fn(expr: AnyStr, item: Any) -> bool:
     if item is not None:
       return re.compile(expr).search(item) is not None
     else:
