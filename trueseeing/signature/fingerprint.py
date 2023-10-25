@@ -238,10 +238,10 @@ class UrlLikeDetector(Detector):
       if m:
         hostlike = m.group(1)
         components = hostlike.split('.')
-        if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components):
+        if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components) and all(int(c) < 256 for c in components):
           yield dict(type_='possible IPv4 address', value=[hostlike])
         elif self._re_tlds.search(components[-1]):
-          if not re.search(r'^android\.(intent|media)\.', hostlike):
+          if not re.search(r'^android\.(intent|media)\.|^[A-Z][a-z0-9].*\.java$', hostlike):
             yield dict(type_='possible FQDN', value=[hostlike])
 
   async def detect(self) -> None:

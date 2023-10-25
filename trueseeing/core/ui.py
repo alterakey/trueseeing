@@ -78,7 +78,7 @@ class UI:
 
   def debug(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.DEBUG:
-      self.stderr(self._format_msg(msg, '.', color='gray', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
+      self.stderr(self._format_msg(msg, '.', color='grey', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
 
   def success(self, msg: str, nl: bool = True, ow: bool = False, exc: Optional[Exception] = None) -> None:
     self.stderr(self._format_msg(msg, '+', color='green', attrs=('bold',)), nl=nl, ow=ow, exc=exc)
