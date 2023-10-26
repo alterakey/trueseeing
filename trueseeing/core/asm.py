@@ -61,7 +61,7 @@ class APKDisassembler:
 
       with c:
         _ = subprocess.run('java -jar {apkeditor} d -i {apk} -o files'.format(
-          apkeditor=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar')),
+          apkeditor=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar')),
           apk=apk
         ), shell=True, capture_output=True)
         os.chdir('files')

@@ -73,7 +73,7 @@ class Resigner:
       await invoke_passthru(
         "java -jar {apksigner} sign --ks {ks} --ks-pass pass:android --in {path} --out {d}/signed.apk".format(
           d=d,
-          apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner-31.0.2.jar')),
+          apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner.jar')),
           ks=await SigningKey().key(),
           path=self._path,
         )

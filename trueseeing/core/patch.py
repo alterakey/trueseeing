@@ -80,8 +80,8 @@ class Patcher:
       from trueseeing.core.tools import invoke_passthru
       await invoke_passthru('(cd {root} && java -jar {apkeditor} b -i files -o patched.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android patched.apk && cp -a pacthed.apk)'.format(
         root=d,
-        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar')),
-        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner-31.0.2.jar')),
+        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar')),
+        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner.jar')),
         keystore=await SigningKey().key(),
       ))
       copyfile(os.path.join(d, 'patched.apk'), self._outpath)
