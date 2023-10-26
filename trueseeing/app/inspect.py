@@ -802,8 +802,8 @@ class Runner:
     await invoke_passthru(
       '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
         wd=wd, path=path,
-        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar')),
-        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner-31.0.2.jar')),
+        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar')),
+        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner.jar')),
         keystore=await SigningKey().key(),
       )
     )
@@ -892,7 +892,7 @@ class Runner:
         '(java -jar {apkeditor} d -o {td}/f -i {apk} {s})'.format(
           td=td, apk=apk,
           s='-dex' if 's' in cmd else '',
-          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar'))
+          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar'))
         )
       )
 
@@ -973,7 +973,7 @@ class Runner:
       await invoke_passthru(
         '(java -jar {apkeditor} d -o {path} -i {apk} -dex)'.format(
           apk=apk, path=path,
-          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'APKEditor-1.3.1.jar'))
+          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar'))
         )
       )
 
