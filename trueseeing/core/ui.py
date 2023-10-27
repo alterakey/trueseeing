@@ -92,6 +92,7 @@ class UI:
     sys.stdout.write(msg)
     if nl:
       sys.stdout.write('\n')
+    sys.stdout.flush()
     if exc is not None:
       self._format_exception(sys.stdout, exc, nl=nl, ow=ow)
 
@@ -101,6 +102,7 @@ class UI:
     sys.stderr.write(msg)
     if nl:
       sys.stderr.write('\n')
+    sys.stderr.flush()
     if exc is not None:
       self._format_exception(sys.stderr, exc, nl=nl, ow=ow)
 
