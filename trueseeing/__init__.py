@@ -16,4 +16,4 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Trueseeing is a non-decompiling Android application vulnerability scanner."""
-__version__ = '2.1.8'
+__version__ = '2.1.8.1'
