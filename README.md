@@ -48,7 +48,7 @@ We provide containers so you can use right away as follows; now this is also the
 
 	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing
 
-If you want to run statelessly you omit mounting volume onto /cache (not recommended for day-to-day use though):
+If you want to run statelessly you omit mounting volume onto /cache (not recommended for day-to-day use though; also see [#254](https://github.com/alterakey/trueseeing/issues/254)):
 
 	$ docker run --rm -v $(pwd):/out alterakey/trueseeing
 
