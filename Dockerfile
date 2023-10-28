@@ -1,4 +1,4 @@
-from python:3.11-alpine
+from python:3.12-alpine
 run apk add --no-cache openjdk17-jre-headless zip
 run mkdir /data /cache /out && ln -sfn /cache /root/.local
 arg dist
