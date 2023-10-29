@@ -1,5 +1,5 @@
 from python:3.12-alpine
-run apk add --no-cache openjdk17-jre-headless zip
+run apk add --no-cache openjdk17-jre-headless zip android-tools
 run mkdir /data /cache /out && ln -sfn /cache /root/.local
 arg dist
 copy $dist /tmp/dist/
