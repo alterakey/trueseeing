@@ -128,6 +128,11 @@ class Runner:
       'xd':dict(e=self._exploit_enable_debug, n='xd', d='exploit: make debuggable'),
       'xb':dict(e=self._exploit_enable_backup, n='xb', d='exploit: make backupable'),
       'xt':dict(e=self._exploit_patch_target_api_level, n='xt <api level>', d='exploit: patch target api level'),
+      'xp':dict(e=self._exploit_device_list_packages, n='xp', d='device: list installed packages'),
+      'xco':dict(e=self._exploit_device_copyout, n='xco[!] package [data.tar]', d='device: copy-out package data'),
+      'xco!':dict(e=self._exploit_device_copyout),
+      'xci':dict(e=self._exploit_device_copyin, n='xci[!] package [data.tar]', d='device: copy-in package data'),
+      'xci!':dict(e=self._exploit_device_copyin),
       'i':dict(e=self._info, n='i', d='print general information'),
       'gh':dict(e=self._report_html, n='gh[!] [report.html]', d='generate report (HTML)'),
       'gh!':dict(e=self._report_html),
@@ -1104,6 +1109,82 @@ class Runner:
         f.write(re.sub(r"targetSdkVersion: '[0-9]+?'", r"targetSdkVersion: '{lv}'".format(lv=level), s))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+
+  async def _exploit_device_list_packages(self, args: deque[str]) -> None:
+    _ = args.popleft()
+
+    ui.info('listing packages')
+
+    import time
+    import re
+    from trueseeing.core.device import AndroidDevice
+
+    at = time.time()
+    nr = 0
+    for m in re.finditer(r'^package:(.*)', await AndroidDevice().invoke_adb('shell pm list package'), re.MULTILINE):
+      p = m.group(1)
+      ui.info(p)
+      nr += 1
+    ui.success('done, {nr} packages found ({t:.02f} sec.)'.format(nr=nr, t=(time.time() - at)))
+
+  async def _exploit_device_copyout(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+    if not args:
+      ui.fatal('need package name')
+
+    target = args.popleft()
+
+    import os
+    if not args:
+      outfn = f'{target}.tar'
+    else:
+      outfn = args.popleft()
+
+    if os.path.exists(outfn) and not cmd.endswith('!'):
+      ui.fatal('outfile exists; force (!) to overwrite')
+
+    ui.info(f'copying out: {target} -> {outfn}')
+
+    import time
+    from trueseeing.core.device import AndroidDevice
+
+    at = time.time()
+    tfn = self._generate_tempfilename_for_device()
+    await AndroidDevice().invoke_adb_passthru(f'shell "run-as {target} tar -cv . > {tfn}"')
+    await AndroidDevice().invoke_adb_passthru(f'pull {tfn} {outfn}')
+    await AndroidDevice().invoke_adb_passthru(f'shell rm {tfn}')
+    ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+
+  async def _exploit_device_copyin(self, args: deque[str]) -> None:
+    _ = args.popleft()
+    if not args:
+      ui.fatal('need package name')
+
+    target = args.popleft()
+
+    import os
+    if not args:
+      fn = f'{target}.tar'
+    else:
+      fn = args.popleft()
+
+    if not os.path.exists(fn):
+      ui.fatal('bundle file not found')
+
+    ui.info(f'copying in: {fn} -> {target}')
+
+    import time
+    from trueseeing.core.device import AndroidDevice
+
+    at = time.time()
+    tfn = self._generate_tempfilename_for_device()
+    await AndroidDevice().invoke_adb_passthru(f'push {fn} {tfn}')
+    await AndroidDevice().invoke_adb_passthru(f'shell "run-as {target} tar -xv < {tfn}; rm -f {tfn}"')
+    ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+
+  def _generate_tempfilename_for_device(self, dir: Optional[str] = None) -> str:
+    import random
+    return (f'{dir}/' if dir is not None else '/data/local/tmp/') + ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=16))
 
   async def _info(self, args: deque[str]) -> None:
     self._require_target()
