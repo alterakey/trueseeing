@@ -299,7 +299,7 @@ class NativeArchDetector(Detector):
   async def detect(self) -> None:
     for d, in self._context.store().db.execute('select path from files where path like :pat', dict(pat='root/lib/%')):
       if re.search(r'arm|x86|mips', d):
-        arch = d.split('/')[1]
+        arch = d.split('/')[2]
         self._raise_issue(Issue(
           detector_id=self.option,
           confidence='firm',
