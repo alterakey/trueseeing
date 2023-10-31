@@ -128,7 +128,8 @@ class Runner:
       'xu':dict(e=self._exploit_disable_pinning, n='xu', d='exploit: disable SSL/TLS pinning'),
       'xd':dict(e=self._exploit_enable_debug, n='xd', d='exploit: make debuggable'),
       'xb':dict(e=self._exploit_enable_backup, n='xb', d='exploit: make backupable'),
-      'xt':dict(e=self._exploit_patch_target_api_level, n='xt <api level>', d='exploit: patch target api level'),
+      'xt':dict(e=self._exploit_patch_target_api_level, n='xt[!] <api level>', d='exploit: patch target api level'),
+      'xt!':dict(e=self._exploit_patch_target_api_level),
       'xp':dict(e=self._exploit_device_list_packages, n='xp', d='device: list installed packages'),
       'xco':dict(e=self._exploit_device_copyout, n='xco[!] package [data.tar]', d='device: copy-out package data'),
       'xco!':dict(e=self._exploit_device_copyout),
@@ -1045,9 +1046,31 @@ class Runner:
       with open(path, 'wb') as f:
         f.write(self._manifest_as_xml(manif))
 
-      path = os.path.join(context.wd, 'p', 'res', 'xml', f'{key}.xml')
+      # XXX
+      path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'xml', f'{key}.xml')
       nscpath = resource_filename(__name__, os.path.join('..', 'libs', 'nsc.xml'))
       shutil.copy(nscpath, path)
+
+      # XXX
+      import lxml.etree as ET
+      path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'values', 'public.xml')
+      with open(path, 'rb') as f:
+        root = ET.fromstring(f.read(), parser=ET.XMLParser(recover=True))
+      if root.xpath('./public[@type="xml"]'):
+        maxid = max(int(e.attrib["id"], 16) for e in root.xpath('./public[@type="xml"]'))
+        n = ET.SubElement(root, 'public')
+        n.attrib['id'] = f'0x{maxid+1:08x}'
+        n.attrib['type'] = 'xml'
+        n.attrib['name'] = key
+      else:
+        maxid = (max(int(e.attrib["id"], 16) for e in root.xpath('./public')) & 0xffff0000)
+        n = ET.SubElement(root, 'public')
+        n.attrib['id'] = f'0x{maxid+0x10000:08x}'
+        n.attrib['type'] = 'xml'
+        n.attrib['name'] = key
+
+      with open(path, 'wb') as f1:
+        f1.write(ET.tostring(root))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1107,7 +1130,7 @@ class Runner:
     self._require_target()
     assert self._target is not None
 
-    _ = args.popleft()
+    cmd = args.popleft()
 
     try:
       level = int(args.popleft())
@@ -1115,7 +1138,6 @@ class Runner:
       ui.fatal('need API level')
 
     import os.path
-    import re
     import time
     from trueseeing.core.context import Context
 
@@ -1130,17 +1152,14 @@ class Runner:
       for e in manif.xpath('.//uses-sdk'):
         minLevel = int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
         if level < minLevel:
-          ui.warn('cannot target API level below requirement ({minlv}); targetting the minimum'.format(minlv=minLevel))
-          level = minLevel
-        e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
+          if not cmd.endswith('!'):
+            ui.fatal('cannot target API level below requirement ({minlv}); force (!) to downgrade altogether'.format(minlv=minLevel))
+          else:
+            ui.warn('downgrading the requirement')
+            e.attrib['{http://schemas.android.com/apk/res/android}minSdkVersion'] = str(level)
+          e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
       with open(path, 'wb') as f:
         f.write(self._manifest_as_xml(manif))
-
-      path = os.path.join(context.wd, 'p', 'apktool.yml')
-      with open(path, 'r') as f:
-        s = f.read()
-      with open(path, 'w') as f:
-        f.write(re.sub(r"targetSdkVersion: '[0-9]+?'", r"targetSdkVersion: '{lv}'".format(lv=level), s))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
