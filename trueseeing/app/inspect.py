@@ -18,6 +18,7 @@
 from __future__ import annotations
 from collections import deque
 import asyncio
+from contextlib import contextmanager
 import shlex
 import sys
 import re
@@ -27,7 +28,7 @@ from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Type, Tuple
+  from typing import Mapping, Optional, Any, NoReturn, List, Type, Tuple, Iterator
   from trueseeing.signature.base import Detector
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context
@@ -191,6 +192,17 @@ class Runner:
             signature_selected.update(self._sigs.selected_on(a))
     return [v for k, v in self._sigs.content.items() if k in signature_selected]
 
+  def _get_graph_size_limit(self, mods: List[str]) -> Optional[int]:
+    for m in mods:
+      if m.startswith('@gs:'):
+        c = m[4:]
+        s = re.search(r'[km]$', c.lower())
+        if s:
+          return int(m[4:-1]) * dict(k=1024, m=1024*1024)[s.group(0)]
+        else:
+          return int(m[4:])
+    return None
+
   def get_target(self) -> Optional[str]:
     return self._target
 
@@ -249,11 +261,13 @@ class Runner:
       )
 
   async def _help_mod(self, args: deque[str]) -> None:
+    from trueseeing.core.flow.data import DataFlows
     ui.success('Modifiers:')
     mods = {
       '@s:sig':'include sig',
       '@x:pa.ckage.name':'exclude package',
-      '@e:option': 'pass option',
+      '@o:option': 'pass option',
+      '@gs:<int>[kmKM]': 'set graph size limit (currently {})'.format(DataFlows.get_max_graph_size()),
     }
 
     width = 2 + max([len(k) for k in mods.keys()])
@@ -277,6 +291,17 @@ class Runner:
   def _require_target(self, msg: Optional[str] = None) -> None:
     if self._target is None:
       ui.fatal(msg if msg else 'need target')
+
+  @contextmanager
+  def _apply_graph_size_limit(self, l: Optional[int]) -> Iterator[None]:
+    from trueseeing.core.flow.data import DataFlows
+    try:
+      if l is not None:
+        ui.info('using graph size limit: {} nodes'.format(l))
+      o = DataFlows.set_max_graph_size(l)
+      yield None
+    finally:
+      DataFlows.set_max_graph_size(o)
 
   async def _analyze(self, args: deque[str]) -> None:
     self._require_target()
@@ -309,24 +334,27 @@ class Runner:
 
     apk = self._target
 
+    limit = self._get_graph_size_limit(self._get_modifiers(args))
+
     import time
     from trueseeing.app.scan import ScanMode
     from trueseeing.core.context import Context
 
-    at = time.time()
-    await ScanMode([apk]).invoke(
-      ci_mode='html',
-      outfile=None,
-      signatures=self._get_effective_sigs(self._get_modifiers(args)),
-      exclude_packages=[],
-      no_cache_mode=False,
-      update_cache_mode=False,
-      from_inspect_mode=True,
-    )
-    with Context(apk, []) as context:
-      with context.store().db as db:
-        for nr, in db.execute('select count(1) from analysis_issues'):
-          ui.success("done, found {nr} issues ({t:.02f} sec.)".format(nr=nr, t=(time.time() - at)))
+    with self._apply_graph_size_limit(limit):
+      at = time.time()
+      await ScanMode([apk]).invoke(
+        ci_mode='html',
+        outfile=None,
+        signatures=self._get_effective_sigs(self._get_modifiers(args)),
+        exclude_packages=[],
+        no_cache_mode=False,
+        update_cache_mode=False,
+        from_inspect_mode=True,
+      )
+      with Context(apk, []) as context:
+        with context.store().db as db:
+          for nr, in db.execute('select count(1) from analysis_issues'):
+            ui.success("done, found {nr} issues ({t:.02f} sec.)".format(nr=nr, t=(time.time() - at)))
 
   async def _show_file(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
@@ -403,24 +431,27 @@ class Runner:
     opn = int(args.popleft())
     idx = int(args.popleft())
 
+    limit = self._get_graph_size_limit(self._get_modifiers(args))
+
     from trueseeing.core.context import Context
     from trueseeing.core.flow.data import DataFlows
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      op = store.op_get(opn)
-      if op is not None:
-        if cmd.endswith('!'):
-          vs = DataFlows.solved_possible_constant_data_in_invocation(store, op, idx)
-          ui.info(repr(vs))
+    with self._apply_graph_size_limit(limit):
+      with Context(apk, []) as context:
+        await context.analyze()
+        store = context.store()
+        op = store.op_get(opn)
+        if op is not None:
+          if cmd.endswith('!'):
+            vs = DataFlows.solved_possible_constant_data_in_invocation(store, op, idx)
+            ui.info(repr(vs))
+          else:
+            try:
+              v = DataFlows.solved_constant_data_in_invocation(store, op, idx)
+              ui.info(repr(v))
+            except DataFlows.NoSuchValueError as e:
+              ui.error(str(e))
         else:
-          try:
-            v = DataFlows.solved_constant_data_in_invocation(store, op, idx)
-            ui.info(repr(v))
-          except DataFlows.NoSuchValueError as e:
-            ui.error(str(e))
-      else:
-        ui.error('op #{} not found'.format(opn))
+          ui.error('op #{} not found'.format(opn))
 
   async def _show_solved_typeset(self, args: deque[str]) -> None:
     self._require_target()
@@ -435,17 +466,20 @@ class Runner:
     opn = int(args.popleft())
     idx = int(args.popleft())
 
+    limit = self._get_graph_size_limit(self._get_modifiers(args))
+
     from trueseeing.core.context import Context
     from trueseeing.core.flow.data import DataFlows
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      op = store.op_get(opn)
-      if op is not None:
-        vs = DataFlows.solved_typeset_in_invocation(store, op, idx)
-        ui.info(repr(vs))
-      else:
-        ui.error('op #{} not found'.format(opn))
+    with self._apply_graph_size_limit(limit):
+      with Context(apk, []) as context:
+        await context.analyze()
+        store = context.store()
+        op = store.op_get(opn)
+        if op is not None:
+          vs = DataFlows.solved_typeset_in_invocation(store, op, idx)
+          ui.info(repr(vs))
+        else:
+          ui.error('op #{} not found'.format(opn))
 
   async def _report_html(self, args: deque[str]) -> None:
     outfn: Optional[str] = None

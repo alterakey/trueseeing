@@ -33,6 +33,9 @@ if TYPE_CHECKING:
 
 class DataFlows:
   _stash: Final[Dict[int, str]] = dict()
+  _default_max_graph_size: Final[int] = 48 * 1048576
+
+  _max_graph_size: int = _default_max_graph_size
 
   class NoSuchValueError(Exception):
     pass
@@ -42,6 +45,19 @@ class DataFlows:
 
   class GraphSizeError(Exception):
     pass
+
+  @classmethod
+  def get_max_graph_size(cls) -> int:
+    return cls._max_graph_size
+
+  @classmethod
+  def set_max_graph_size(cls, l: Optional[int]) -> int:
+    o = cls._max_graph_size
+    if l is not None:
+      cls._max_graph_size = l
+    else:
+      cls._max_graph_size = cls._default_max_graph_size
+    return o
 
   @classmethod
   def likely_calling_in(cls, store: Store, ops: List[Op]) -> None:
@@ -185,7 +201,7 @@ class DataFlows:
   @classmethod
   def _check_graph(cls, d: Optional[DataGraph]) -> int:
     n = cls._approximated_size_of_graph(d)
-    if n > (48 * 1048576): # XXX: make it tunable
+    if n > cls._max_graph_size:
       raise cls.GraphSizeError()
     return n
 

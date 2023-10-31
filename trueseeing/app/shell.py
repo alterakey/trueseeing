@@ -171,7 +171,7 @@ Misc:
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
-                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect'])
+                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect', 'max-graph-size='])
     for o, a in opts:
       if o in ['-d', '--debug']:
         log_level = ui.DEBUG
@@ -206,6 +206,9 @@ Misc:
         fingerprint_mode = True
       if o in ['--inspect']:
         inspect_mode = True
+      if o in ['--max-graph-size']:
+        from trueseeing.core.flow.data import DataFlows
+        DataFlows.set_max_graph_size(int(a))
       if o in ['--format']:
         # NB: should check "a" conforms to the literal type, ReportFormat
         if a in ['html', 'json']:
