@@ -104,7 +104,7 @@ class Runner:
     self._cmds = {
       '?':dict(e=self._help, n='?', d='help'),
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
-      '?e?':dict(e=self._help_opt, n='?e?', d='options help'),
+      '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
       '?s?':dict(e=self._help_signature, n='?s?', d='signature help'),
       '!':dict(e=self._shell, n='!', d='shell'),
       'a':dict(e=self._analyze, n='a[!]', d='analyze target'),
