@@ -31,22 +31,15 @@ if TYPE_CHECKING:
   ReportFormat = Literal['html', 'json']
 
   class ReportGenerator(Protocol):
+    def __init__(self, context: Context) -> None: ...
     def note(self, issue: Issue) -> None: ...
     def generate(self, f: TextIO) -> None: ...
     def return_(self, found: bool) -> bool: ...
 
-class CIReportGenerator:
-  def __init__(self, context: Context):
-    self._context = context
-
-  def note(self, issue: Issue) -> None:
-    ui.info(self.formatted(issue))
-
-  def generate(self, f: TextIO) -> None:
-    pass
-
-  def return_(self, found: bool) -> bool:
-    return found
+class ConsoleNoter:
+  @classmethod
+  def note(cls, issue: Issue) -> None:
+    ui.info(cls.formatted(issue))
 
   @classmethod
   def formatted(cls, issue: Issue) -> str:
@@ -60,18 +53,39 @@ class CIReportGenerator:
       detector_id=issue.detector_id
     )
 
-class HTMLReportGenerator(CIReportGenerator):
-  def __init__(self, context: Context):
-    super().__init__(context)
+class CIReportGenerator:
+  def __init__(self, context: Context) -> None:
+    self._context = context
+
+  def note(self, issue: Issue) -> None:
+    ConsoleNoter.note(issue)
+
+  def return_(self, found: bool) -> bool:
+    return found
+
+  def generate(self, f: TextIO) -> None:
+    with self._context.store().db as db:
+      for m in db.execute('select * from analysis_issues'):
+          issue = Issue.from_analysis_issues_row(m)
+          f.write(ConsoleNoter.formatted(issue) + '\n')
+
+class HTMLReportGenerator:
+  def __init__(self, context: Context) -> None:
     import os.path
     from jinja2 import Environment, FileSystemLoader
     from pkg_resources import resource_filename
     from trueseeing import __version__
+    self._context = context
     self._template = Environment(loader=FileSystemLoader(resource_filename(__name__, os.path.join('..', 'libs', 'template'))), autoescape=True).get_template('report.html')
     self._toolchain = dict(version=__version__)
 
+  def note(self, issue: Issue) -> None:
+    ConsoleNoter.note(issue)
+
+  def return_(self, found: bool) -> bool:
+    return found
+
   def generate(self, f: TextIO) -> None:
-    super().generate(f)
     with self._context.store().db as db:
       issues = []
       for no, row in enumerate(db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
@@ -92,7 +106,16 @@ class HTMLReportGenerator(CIReportGenerator):
       )
       f.write(self._template.render(app=app, issues=issues, toolchain=self._toolchain))
 
-class JSONReportGenerator(CIReportGenerator):
+class JSONReportGenerator:
+  def __init__(self, context: Context) -> None:
+    self._context = context
+
+  def note(self, issue: Issue) -> None:
+    ConsoleNoter.note(issue)
+
+  def return_(self, found: bool) -> bool:
+    return found
+
   def generate(self, f: TextIO) -> None:
     from json import dumps
     with self._context.store().db as db:
