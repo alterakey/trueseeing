@@ -1271,6 +1271,9 @@ class Runner:
         ui.info('recvs        {}'.format(len(list(manif.xpath('.//receiver')))))
         ui.info('provs        {}'.format(len(list(manif.xpath('.//provider')))))
         ui.info('int-flts     {}'.format(len(list(manif.xpath('.//intent-filter')))))
+        with store.db as c:
+          for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
+            ui.info('frags        {}'.format(len(list(manif.xpath('.//activity')))))
         for e in manif.xpath('.//application'):
           ui.info('debuggable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}debuggable', 'false')]))
           ui.info('backupable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}allowBackup', 'false')]))
