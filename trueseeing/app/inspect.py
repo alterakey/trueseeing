@@ -1150,6 +1150,7 @@ class Runner:
       path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
       manif = self._parsed_manifest(path)
       for e in manif.xpath('.//uses-sdk'):
+        e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
         minLevel = int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
         if level < minLevel:
           if not cmd.endswith('!'):
@@ -1157,7 +1158,6 @@ class Runner:
           else:
             ui.warn('downgrading the requirement')
             e.attrib['{http://schemas.android.com/apk/res/android}minSdkVersion'] = str(level)
-          e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
       with open(path, 'wb') as f:
         f.write(self._manifest_as_xml(manif))
 
