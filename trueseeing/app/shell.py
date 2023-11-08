@@ -61,6 +61,7 @@ class Signatures:
       security.ClientXSSJQDetector,
       security.SecurityFileWriteDetector,
       security.SecurityInsecureRootedDetector,
+      security.SecuritySharedPreferencesDetector,
     ]
 
     self.content = {cl.option:cl for cl in sigs}

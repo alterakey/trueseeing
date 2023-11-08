@@ -669,3 +669,72 @@ class SecurityInsecureRootedDetector(Detector):
         self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(path_based_detection_attempt)))
       elif attestations and not path_based_detection_attempt:
         self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(attestations)))
+
+class SecuritySharedPreferencesDetector(Detector):
+  option = 'security-sharedpref'
+  description = 'Detects SharedPreferences access'
+  _cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _summary = 'detected SharedPreference access'
+  _synopsis = 'The application is using SharedPreferences. This is purely informational; Using the subsystem alone does not constitute a security issue.'
+
+  async def detect(self) -> None:
+    with self._context.store() as store:
+      for cl in store.query().invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences;->get(Boolean|Float|Int|String|StringSet)\(Ljava/lang/String;')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        try:
+          target_val = DataFlows.solved_constant_data_in_invocation(store, cl, 0)
+        except DataFlows.NoSuchValueError:
+          target_val = '(unknown name)'
+
+        self._raise_issue(Issue(
+          detector_id=self.option,
+          confidence='certain',
+          cvss3_vector=self._cvss,
+          summary=self._summary,
+          synopsis=self._synopsis,
+          info1=target_val,
+          info2='read',
+          source=store.query().qualname_of(cl)
+        ))
+
+      for cl in store.query().invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences\$Editor;->put(Boolean|Float|Int|String|StringSet)\(Ljava/lang/String;')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        try:
+          target_val = DataFlows.solved_constant_data_in_invocation(store, cl, 0)
+        except DataFlows.NoSuchValueError:
+          target_val = '(unknown name)'
+
+        self._raise_issue(Issue(
+          detector_id=self.option,
+          confidence='certain',
+          cvss3_vector=self._cvss,
+          summary=self._summary,
+          synopsis=self._synopsis,
+          info1=target_val,
+          info2='write',
+          source=store.query().qualname_of(cl)
+        ))
+
+      for cl in store.query().invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences/Editor;->remove\(Ljava/lang/String;')):
+        qn = store.query().qualname_of(cl)
+        if self._context.is_qualname_excluded(qn):
+          continue
+        try:
+          target_val = DataFlows.solved_constant_data_in_invocation(store, cl, 0)
+        except DataFlows.NoSuchValueError:
+          target_val = '(unknown name)'
+
+        self._raise_issue(Issue(
+          detector_id=self.option,
+          confidence='certain',
+          cvss3_vector=self._cvss,
+          summary=self._summary,
+          synopsis=self._synopsis,
+          info1=target_val,
+          info2='delete',
+          source=store.query().qualname_of(cl)
+        ))
