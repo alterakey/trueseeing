@@ -107,26 +107,16 @@ General:
   --help-signature          Show signatures
 
 Scan mode:
-  -W<signame>               Enable signature (use --help-signatures to list signatures)
-  -Wno-<signame>            Disable signature (use --help-signatures to list signatures)
-  --exclude=<pattern>       Excluding packages matching pattern
-  --fingerprint             Print fingerprint
-  --grab <package name>     Grab package from device
-  -o/--output=<filename>    Report filename ("-" for stdout)
-  --format=html|json        Report format (html: HTML (default), json: JSON)
+  --scan                    Scan mode
+  --scan-sigs=<sig>,..      Select signatures (use --help-signatures to list signatures)
+  --scan-exclude=<pattern>  Excluding packages matching pattern
+  -o/--scan-output=<file>   Report filename ("-" for stdout)
+  --scan-report=html|json   Report format (html: HTML (default), json: JSON)
 
-Exploitation mode:
-  --exploit-resign          Exploit mode: Replace signature
-  --exploit-unsign          Exploit mode: Remove signature
-  --exploit-enable-debug    Exploit mode: Enable debug bit
-  --exploit-enable-backup   Exploit mode: Enable backup bit
-  --exploit-disable-pinning Exploit mode: Disable TLS Pinning (>=API 24)
-
-Patch mode:
-  --patch-all               Patch mode: apply fix
+Inspect mode:
+  --inspect                 Inspect mode
 
 Misc:
-  --bootstrap               Bootstrap toolchain container
   --update-cache            Analyze and rebuild codebase cache
   --no-cache                Do not keep codebase cache
 '''
@@ -147,6 +137,9 @@ Misc:
   def _launch(self, coro: Coroutine[Any, Any, int]) -> int:
     return asyncio.run(coro)
 
+  def _deprecated(self, msg: str) -> None:
+    ui.warn(f'warning: {msg}', onetime=True)
+
   def invoke(self) -> int:
     import sys
     import getopt
@@ -164,6 +157,7 @@ Misc:
     no_cache_mode = False
     update_cache_mode = False
     inspect_mode = False
+    scan_mode = False
     output_filename: Optional[str] = None
     ci_mode: ReportFormat = 'html'
     exclude_packages: List[str] = []
@@ -171,45 +165,69 @@ Misc:
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
-                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect', 'max-graph-size='])
+                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect', 'max-graph-size=',
+                                 'scan', 'scan-sigs=', 'scan-output=', 'scan-report=', 'scan-exclude='])
     for o, a in opts:
       if o in ['-d', '--debug']:
         log_level = ui.DEBUG
+      if o == '--output':
+        self._deprecated(f'{o} is deprecated (use --scan-output)')
       if o in ['-o', '--output']:
         output_filename = a
       if o in ['-W']:
+        self._deprecated('-W<sig>/-Wno-<sig> is deprecated (use --scan-sigs)')
         if a.startswith('no-'):
           signature_selected.difference_update(sigs.selected_on(a[3:]))
         else:
           signature_selected.update(sigs.selected_on(a))
+      if o in ['--scan-sigs']:
+        for s in a.split(','):
+          if s.startswith('no-'):
+            signature_selected.difference_update(sigs.selected_on(s[3:]))
+          else:
+            signature_selected.update(sigs.selected_on(s))
       if o in ['--exploit-resign']:
+        self._deprecated(f'{o} is deprecated')
         exploitation_mode = 'resign'
       if o in ['--exploit-unsign']:
+        self._deprecated(f'{o} is deprecated')
         exploitation_mode = 'unsign'
       if o in ['--exploit-enable-debug']:
+        self._deprecated(f'{o} is deprecated (try xd in inspect mode)')
         exploitation_mode = 'enable-debug'
       if o in ['--exploit-enable-backup']:
+        self._deprecated(f'{o} is deprecated (try xb in inspect mode)')
         exploitation_mode = 'enable-backup'
       if o in ['--exploit-disable-pinning']:
+        self._deprecated(f'{o} is deprecated (try xu in inspect mode)')
         exploitation_mode = 'disable-pinning'
-      if o in ['--exclude']:
+      if o == '--exclude':
+        self._deprecated(f'{o} is deprecated (use --scan-exclude)')
+      if o in ['--scan-exclude', '--exclude']:
         exclude_packages.append(a)
       if o in ['--patch-all']:
+        self._deprecated(f'{o} is deprecated')
         patch_mode = 'all'
       if o in ['--update-cache']:
         update_cache_mode = True
       if o in ['--no-cache']:
         no_cache_mode = True
       if o in ['--grab']:
+        self._deprecated(f'{o} is deprecated')
         grab_mode = True
       if o in ['--fingerprint']:
+        self._deprecated(f'{o} is deprecated (try i in inspect mode)')
         fingerprint_mode = True
       if o in ['--inspect']:
         inspect_mode = True
+      if o in ['--scan']:
+        scan_mode = True
       if o in ['--max-graph-size']:
         from trueseeing.core.flow.data import DataFlows
         DataFlows.set_max_graph_size(int(a))
-      if o in ['--format']:
+      if o == '--format':
+        self._deprecated(f'{o} is deprecated (use --scan-report)')
+      if o in ['--scan-report', '--format']:
         # NB: should check "a" conforms to the literal type, ReportFormat
         if a in ['html', 'json']:
           ci_mode = a # type: ignore[assignment]
@@ -238,6 +256,8 @@ Misc:
     else:
       if not files:
         ui.fatal("no input files")
+      if len(files) > 1:
+        self._deprecated('specifying multiple files is deprecated')
       if exploitation_mode:
         from trueseeing.app.exploit import ExploitMode
         return self._launch(ExploitMode(files).invoke(
@@ -255,6 +275,8 @@ Misc:
         return self._launch(FingerprintMode(files).invoke())
       else:
         from trueseeing.app.scan import ScanMode
+        if not scan_mode:
+          self._deprecated('implicit scan mode is deprecated (specify --scan)')
         return self._launch(ScanMode(files).invoke(
           ci_mode=ci_mode,
           outfile=output_filename,
