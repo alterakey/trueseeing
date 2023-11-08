@@ -22,9 +22,11 @@ import asyncio
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Type, Set, Dict, Optional, Coroutine, Any
+  from typing import List, Type, Set, Dict, Optional, Coroutine, Any, Literal
   from trueseeing.signature.base import Detector
   from trueseeing.core.report import ReportFormat
+
+  OpMode = Optional[Literal['grab', 'exploit', 'patch', 'fingerprint', 'scan', 'inspect']]
 
 class Signatures:
   content: Dict[str, Type[Detector]]
@@ -150,16 +152,13 @@ Misc:
 
     log_level = ui.INFO
     signature_selected = sigs.default().copy()
-    exploitation_mode = ''
-    patch_mode = ''
-    fingerprint_mode = False
-    grab_mode = False
+    mode: OpMode = None
+    exploit = ''
+    patch = ''
     no_cache_mode = False
     update_cache_mode = False
-    inspect_mode = False
-    scan_mode = False
     output_filename: Optional[str] = None
-    ci_mode: ReportFormat = 'html'
+    format: ReportFormat = 'html'
     exclude_packages: List[str] = []
 
     opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
@@ -188,40 +187,46 @@ Misc:
             signature_selected.update(sigs.selected_on(s))
       if o in ['--exploit-resign']:
         self._deprecated(f'{o} is deprecated')
-        exploitation_mode = 'resign'
+        mode = 'exploit'
+        exploit = 'resign'
       if o in ['--exploit-unsign']:
         self._deprecated(f'{o} is deprecated')
-        exploitation_mode = 'unsign'
+        mode = 'exploit'
+        exploit = 'unsign'
       if o in ['--exploit-enable-debug']:
         self._deprecated(f'{o} is deprecated (try xd in inspect mode)')
-        exploitation_mode = 'enable-debug'
+        mode = 'exploit'
+        exploit = 'enable-debug'
       if o in ['--exploit-enable-backup']:
         self._deprecated(f'{o} is deprecated (try xb in inspect mode)')
-        exploitation_mode = 'enable-backup'
+        mode = 'exploit'
+        exploit = 'enable-backup'
       if o in ['--exploit-disable-pinning']:
         self._deprecated(f'{o} is deprecated (try xu in inspect mode)')
-        exploitation_mode = 'disable-pinning'
+        mode = 'exploit'
+        exploit = 'disable-pinning'
       if o == '--exclude':
         self._deprecated(f'{o} is deprecated (use --scan-exclude)')
       if o in ['--scan-exclude', '--exclude']:
         exclude_packages.append(a)
       if o in ['--patch-all']:
         self._deprecated(f'{o} is deprecated')
-        patch_mode = 'all'
+        mode = 'patch'
+        patch = 'all'
       if o in ['--update-cache']:
         update_cache_mode = True
       if o in ['--no-cache']:
         no_cache_mode = True
       if o in ['--grab']:
         self._deprecated(f'{o} is deprecated')
-        grab_mode = True
+        mode = 'grab'
       if o in ['--fingerprint']:
         self._deprecated(f'{o} is deprecated (try i in inspect mode)')
-        fingerprint_mode = True
+        mode = 'fingerprint'
       if o in ['--inspect']:
-        inspect_mode = True
+        mode = 'inspect'
       if o in ['--scan']:
-        scan_mode = True
+        mode = 'scan'
       if o in ['--max-graph-size']:
         from trueseeing.core.flow.data import DataFlows
         DataFlows.set_max_graph_size(int(a))
@@ -230,7 +235,7 @@ Misc:
       if o in ['--scan-report', '--format']:
         # NB: should check "a" conforms to the literal type, ReportFormat
         if a in ['html', 'json']:
-          ci_mode = a # type: ignore[assignment]
+          format = a # type: ignore[assignment]
         else:
           ui.fatal(f'unknown output format: {a}')
       if o in ['--version']:
@@ -245,10 +250,13 @@ Misc:
 
     ui.set_level(log_level)
 
-    if grab_mode:
+    if not files and not mode:
+      mode = 'inspect'
+
+    if mode == 'grab':
       from trueseeing.app.grab import GrabMode
       return self._launch(GrabMode(packages=files).invoke())
-    elif inspect_mode:
+    elif mode == 'inspect':
       if len(files) > 1:
         ui.fatal("inspect mode accepts at most only one target file")
       from trueseeing.app.inspect import InspectMode
@@ -258,27 +266,27 @@ Misc:
         ui.fatal("no input files")
       if len(files) > 1:
         self._deprecated('specifying multiple files is deprecated')
-      if exploitation_mode:
+      if mode == 'exploit':
         from trueseeing.app.exploit import ExploitMode
         return self._launch(ExploitMode(files).invoke(
-          exploitation_mode,
+          exploit,
           no_cache_mode=no_cache_mode
         ))
-      elif patch_mode:
+      elif mode == 'patch':
         from trueseeing.app.patch import PatchMode
         return self._launch(PatchMode(files).invoke(
-          patch_mode,
+          patch,
           no_cache_mode=no_cache_mode
         ))
-      elif fingerprint_mode:
+      elif mode == 'fingerprint':
         from trueseeing.app.fingerprint import FingerprintMode
         return self._launch(FingerprintMode(files).invoke())
       else:
         from trueseeing.app.scan import ScanMode
-        if not scan_mode:
+        if not mode:
           self._deprecated('implicit scan mode is deprecated (specify --scan)')
         return self._launch(ScanMode(files).invoke(
-          ci_mode=ci_mode,
+          ci_mode=format,
           outfile=output_filename,
           signatures=[v for k, v in sigs.content.items() if k in signature_selected],
           exclude_packages=exclude_packages,
