@@ -263,10 +263,10 @@ class ManifestCleartextPermitted(Detector):
       for fn, xp in self._context.xml_resources():
         if 'network-security-config' in xp.tag.lower():
           if api_level < 28:
-            if not xp.xpath('.//*[cleartextTrafficPermitted="false"]'):
+            if not xp.xpath('.//*[@cleartextTrafficPermitted="false"]'):
               self._raise(self._context.source_name_of_disassembled_resource(fn))
           else:
-            if xp.xpath('.//*[cleartextTrafficPermitted="true"]'):
+            if xp.xpath('.//*[@cleartextTrafficPermitted="true"]'):
               self._raise(self._context.source_name_of_disassembled_resource(fn))
 
   def _raise(self, path: str) -> None:
