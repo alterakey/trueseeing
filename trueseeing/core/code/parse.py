@@ -109,7 +109,12 @@ class P:
         if t.eq('directive', 'annotation'):
           yield Annotation(t.v, t.p, P._parsed_as_annotation_content(q))
         elif t.eq('directive', 'param'):
-          yield Param(t.v, t.p, P._parsed_as_param_content(q))
+          assert t.p
+          if len(t.p) == 1:
+            yield Param(t.v, t.p, P._parsed_as_param_content(q))
+          else:
+            # XXX: treat somewhat old-style params as ordinal directives (i.e. describe only their names; no annotations)
+            yield t
         else:
           yield t
 
