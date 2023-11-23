@@ -88,9 +88,11 @@ class Store:
   def op_generate_methodmap(self, c: Any = None) -> int:
     if c is None: c = self.db
     detected_methods = 0
-    c.execute("create table tmp1 as select op from ops where t='directive' and v='method'")
-    c.execute("create table tmp2 as select a.op as op from ops as a left join ops as c on (a.op=c.op-c.idx) where a.t='directive' and a.v='end' and c.idx=1 and c.v='method'")
-    c.execute('insert into ops_method(method,op) select tmp1.op,ops.op from tmp1 join tmp2 on (tmp1.rowid=tmp2.rowid) left join ops on (ops.op between tmp1.op and tmp2.op)')
+    c.execute("create table tmp1 (op int primary key)")
+    c.execute("create table tmp2 (op int primary key)")
+    c.execute("insert into tmp1 select op from ops where t='directive' and v='method'")
+    c.execute("insert into tmp2 select a.op as op from ops as a left join ops as c on (a.op=c.op-c.idx) where a.t='directive' and a.v='end' and c.idx=1 and c.v='method'")
+    c.execute('insert into ops_method(method,op) select mm.sop as method,ops.op from (select tmp1.op as sop,(select min(op) from tmp2 where op>tmp1.op) as eop from tmp1) as mm left join ops on (ops.op between mm.sop and mm.eop)')
     for cnt, in c.execute('select count(1) from tmp1'):
       detected_methods = cnt
     c.execute("drop table tmp1")
