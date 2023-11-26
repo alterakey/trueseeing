@@ -26,6 +26,13 @@ dependencies = [
 requires-python = ">=3.7"
 dynamic = ['version', 'description']
 
+[project.optional-dependencies]
+dev = [
+  "mypy~=1.2",
+  "pyproject-flake8~=5.0.4",
+  "typing_extensions",
+]
+
 [project.urls]
 Source = "https://github.com/alterakey/trueseeing"
 
