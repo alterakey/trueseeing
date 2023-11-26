@@ -199,10 +199,11 @@ class ManifestManipBackup(Detector):
   async def detect(self) -> None:
     manif = self._context.parsed_manifest()
     for e in manif.xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      if e.attrib.get('{{{ns}}}fullBackupContent'.format(ns='http://schemas.android.com/apk/res/android')) is None:
+      if min(self._context.get_target_sdk_version(), self._context.get_min_sdk_version()) < 31:
+        fbc_exists = (e.attrib.get('{{{ns}}}fullBackupContent'.format(ns='http://schemas.android.com/apk/res/android')) is not None)
         self._raise_issue(Issue(
           detector_id=self.option,
-          confidence='certain',
+          confidence='certain' if not fbc_exists else 'tentative',
           cvss3_vector=self._cvss,
           summary='manipulatable backups',
           source='AndroidManifest.xml',

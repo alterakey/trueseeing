@@ -112,6 +112,14 @@ class Context:
       for o, in db.execute('select blob from files where path=:path', dict(path='apktool.yml')):
         return yaml.safe_load(re.sub(r'!!brut\.androlib\..*', '', o.decode('utf-8')))
 
+  def get_target_sdk_version(self) -> int:
+    manif = self.parsed_manifest()
+    try:
+      e = manif.xpath('.//uses-sdk')[0]
+      return int(e.attrib.get('{http://schemas.android.com/apk/res/android}targetSdkVersion', '1'))
+    except IndexError:
+      return int(self._parsed_apktool_yml()['sdkInfo']['targetSdkVersion'])
+
   # FIXME: Handle invalid values
   def get_min_sdk_version(self) -> int:
     manif = self.parsed_manifest()
