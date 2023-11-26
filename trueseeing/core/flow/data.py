@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 class DataFlows:
   _stash: Final[Dict[int, str]] = dict()
-  _default_max_graph_size: Final[int] = 48 * 1048576
+  _default_max_graph_size: Final[int] = 2 * 1048576
 
   _max_graph_size: int = _default_max_graph_size
 
