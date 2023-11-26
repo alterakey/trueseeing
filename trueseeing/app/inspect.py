@@ -1265,6 +1265,7 @@ class Runner:
       if analyzed:
         store = context.store()
         manif = context.parsed_manifest()
+        ui.info('pkg          {}'.format(manif.attrib['package']))
         ui.info('perms        {}'.format(len(list(context.permissions_declared()))))
         ui.info('activs       {}'.format(len(list(manif.xpath('.//activity')))))
         ui.info('servs        {}'.format(len(list(manif.xpath('.//service')))))
