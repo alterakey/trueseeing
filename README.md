@@ -44,13 +44,15 @@ Currently trueseeing can detect the following class of vulnerabilities:
 
 ## Installation
 
+NOTE: As of 2.1.9, we are on ghcr.io. (Docker Hub is somewhat deprecated)
+
 We provide containers so you can use right away as follows; now this is also the recommended way to run:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing
 
 If you want to run statelessly you omit mounting volume onto /cache (not recommended for day-to-day use though; also see [#254](https://github.com/alterakey/trueseeing/issues/254)):
 
-	$ docker run --rm -v $(pwd):/out alterakey/trueseeing
+	$ docker run --rm -v $(pwd):/out ghcr.io/alterakey/trueseeing
 
 Finally if you would like to use plain old installation (e.g. for interacting with devices), you can do as follows:
 
@@ -58,33 +60,10 @@ Finally if you would like to use plain old installation (e.g. for interacting wi
 
 ## Usage
 
-The following command line is sufficient to scan a APK (target.apk), yielding findings listed in stderr:
+With trueseeing you can interactively examine/analyze/patch/etc. apks -- making it the ideal choice for manual analysis:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing target.apk
-
-To generate a report in HTML format:
-
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing -o report.html target.apk
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing --format=html -o report.html target.apk
-
-To generate a report in JSON format:
-
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing --format=json -o report.json target.apk
-
-To get report generated in stdout, specify '-' as filename:
-
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing -o - target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing --format=html -o - target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing --format=json -o - target.apk > report.json
-
-To fix (not all) problems it catches:
-
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing --patch-all target.apk
-
-From 2.1.8, we have rewritten the means of interactively analyzing apps; inspect mode II (hence, forget that I). You can try it as follows:
-
-	$ docker run -it --rm -v $(pwd):/out -v ts2:/cache alterakey/trueseeing --inspect target.apk
-	[+] trueseeing 2.1.8 [inspect mode]
+	$ docker run -it --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --inspect target.apk
+	[+] trueseeing 2.1.9 [inspect mode]
 	ts[target.apk]> ?
 	...
 	ts[target.apk]> aa
@@ -94,17 +73,38 @@ From 2.1.8, we have rewritten the means of interactively analyzing apps; inspect
 	...
 	ts[target.apk]> gh report.html
 
+### Non-interactive scan
+
+Alternatively, you can scan an apk with the following command line to get findings listed in stderr:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan target.apk
+
+To generate a report in HTML format:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan -o report.html target.apk
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=html -o report.html target.apk
+
+To generate a report in JSON format:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=json -o report.json target.apk
+
+To get report generated in stdout, specify '-' as filename:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan -o - target.apk > report.html
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=html -o - target.apk > report.html
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=json -o - target.apk > report.json
+
+To fix (not all) problems it catches (deprecated):
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --patch-all target.apk
+
+
 ## Building
 
 We are using [flit](https://flit.pypa.io/en/stable/) as our build system. Please do something like the following to build:
 
 	$ git clone https://github.com/alterakey/trueseeing.git wc
-	$ cd wc
-	$ python3 -m venv .venv
-	$ source .venv/bin/activate
-	(.venv) $ pip install flit
-	(.venv) $ flit build
-	(.venv) $ docker build -t trueseeing --build-arg dist=dist/trueseeing*.whl .
+	$ docker build -t trueseeing wc
 
 If you are to hack it, do something like this instead (i.e. pulls tools needed to validate the code; namely [mypy](https://github.com/python/mypy) and [pflake8](https://github.com/csachs/pyproject-flake8)):
 
@@ -115,5 +115,4 @@ If you are to hack it, do something like this instead (i.e. pulls tools needed t
 	(.venv) $ pip install flit
 	(.venv) $ flit install --deps=develop --only-deps
 	(.venv) $ (... hack ...)
-	(.venv) $ flit build
-	(.venv) $ docker build -t trueseeing --build-arg dist=dist/trueseeing*.whl .
+	(.venv) $ docker build -t trueseeing .
