@@ -93,3 +93,27 @@ From 2.1.8, we have rewritten the means of interactively analyzing apps; inspect
 	ts[target.apk]> i
 	...
 	ts[target.apk]> gh report.html
+
+## Building
+
+We are using [flit](https://flit.pypa.io/en/stable/) as our build system. Please do something like the following to build:
+
+	$ git clone https://github.com/alterakey/trueseeing.git wc
+	$ cd wc
+	$ python3 -m venv .venv
+	$ source .venv/bin/activate
+	(.venv) $ pip install flit
+	(.venv) $ flit build
+	(.venv) $ docker build -t trueseeing --build-arg dist=dist/trueseeing*.whl .
+
+If you are to hack it, do something like this instead (i.e. pulls tools needed to validate the code; namely [mypy](https://github.com/python/mypy) and [pflake8](https://github.com/csachs/pyproject-flake8)):
+
+	$ git clone https://github.com/alterakey/trueseeing.git wc
+	$ cd wc
+	$ python3 -m venv .venv
+	$ source .venv/bin/activate
+	(.venv) $ pip install flit
+	(.venv) $ flit install --deps=develop --only-deps
+	(.venv) $ (... hack ...)
+	(.venv) $ flit build
+	(.venv) $ docker build -t trueseeing --build-arg dist=dist/trueseeing*.whl .
