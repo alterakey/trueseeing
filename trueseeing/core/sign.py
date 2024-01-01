@@ -68,15 +68,16 @@ class Resigner:
     self._outpath = os.path.realpath(outpath)
 
   async def resign(self) -> None:
-    from pkg_resources import resource_filename
+    from importlib.resources import as_file, files
     with tempfile.TemporaryDirectory() as d:
-      await invoke_passthru(
-        "java -jar {apksigner} sign --ks {ks} --ks-pass pass:android --in {path} --out {d}/signed.apk".format(
-          d=d,
-          apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner.jar')),
-          ks=await SigningKey().key(),
-          path=self._path,
+      with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
+        await invoke_passthru(
+          "java -jar {apksigner} sign --ks {ks} --ks-pass pass:android --in {path} --out {d}/signed.apk".format(
+            d=d,
+            apksigner=apksignerpath,
+            ks=await SigningKey().key(),
+            path=self._path,
+          )
         )
-      )
       shutil.copyfile(os.path.join(d, 'signed.apk'), self._outpath)
       shutil.copyfile(os.path.join(d, 'signed.apk.idsig'), self._outpath.replace('.apk', '.apk.idsig'))

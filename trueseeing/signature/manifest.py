@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 import itertools
 import re
-import os
 
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
@@ -49,8 +48,8 @@ class ManifestOpenPermissionDetector(Detector):
 
 class ComponentNamePolicy:
   def __init__(self) -> None:
-    import pkg_resources
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
+    from importlib.resources import files
+    with files('trueseeing.libs').joinpath('tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
   def looks_public(self, name: str) -> bool:

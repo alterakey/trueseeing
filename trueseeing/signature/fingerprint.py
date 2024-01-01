@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 # XXX huge duplication
 class TopLevelSuffixes:
   def __init__(self) -> None:
-    import pkg_resources
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
+    from importlib.resources import files
+    with files('trueseeing.libs').joinpath('tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
   def looks_public(self, names: List[str]) -> bool:
@@ -49,8 +49,8 @@ class PublicSuffixes:
   _suffixes: Set[str] = set()
 
   def __init__(self) -> None:
-    import pkg_resources
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'public_suffix_list.dat')), 'r', encoding='utf-8') as f:
+    from importlib.resources import files
+    with files('trueseeing.libs').joinpath('public_suffix_list.dat').open('r', encoding='utf-8') as f:
       self._suffixes.update((l for l in f if l and not l.startswith('//')))
 
   def looks_public(self, names: List[str]) -> bool:
@@ -248,8 +248,8 @@ class UrlLikeDetector(Detector):
             yield dict(type_='possible FQDN', value=[hostlike])
 
   async def detect(self) -> None:
-    import pkg_resources
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'tlds.txt')), 'r', encoding='utf-8') as f:
+    from importlib.resources import files
+    with files('trueseeing.libs').joinpath('tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
     with self._context.store() as store:

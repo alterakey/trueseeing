@@ -18,9 +18,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import os.path
-import pkg_resources
-
 from trueseeing.core.code.model import Op
 
 if TYPE_CHECKING:
@@ -33,16 +30,22 @@ class StorePrep:
     self.c = c
 
   def stage0(self) -> None:
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'store.s.sql')), 'r', encoding='utf-8') as f:
-      self.c.executescript(f.read())
+    from importlib.resources import as_file, files
+    with as_file(files('trueseeing.libs').joinpath('store.s.sql')) as path:
+      with open(path, 'r', encoding='utf-8') as f:
+        self.c.executescript(f.read())
 
   def stage1(self) -> None:
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'store.0.sql')), 'r', encoding='utf-8') as f:
-      self.c.executescript(f.read())
+    from importlib.resources import as_file, files
+    with as_file(files('trueseeing.libs').joinpath('store.0.sql')) as path:
+      with open(path, 'r', encoding='utf-8') as f:
+        self.c.executescript(f.read())
 
   def stage2(self) -> None:
-    with open(pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'store.1.sql')), 'r', encoding='utf-8') as f:
-      self.c.executescript(f.read())
+    from importlib.resources import as_file, files
+    with as_file(files('trueseeing.libs').joinpath('store.1.sql')) as path:
+      with open(path, 'r', encoding='utf-8') as f:
+        self.c.executescript(f.read())
 
 class Query:
   def __init__(self, store: Store) -> None:

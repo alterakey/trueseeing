@@ -50,7 +50,6 @@ class Patcher:
 
   async def _build(self, context: Context) -> None:
     from tempfile import TemporaryDirectory
-    from pkg_resources import resource_filename
 
     # XXX insecure
     with TemporaryDirectory() as d:
@@ -78,12 +77,15 @@ class Patcher:
           os.chdir(cwd)
 
       from trueseeing.core.tools import invoke_passthru
-      await invoke_passthru('(cd {root} && java -jar {apkeditor} b -i files -o patched.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android patched.apk && cp -a patched.apk {outpath})'.format(
-        root=d,
-        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar')),
-        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner.jar')),
-        keystore=await SigningKey().key(),
-        outpath=self._outpath,
-      ))
+      from importlib.resources import as_file, files
+      with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
+        with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
+          await invoke_passthru('(cd {root} && java -jar {apkeditor} b -i files -o patched.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android patched.apk && cp -a patched.apk {outpath})'.format(
+            root=d,
+            apkeditor=apkeditorpath,
+            apksigner=apksignerpath,
+            keystore=await SigningKey().key(),
+            outpath=self._outpath,
+          ))
       copyfile(os.path.join(d, 'patched.apk'), self._outpath)
       copyfile(os.path.join(d, 'patched.apk.idsig'), self._outpath + '.idsig')

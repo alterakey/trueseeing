@@ -85,11 +85,10 @@ class Signatures:
 class Shell:
   @classmethod
   def _version(cls) -> str:
-    from pkg_resources import get_distribution
-    version = get_distribution('trueseeing').version
+    from trueseeing import __version__
     #   ..............................................................................80
     return (
-      f'Trueseeing {version}, the app vulnerability scanner\n'
+      f'Trueseeing {__version__}, the app vulnerability scanner\n'
        'Copyright (C) 2017-23 Takahiro Yoshimura <altakey@gmail.com>\n' # noqa: E131
        'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
     )
