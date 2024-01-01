@@ -33,8 +33,8 @@ class APKDisassembler:
 
   @classmethod
   def _get_version(cls) -> str:
-    from pkg_resources import get_distribution
-    return get_distribution('trueseeing').version
+    from trueseeing import __version__
+    return __version__
 
   def disassemble(self) -> None:
     self._do()
@@ -44,8 +44,8 @@ class APKDisassembler:
     import sqlite3
     import glob
     import subprocess
-    import pkg_resources
     import shutil
+    from importlib.resources import as_file, files
     from trueseeing.core.literalquery import StorePrep
 
     apk, archive = 'target.apk', 'store.db'
@@ -60,11 +60,12 @@ class APKDisassembler:
         c.execute('create table files(path text not null unique, blob bytes not null)')
 
       with c:
-        _ = subprocess.run('java -jar {apkeditor} d -i {apk} -o files'.format(
-          apkeditor=pkg_resources.resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar')),
-          apk=apk
-        ), shell=True, capture_output=True)
-        os.chdir('files')
+        with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as path:
+          _ = subprocess.run('java -jar {apkeditor} d -i {apk} -o files'.format(
+            apkeditor=path,
+            apk=apk
+          ), shell=True, capture_output=True)
+          os.chdir('files')
 
         def read_as_row(fn: str) -> Tuple[str, bytes]:
           with open(fn, 'rb') as f:

@@ -822,31 +822,35 @@ class Runner:
     if not args:
       ui.fatal('need framework apk')
 
-    import os
     from trueseeing.core.tools import invoke_passthru
-    from pkg_resources import resource_filename
+    from importlib.resources import as_file, files
 
     apk = args.popleft()
 
-    await invoke_passthru(
-      'java -jar {apktool} if {apk}'.format(
-        apk=apk,
-        apktool=resource_filename(__name__, os.path.join('..', 'libs', 'apktool.jar')),
-      ))
+    with as_file(files('trueseeing.libs').joinpath('apktool.jar')) as path:
+      await invoke_passthru(
+        'java -jar {apktool} if {apk}'.format(
+          apk=apk,
+          apktool=path,
+        ))
 
   async def _assemble_apk_from_path(self, wd: str, path: str) -> Tuple[str, str]:
     import os
-    from pkg_resources import resource_filename
+    from importlib.resources import as_file, files
     from trueseeing.core.sign import SigningKey
     from trueseeing.core.tools import invoke_passthru
-    await invoke_passthru(
-      '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
-        wd=wd, path=path,
-        apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar')),
-        apksigner=resource_filename(__name__, os.path.join('..', 'libs', 'apksigner.jar')),
-        keystore=await SigningKey().key(),
-      )
-    )
+
+    with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
+      with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
+        await invoke_passthru(
+          '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
+            wd=wd, path=path,
+            apkeditor=apkeditorpath,
+            apksigner=apksignerpath,
+            keystore=await SigningKey().key(),
+          )
+        )
+
     return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
 
   def _move_apk(self, src: str, dest: str) -> None:
@@ -915,7 +919,7 @@ class Runner:
     import shutil
     from tempfile import TemporaryDirectory
     from trueseeing.core.tools import invoke_passthru
-    from pkg_resources import resource_filename
+    from importlib.resources import as_file, files
 
     path = args.popleft()
     apk = self._target
@@ -928,13 +932,14 @@ class Runner:
     at = time.time()
 
     with TemporaryDirectory() as td:
-      await invoke_passthru(
-        '(java -jar {apkeditor} d -o {td}/f -i {apk} {s})'.format(
-          td=td, apk=apk,
-          s='-dex' if 's' in cmd else '',
-          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar'))
+      with as_file(files(__name__).joinpath('libs').joinpath('apkeditor.jar')) as apkeditorpath:
+        await invoke_passthru(
+          '(java -jar {apkeditor} d -o {td}/f -i {apk} {s})'.format(
+            td=td, apk=apk,
+            s='-dex' if 's' in cmd else '',
+            apkeditor=apkeditorpath,
+          )
         )
-      )
 
       if os.path.exists(path):
         shutil.rmtree(path)
@@ -1002,7 +1007,7 @@ class Runner:
 
   async def _prep_exploit(self, ctx: Context) -> None:
     import os.path
-    from pkg_resources import resource_filename
+    from importlib.resources import as_file, files
     from trueseeing.core.tools import invoke_passthru
 
     ctx.create(exist_ok=True)
@@ -1010,12 +1015,13 @@ class Runner:
     apk = os.path.join(ctx.wd, 'target.apk')
     path = os.path.join(ctx.wd, 'p')
     if not os.path.exists(path):
-      await invoke_passthru(
-        '(java -jar {apkeditor} d -o {path} -i {apk} -dex)'.format(
-          apk=apk, path=path,
-          apkeditor=resource_filename(__name__, os.path.join('..', 'libs', 'apkeditor.jar'))
+      with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
+        await invoke_passthru(
+          '(java -jar {apkeditor} d -o {path} -i {apk} -dex)'.format(
+            apk=apk, path=path,
+            apkeditor=apkeditorpath,
+          )
         )
-      )
 
   async def _exploit_disable_pinning(self, args: deque[str]) -> None:
     self._require_target()
@@ -1027,7 +1033,7 @@ class Runner:
     import time
     import shutil
     import random
-    from pkg_resources import resource_filename
+    from importlib.resources import as_file, files
     from trueseeing.core.context import Context
 
     ui.info('disabling declarative TLS pinning {apk}'.format(apk=self._target))
@@ -1048,8 +1054,8 @@ class Runner:
 
       # XXX
       path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'xml', f'{key}.xml')
-      nscpath = resource_filename(__name__, os.path.join('..', 'libs', 'nsc.xml'))
-      shutil.copy(nscpath, path)
+      with as_file(files('trueseeing.libs').joinpath('nsc.xml')) as nscpath:
+        shutil.copy(nscpath, path)
 
       # XXX
       import lxml.etree as ET
