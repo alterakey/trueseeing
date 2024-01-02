@@ -10,27 +10,26 @@ authors = [
 classifiers = [
     "Topic :: Security",
     "Operating System :: Android",
-    "Programming Language :: Java",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
 ]
 readme = "README.md"
-keywords = ['android', 'java', 'security', 'pentest', 'hacking']
+keywords = ['android', 'security', 'pentest', 'hacking']
 dependencies = [
-    "lxml~=4.8",
+    "lxml~=5.0",
     "pyyaml~=6.0",
     "jinja2~=3.1",
-    "attrs~=21.4",
+    "attrs~=23.2",
     "pypubsub~=4.0",
-    "termcolor~=2.3.0",
+    "termcolor~=2.3",
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 dynamic = ['version', 'description']
 
 [project.optional-dependencies]
 dev = [
-  "mypy~=1.2",
-  "pyproject-flake8~=5.0.4",
-  "typing_extensions",
+  "mypy~=1.7",
+  "pyproject-flake8~=6.1",
+  "typing_extensions~=4.1",
 ]
 
 [project.urls]
