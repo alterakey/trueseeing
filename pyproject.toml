@@ -10,7 +10,7 @@ authors = [
 classifiers = [
     "Topic :: Security",
     "Operating System :: Android",
-    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
 readme = "README.md"
 keywords = ['android', 'security', 'pentest', 'hacking']
