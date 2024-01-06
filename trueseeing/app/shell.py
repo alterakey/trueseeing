@@ -293,3 +293,6 @@ Misc:
           no_cache_mode=no_cache_mode,
           update_cache_mode=update_cache_mode,
         ))
+
+def entry() -> None:
+  Shell().invoke()

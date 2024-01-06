@@ -25,11 +25,9 @@ import re
 from trueseeing.core.code.model import InvocationPattern
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
-from trueseeing.core.literalquery import Query
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any, Set
-  from trueseeing.core.code.model import Op
 
 # XXX huge duplication
 class TopLevelSuffixes:
@@ -115,6 +113,7 @@ class LibraryDetector(Detector):
       return not cls._suffixes_public.looks_public(shared)
 
   async def detect(self) -> None:
+    q = self._context.store().query()
     package = self._context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
     packages: Dict[str, List[str]] = dict()
@@ -140,7 +139,7 @@ class LibraryDetector(Detector):
       ))
 
     for p in reversed(sorted(packages.keys(), key=len)):
-      for k in self._context.store().query().consts_in_package(p, InvocationPattern('const-string', r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]')):
+      for k in q.consts_in_package(p, InvocationPattern('const-string', r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]')):
         ver = k.p[1].v
         if not re.search(r'^/|:[0-9]+|\\|://', ver):
           comps = ver.split('.')
@@ -172,7 +171,7 @@ class LibraryDetector(Detector):
               info1=f'{ver} ({p})',
             ))
 
-    for fn, blob in self._context.store().db.execute('select path, blob from files where path like :pat', dict(pat='root/assets/%.js')):
+    for fn, blob in q.file_enum('root/assets/%.js'):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
         for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
@@ -252,18 +251,18 @@ class UrlLikeDetector(Detector):
     with files('trueseeing.libs').joinpath('tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
-    with self._context.store() as store:
-      for cl in store.query().consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
-        qn = store.query().qualname_of(cl)
-        if self._context.is_qualname_excluded(qn):
-          continue
-        for match in self._analyzed(cl.p[1].v, qn):
-          for v in match['value']:
-            self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
-      for name, val in self._context.string_resources():
-        for match in self._analyzed(val):
-          for v in match['value']:
-            self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
+    q = self._context.store().query()
+    for cl in q.consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
+      qn = q.qualname_of(cl)
+      if self._context.is_qualname_excluded(qn):
+        continue
+      for match in self._analyzed(cl.p[1].v, qn):
+        for v in match['value']:
+          self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
+    for name, val in self._context.string_resources():
+      for match in self._analyzed(val):
+        for v in match['value']:
+          self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
 
 class NativeMethodDetector(Detector):
   option = 'detect-native-method'
@@ -274,20 +273,17 @@ class NativeMethodDetector(Detector):
   _detailed_description = None
 
   async def detect(self) -> None:
-    with self._context.store() as store:
-      for op in self._nativeish_methods(store.db):
-        self._raise_issue(Issue(
-          detector_id=self.option,
-          confidence='firm',
-          cvss3_vector=self._cvss,
-          summary=self._summary,
-          synopsis=self._synopsis,
-          source=store.query().qualname_of(op)
-        ))
-
-  def _nativeish_methods(self, c: Any) -> Iterable[Op]:
-    for r in c.execute('select op_vecs.op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from ops_method join op_vecs on (method=ops_method.op and method=op_vecs.op) where v=:pat or v2=:pat or v3=:pat or v4=:pat or v5=:pat or v6=:pat or v7=:pat or v8=:pat or v9=:pat', dict(pat='native')):
-      yield Query._op_from_row(r)
+    store = self._context.store()
+    q = store.query()
+    for op in q.methods_with_modifier('native'):
+      self._raise_issue(Issue(
+        detector_id=self.option,
+        confidence='firm',
+        cvss3_vector=self._cvss,
+        summary=self._summary,
+        synopsis=self._synopsis,
+        source=q.qualname_of(op)
+      ))
 
 class NativeArchDetector(Detector):
   option = 'detect-native-arch'
@@ -297,7 +293,7 @@ class NativeArchDetector(Detector):
   _synopsis = "The application has native codes for some architectures."
 
   async def detect(self) -> None:
-    for d, in self._context.store().db.execute('select path from files where path like :pat', dict(pat='root/lib/%')):
+    for d in self._context.store().query().file_find('root/lib/%'):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[2]
         self._raise_issue(Issue(

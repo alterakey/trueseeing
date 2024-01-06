@@ -36,7 +36,7 @@ dev = [
 Source = "https://github.com/alterakey/trueseeing"
 
 [project.scripts]
-trueseeing = "trueseeing.app._dummy:invoke"
+trueseeing = "trueseeing.app.shell:entry"
 
 [tool.mypy]
 strict = true

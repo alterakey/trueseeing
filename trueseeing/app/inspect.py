@@ -293,6 +293,15 @@ class Runner:
     if self._target is None:
       ui.fatal(msg if msg else 'need target')
 
+  def _get_context(self, path: str) -> Context:
+    from trueseeing.core.context import Context
+    return Context(path, [])
+
+  async def _get_context_analyzed(self, path: str) -> Context:
+    c = self._get_context(path)
+    await c.analyze()
+    return c
+
   @contextmanager
   def _apply_graph_size_limit(self, l: Optional[int]) -> Iterator[None]:
     from trueseeing.core.flow.data import DataFlows
@@ -313,13 +322,12 @@ class Runner:
 
     ui.info(f"analyzing {apk}")
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      if cmd.endswith('!'):
-        context.remove()
-      await context.analyze()
-      with context.store().db as db:
-        db.execute('delete from analysis_issues')
+    context = self._get_context(apk)
+    if cmd.endswith('!'):
+      context.remove()
+    await context.analyze()
+    with context.store().db as db:
+      db.execute('delete from analysis_issues')
 
   async def _analyze2(self, args: deque[str]) -> None:
     await self._analyze(args)
@@ -339,7 +347,6 @@ class Runner:
 
     import time
     from trueseeing.app.scan import ScanMode
-    from trueseeing.core.context import Context
 
     with self._apply_graph_size_limit(limit):
       at = time.time()
@@ -352,10 +359,8 @@ class Runner:
         update_cache_mode=False,
         from_inspect_mode=True,
       )
-      with Context(apk, []) as context:
-        with context.store().db as db:
-          for nr, in db.execute('select count(1) from analysis_issues'):
-            ui.success("done, found {nr} issues ({t:.02f} sec.)".format(nr=nr, t=(time.time() - at)))
+      nr = self._get_context(apk).store().query().issue_count()
+      ui.success("done, found {nr} issues ({t:.02f} sec.)".format(nr=nr, t=(time.time() - at)))
 
   async def _show_file(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
@@ -377,15 +382,16 @@ class Runner:
         ui.fatal('outfile exists; force (!) to overwrite')
 
     from binascii import hexlify
-    from trueseeing.core.context import Context
-    with Context(self._target, []) as context:
-      with context.store().db as db:
-        for d, in db.execute('select blob from files where path like :path', dict(path=path)):
-          if outfn is None:
-            sys.stdout.buffer.write(d if 'x' not in cmd else hexlify(d))
-          else:
-            with open(outfn, 'wb') as f:
-              f.write(d if 'x' not in cmd else hexlify(d))
+
+    context = self._get_context(self._target)
+    d = context.store().query().file_get(path)
+    if d is None:
+      ui.fatal('file not found')
+    if outfn is None:
+      sys.stdout.buffer.write(d if 'x' not in cmd else hexlify(d))
+    else:
+      with open(outfn, 'wb') as f:
+        f.write(d if 'x' not in cmd else hexlify(d))
 
   async def _show_disasm(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
@@ -407,17 +413,14 @@ class Runner:
       if os.path.exists(outfn) and not cmd.endswith('!'):
         ui.fatal('outfile exists; force (!) to overwrite')
 
-    from trueseeing.core.context import Context
-    with Context(self._target, []) as context:
-      store = context.store()
-      path = '{}.smali'.format(os.path.join(*(class_.split('.'))))
-      with store.db as db:
-        for d, in db.execute('select blob from files where path like :path', dict(path=f'smali%/{path}')):
-          if outfn is None:
-            sys.stdout.buffer.write(d)
-          else:
-            with open(outfn, 'wb') as f:
-              f.write(d)
+    context = self._get_context(self._target)
+    path = '{}.smali'.format(os.path.join(*(class_.split('.'))))
+    for _, d in context.store().query().file_enum(f'smali%/{path}'):
+      if outfn is None:
+        sys.stdout.buffer.write(d)
+      else:
+        with open(outfn, 'wb') as f:
+          f.write(d)
 
   async def _show_solved_constant(self, args: deque[str]) -> None:
     self._require_target()
@@ -434,25 +437,23 @@ class Runner:
 
     limit = self._get_graph_size_limit(self._get_modifiers(args))
 
-    from trueseeing.core.context import Context
     from trueseeing.core.flow.data import DataFlows
     with self._apply_graph_size_limit(limit):
-      with Context(apk, []) as context:
-        await context.analyze()
-        store = context.store()
-        op = store.op_get(opn)
-        if op is not None:
-          if cmd.endswith('!'):
-            vs = DataFlows.solved_possible_constant_data_in_invocation(store, op, idx)
-            ui.info(repr(vs))
-          else:
-            try:
-              v = DataFlows.solved_constant_data_in_invocation(store, op, idx)
-              ui.info(repr(v))
-            except DataFlows.NoSuchValueError as e:
-              ui.error(str(e))
+      context = await self._get_context_analyzed(apk)
+      store = context.store()
+      op = store.op_get(opn)
+      if op is not None:
+        if cmd.endswith('!'):
+          vs = DataFlows.solved_possible_constant_data_in_invocation(store, op, idx)
+          ui.info(repr(vs))
         else:
-          ui.error('op #{} not found'.format(opn))
+          try:
+            v = DataFlows.solved_constant_data_in_invocation(store, op, idx)
+            ui.info(repr(v))
+          except DataFlows.NoSuchValueError as e:
+            ui.error(str(e))
+      else:
+        ui.error('op #{} not found'.format(opn))
 
   async def _show_solved_typeset(self, args: deque[str]) -> None:
     self._require_target()
@@ -469,18 +470,16 @@ class Runner:
 
     limit = self._get_graph_size_limit(self._get_modifiers(args))
 
-    from trueseeing.core.context import Context
     from trueseeing.core.flow.data import DataFlows
     with self._apply_graph_size_limit(limit):
-      with Context(apk, []) as context:
-        await context.analyze()
-        store = context.store()
-        op = store.op_get(opn)
-        if op is not None:
-          vs = DataFlows.solved_typeset_in_invocation(store, op, idx)
-          ui.info(repr(vs))
-        else:
-          ui.error('op #{} not found'.format(opn))
+      context = await self._get_context_analyzed(apk)
+      store = context.store()
+      op = store.op_get(opn)
+      if op is not None:
+        vs = DataFlows.solved_typeset_in_invocation(store, op, idx)
+        ui.info(repr(vs))
+      else:
+        ui.error('op #{} not found'.format(opn))
 
   async def _report_html(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
@@ -496,18 +495,17 @@ class Runner:
       if os.path.exists(outfn) and not cmd.endswith('!'):
         ui.fatal('outfile exists; force (!) to overwrite')
 
-    from trueseeing.core.context import Context
     from trueseeing.core.report import HTMLReportGenerator
-    with Context(self._target, []) as context:
-      gen = HTMLReportGenerator(context)
-      if outfn is None:
-        from io import StringIO
-        f0 = StringIO()
-        gen.generate(f0)
-        ui.stdout(f0.getvalue())
-      else:
-        with open(outfn, 'w') as f1:
-          gen.generate(f1)
+    context = self._get_context(self._target)
+    gen = HTMLReportGenerator(context)
+    if outfn is None:
+      from io import StringIO
+      f0 = StringIO()
+      gen.generate(f0)
+      ui.stdout(f0.getvalue())
+    else:
+      with open(outfn, 'w') as f1:
+        gen.generate(f1)
 
   async def _report_json(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
@@ -523,18 +521,17 @@ class Runner:
       if os.path.exists(outfn) and not cmd.endswith('!'):
         ui.fatal('outfile exists; force (!) to overwrite')
 
-    from trueseeing.core.context import Context
     from trueseeing.core.report import JSONReportGenerator
-    with Context(self._target, []) as context:
-      gen = JSONReportGenerator(context)
-      if outfn is None:
-        from io import StringIO
-        f0 = StringIO()
-        gen.generate(f0)
-        ui.stdout(f0.getvalue())
-      else:
-        with open(outfn, 'w') as f1:
-          gen.generate(f1)
+    context = self._get_context(self._target)
+    gen = JSONReportGenerator(context)
+    if outfn is None:
+      from io import StringIO
+      f0 = StringIO()
+      gen.generate(f0)
+      ui.stdout(f0.getvalue())
+    else:
+      with open(outfn, 'w') as f1:
+        gen.generate(f1)
 
   async def _report_text(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
@@ -550,18 +547,17 @@ class Runner:
       if os.path.exists(outfn) and not cmd.endswith('!'):
         ui.fatal('outfile exists; force (!) to overwrite')
 
-    from trueseeing.core.context import Context
     from trueseeing.core.report import CIReportGenerator
-    with Context(self._target, []) as context:
-      gen = CIReportGenerator(context)
-      if outfn is None:
-        from io import StringIO
-        f0 = StringIO()
-        gen.generate(f0)
-        ui.stdout(f0.getvalue())
-      else:
-        with open(outfn, 'w') as f1:
-          gen.generate(f1)
+    context = self._get_context(self._target)
+    gen = CIReportGenerator(context)
+    if outfn is None:
+      from io import StringIO
+      f0 = StringIO()
+      gen.generate(f0)
+      ui.stdout(f0.getvalue())
+    else:
+      with open(outfn, 'w') as f1:
+        gen.generate(f1)
 
   async def _search_file(self, args: deque[str]) -> None:
     self._require_target()
@@ -575,12 +571,9 @@ class Runner:
     else:
       pat = '.'
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for path, in store.db.execute('select path from files where path regexp :pat', dict(pat=pat)):
-        ui.info(f'{path}')
+    context = await self._get_context_analyzed(apk)
+    for path, in context.store().db.execute('select path from files where path regexp :pat', dict(pat=pat)):
+      ui.info(f'{path}')
 
   async def _search_string(self, args: deque[str]) -> None:
     self._require_target()
@@ -596,12 +589,9 @@ class Runner:
 
     ui.info('searching in files: {pat}'.format(pat=pat))
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for path, in store.db.execute('select path from files where blob regexp :pat', dict(pat=pat.encode('latin1'))):
-        ui.info(f'{path}')
+    context = await self._get_context_analyzed(apk)
+    for path, in context.store().db.execute('select path from files where blob regexp :pat', dict(pat=pat.encode('latin1'))):
+      ui.info(f'{path}')
 
   async def _search_call(self, args: deque[str]) -> None:
     self._require_target()
@@ -615,14 +605,12 @@ class Runner:
 
     pat = args.popleft()
 
-    from trueseeing.core.context import Context
     from trueseeing.core.code.model import InvocationPattern
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for op in store.query().invocations(InvocationPattern('invoke-', pat)):
-        qn = store.query().qualname_of(op)
-        ui.info(f'{qn}: {op}')
+    context = await self._get_context_analyzed(apk)
+    q = context.store().query()
+    for op in q.invocations(InvocationPattern('invoke-', pat)):
+      qn = q.qualname_of(op)
+      ui.info(f'{qn}: {op}')
 
   async def _search_const(self, args: deque[str]) -> None:
     self._require_target()
@@ -640,14 +628,12 @@ class Runner:
     else:
       pat = '.'
 
-    from trueseeing.core.context import Context
     from trueseeing.core.code.model import InvocationPattern
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for op in store.query().consts(InvocationPattern(insn, pat)):
-        qn = store.query().qualname_of(op)
-        ui.info(f'{qn}: {op}')
+    context = await self._get_context_analyzed(apk)
+    q = context.store().query()
+    for op in q.consts(InvocationPattern(insn, pat)):
+      qn = q.qualname_of(op)
+      ui.info(f'{qn}: {op}')
 
   async def _search_put(self, args: deque[str]) -> None:
     self._require_target()
@@ -661,18 +647,16 @@ class Runner:
     else:
       pat = '.'
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      if not cmd.endswith('i'):
-        fun = store.query().sputs
-      else:
-        fun = store.query().iputs
+    context = await self._get_context_analyzed(apk)
+    q = context.store().query()
+    if not cmd.endswith('i'):
+      fun = q.sputs
+    else:
+      fun = q.iputs
 
-      for op in fun(pat):
-        qn = store.query().qualname_of(op)
-        ui.info(f'{qn}: {op}')
+    for op in fun(pat):
+      qn = q.qualname_of(op)
+      ui.info(f'{qn}: {op}')
 
   async def _search_defined_package(self, args: deque[str]) -> None:
     self._require_target()
@@ -687,16 +671,14 @@ class Runner:
       pat = '.'
 
     import os
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      packages = set()
-      for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
-        if fn.endswith('.smali'):
-          packages.add(os.path.dirname(fn))
-      for pkg in sorted(packages):
-        if re.match(pat, pkg):
-          ui.info(pkg)
+    context = await self._get_context_analyzed(apk)
+    packages = set()
+    for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
+      if fn.endswith('.smali'):
+        packages.add(os.path.dirname(fn))
+    for pkg in sorted(packages):
+      if re.match(pat, pkg):
+        ui.info(pkg)
 
   async def _search_defined_class(self, args: deque[str]) -> None:
     self._require_target()
@@ -710,13 +692,11 @@ class Runner:
 
     pat = args.popleft()
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for op in store.query().classes_in_package_named(pat):
-        cn = store.query().class_name_of(op)
-        ui.info(f'{cn}: {op}')
+    context = await self._get_context_analyzed(apk)
+    q = context.store().query()
+    for op in q.classes_in_package_named(pat):
+      cn = q.class_name_of(op)
+      ui.info(f'{cn}: {op}')
 
   async def _search_derived_class(self, args: deque[str]) -> None:
     self._require_target()
@@ -734,13 +714,11 @@ class Runner:
     else:
       pat = '.'
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for op in store.query().classes_extends_has_method_named(base, pat):
-        cn = store.query().class_name_of(op)
-        ui.info(f'{cn}: {op}')
+    context = await self._get_context_analyzed(apk)
+    q = context.store().query()
+    for op in q.classes_extends_has_method_named(base, pat):
+      cn = q.class_name_of(op)
+      ui.info(f'{cn}: {op}')
 
   async def _search_implementing_class(self, args: deque[str]) -> None:
     self._require_target()
@@ -758,13 +736,11 @@ class Runner:
     else:
       pat = '.'
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for op in store.query().classes_implements_has_method_named(interface, pat):
-        cn = store.query().class_name_of(op)
-        ui.info(f'{cn}: {op}')
+    context = await self._get_context_analyzed(apk)
+    q = context.store().query()
+    for op in q.classes_implements_has_method_named(interface, pat):
+      cn = q.class_name_of(op)
+      ui.info(f'{cn}: {op}')
 
   async def _search_defined_method(self, args: deque[str]) -> None:
     self._require_target()
@@ -778,13 +754,11 @@ class Runner:
 
     pat = args.popleft()
 
-    from trueseeing.core.context import Context
-    with Context(apk, []) as context:
-      await context.analyze()
-      store = context.store()
-      for op in store.query().classes_has_method_named(pat):
-        qn = store.query().qualname_of(op)
-        ui.info(f'{qn}: {op}')
+    context = await self._get_context_analyzed(apk)
+    q = context.store().query()
+    for op in q.classes_has_method_named(pat):
+      qn = q.qualname_of(op)
+      ui.info(f'{qn}: {op}')
 
   async def _export_context(self, args: deque[str]) -> None:
     self._require_target()
@@ -800,20 +774,19 @@ class Runner:
 
     import os
     import time
-    from trueseeing.core.context import Context
 
     at = time.time()
     extracted = 0
-    with Context(self._target, []) as context:
-      with context.store().db as c:
-        for path,blob in c.execute('select path,blob from files'):
-          target = os.path.join(root, *path.split('/'))
-          if extracted % 10000 == 0:
-            ui.info(' .. {nr} files'.format(nr=extracted))
-          os.makedirs(os.path.dirname(target), exist_ok=True)
-          with open(target, 'wb') as f:
-            f.write(blob)
-            extracted += 1
+    context = self._get_context(self._target)
+    q = context.store().query()
+    for path,blob in q.file_enum(pat=None):
+      target = os.path.join(root, *path.split('/'))
+      if extracted % 10000 == 0:
+        ui.info(' .. {nr} files'.format(nr=extracted))
+      os.makedirs(os.path.dirname(target), exist_ok=True)
+      with open(target, 'wb') as f:
+        f.write(blob)
+        extracted += 1
     ui.success('done: {nr} files ({t:.02f} sec.)'.format(nr=extracted, t=(time.time() - at)))
 
   async def _use_framework(self, args: deque[str]) -> None:
@@ -836,20 +809,18 @@ class Runner:
 
   async def _assemble_apk_from_path(self, wd: str, path: str) -> Tuple[str, str]:
     import os
-    from importlib.resources import as_file, files
     from trueseeing.core.sign import SigningKey
-    from trueseeing.core.tools import invoke_passthru
+    from trueseeing.core.tools import invoke_passthru, toolchains
 
-    with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
-      with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
-        await invoke_passthru(
-          '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
-            wd=wd, path=path,
-            apkeditor=apkeditorpath,
-            apksigner=apksignerpath,
-            keystore=await SigningKey().key(),
-          )
+    with toolchains() as tc:
+      await invoke_passthru(
+        '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
+          wd=wd, path=path,
+          apkeditor=tc['apkeditor'],
+          apksigner=tc['apksigner'],
+          keystore=await SigningKey().key(),
         )
+      )
 
     return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
 
@@ -918,8 +889,7 @@ class Runner:
     import time
     import shutil
     from tempfile import TemporaryDirectory
-    from trueseeing.core.tools import invoke_passthru
-    from importlib.resources import as_file, files
+    from trueseeing.core.tools import invoke_passthru, toolchains
 
     path = args.popleft()
     apk = self._target
@@ -932,12 +902,12 @@ class Runner:
     at = time.time()
 
     with TemporaryDirectory() as td:
-      with as_file(files(__name__).joinpath('libs').joinpath('apkeditor.jar')) as apkeditorpath:
+      with toolchains() as tc:
         await invoke_passthru(
           '(java -jar {apkeditor} d -o {td}/f -i {apk} {s})'.format(
             td=td, apk=apk,
             s='-dex' if 's' in cmd else '',
-            apkeditor=apkeditorpath,
+            apkeditor=tc['apkeditor'],
           )
         )
 
@@ -957,18 +927,17 @@ class Runner:
     import os.path
     import shutil
     import time
-    from trueseeing.core.context import Context
 
     at = time.time()
 
-    with Context(self._target, []) as context:
-      path = os.path.join(context.wd, 'p')
-      if not os.path.exists(path):
-        ui.fatal('nothing to discard')
+    context = self._get_context(self._target)
+    path = os.path.join(context.wd, 'p')
+    if not os.path.exists(path):
+      ui.fatal('nothing to discard')
 
-      ui.info('discarding patches to {apk}'.format(apk=apk))
-      shutil.rmtree(path)
-      ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+    ui.info('discarding patches to {apk}'.format(apk=apk))
+    shutil.rmtree(path)
+    ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
   async def _exploit_apply(self, args: deque[str]) -> None:
     self._require_target()
@@ -979,7 +948,6 @@ class Runner:
     import os
     import time
     from tempfile import TemporaryDirectory
-    from trueseeing.core.context import Context
 
     apk = self._target
     origapk = apk.replace('.apk', '.apk.orig')
@@ -989,37 +957,36 @@ class Runner:
 
     at = time.time()
 
-    with Context(self._target, []) as context:
-      path = os.path.join(context.wd, 'p')
-      if not os.path.exists(path):
-        ui.fatal('nothing to apply')
+    context = self._get_context(self._target)
+    path = os.path.join(context.wd, 'p')
+    if not os.path.exists(path):
+      ui.fatal('nothing to apply')
 
-      with TemporaryDirectory() as td:
-        ui.info('applying patches to {apk}'.format(apk=apk))
-        outapk, outsig = await self._assemble_apk_from_path(td, path)
+    with TemporaryDirectory() as td:
+      ui.info('applying patches to {apk}'.format(apk=apk))
+      outapk, outsig = await self._assemble_apk_from_path(td, path)
 
-        if os.path.exists(apk):
-          self._move_apk(apk, origapk)
+      if os.path.exists(apk):
+        self._move_apk(apk, origapk)
 
-        self._move_apk(outapk, apk)
+      self._move_apk(outapk, apk)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
   async def _prep_exploit(self, ctx: Context) -> None:
     import os.path
-    from importlib.resources import as_file, files
-    from trueseeing.core.tools import invoke_passthru
+    from trueseeing.core.tools import invoke_passthru, toolchains
 
     ctx.create(exist_ok=True)
 
     apk = os.path.join(ctx.wd, 'target.apk')
     path = os.path.join(ctx.wd, 'p')
     if not os.path.exists(path):
-      with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
+      with toolchains() as tc:
         await invoke_passthru(
           '(java -jar {apkeditor} d -o {path} -i {apk} -dex)'.format(
             apk=apk, path=path,
-            apkeditor=apkeditorpath,
+            apkeditor=tc['apkeditor'],
           )
         )
 
@@ -1034,49 +1001,48 @@ class Runner:
     import shutil
     import random
     from importlib.resources import as_file, files
-    from trueseeing.core.context import Context
 
     ui.info('disabling declarative TLS pinning {apk}'.format(apk=self._target))
 
     at = time.time()
+    context = self._get_context(self._target)
 
-    with Context(self._target, []) as context:
-      await self._prep_exploit(context)
-      path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-      key = 'nsc{:04x}'.format(random.randint(0, 2**16))
+    await self._prep_exploit(context)
+    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
+    key = 'nsc{:04x}'.format(random.randint(0, 2**16))
 
-      manif = self._parsed_manifest(path)
-      for e in manif.xpath('.//application'):
-        e.attrib['{http://schemas.android.com/apk/res/android}usesCleartextTraffic'] = "true"
-        e.attrib['{http://schemas.android.com/apk/res/android}networkSecurityConfig'] = f'@xml/{key}'
-      with open(path, 'wb') as f:
-        f.write(self._manifest_as_xml(manif))
+    manif = self._parsed_manifest(path)
+    for e in manif.xpath('.//application'):
+      e.attrib['{http://schemas.android.com/apk/res/android}usesCleartextTraffic'] = "true"
+      e.attrib['{http://schemas.android.com/apk/res/android}networkSecurityConfig'] = f'@xml/{key}'
+    with open(path, 'wb') as f:
+      f.write(self._manifest_as_xml(manif))
 
-      # XXX
-      path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'xml', f'{key}.xml')
-      with as_file(files('trueseeing.libs').joinpath('nsc.xml')) as nscpath:
-        shutil.copy(nscpath, path)
+    # XXX
+    path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'xml', f'{key}.xml')
+    with as_file(files('trueseeing.libs').joinpath('nsc.xml')) as nscpath:
+      shutil.copy(nscpath, path)
 
-      # XXX
-      import lxml.etree as ET
-      path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'values', 'public.xml')
-      with open(path, 'rb') as f:
-        root = ET.fromstring(f.read(), parser=ET.XMLParser(recover=True))
-      if root.xpath('./public[@type="xml"]'):
-        maxid = max(int(e.attrib["id"], 16) for e in root.xpath('./public[@type="xml"]'))
-        n = ET.SubElement(root, 'public')
-        n.attrib['id'] = f'0x{maxid+1:08x}'
-        n.attrib['type'] = 'xml'
-        n.attrib['name'] = key
-      else:
-        maxid = (max(int(e.attrib["id"], 16) for e in root.xpath('./public')) & 0xffff0000)
-        n = ET.SubElement(root, 'public')
-        n.attrib['id'] = f'0x{maxid+0x10000:08x}'
-        n.attrib['type'] = 'xml'
-        n.attrib['name'] = key
+    # XXX
+    import lxml.etree as ET
+    path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'values', 'public.xml')
+    with open(path, 'rb') as f:
+      root = ET.fromstring(f.read(), parser=ET.XMLParser(recover=True))
+    if root.xpath('./public[@type="xml"]'):
+      maxid = max(int(e.attrib["id"], 16) for e in root.xpath('./public[@type="xml"]'))
+      n = ET.SubElement(root, 'public')
+      n.attrib['id'] = f'0x{maxid+1:08x}'
+      n.attrib['type'] = 'xml'
+      n.attrib['name'] = key
+    else:
+      maxid = (max(int(e.attrib["id"], 16) for e in root.xpath('./public')) & 0xffff0000)
+      n = ET.SubElement(root, 'public')
+      n.attrib['id'] = f'0x{maxid+0x10000:08x}'
+      n.attrib['type'] = 'xml'
+      n.attrib['name'] = key
 
-      with open(path, 'wb') as f1:
-        f1.write(ET.tostring(root))
+    with open(path, 'wb') as f1:
+      f1.write(ET.tostring(root))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1088,20 +1054,19 @@ class Runner:
 
     import os.path
     import time
-    from trueseeing.core.context import Context
 
     ui.info('enabling debug {apk}'.format(apk=self._target))
 
     at = time.time()
+    context = self._get_context(self._target)
+    await self._prep_exploit(context)
 
-    with Context(self._target, []) as context:
-      await self._prep_exploit(context)
-      path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-      manif = self._parsed_manifest(path)
-      for e in manif.xpath('.//application'):
-        e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "true"
-      with open(path, 'wb') as f:
-        f.write(self._manifest_as_xml(manif))
+    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
+    manif = self._parsed_manifest(path)
+    for e in manif.xpath('.//application'):
+      e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "true"
+    with open(path, 'wb') as f:
+      f.write(self._manifest_as_xml(manif))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1113,22 +1078,21 @@ class Runner:
 
     import os.path
     import time
-    from trueseeing.core.context import Context
 
     ui.info('enabling full backup {apk}'.format(apk=self._target))
 
     at = time.time()
+    context = self._get_context(self._target)
+    await self._prep_exploit(context)
 
-    with Context(self._target, []) as context:
-      await self._prep_exploit(context)
-      path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-      manif = self._parsed_manifest(path)
-      for e in manif.xpath('.//application'):
-        e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "true"
-        if '{http://schemas.android.com/apk/res/android}fullBackupContent' in e.attrib:
-          del e.attrib['{http://schemas.android.com/apk/res/android}fullBackupContent']
-      with open(path, 'wb') as f:
-        f.write(self._manifest_as_xml(manif))
+    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
+    manif = self._parsed_manifest(path)
+    for e in manif.xpath('.//application'):
+      e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "true"
+      if '{http://schemas.android.com/apk/res/android}fullBackupContent' in e.attrib:
+        del e.attrib['{http://schemas.android.com/apk/res/android}fullBackupContent']
+    with open(path, 'wb') as f:
+      f.write(self._manifest_as_xml(manif))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1145,27 +1109,27 @@ class Runner:
 
     import os.path
     import time
-    from trueseeing.core.context import Context
 
     ui.info('retargetting API level {level} {apk}'.format(level=level, apk=self._target))
 
     at = time.time()
 
-    with Context(self._target, []) as context:
-      await self._prep_exploit(context)
-      path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-      manif = self._parsed_manifest(path)
-      for e in manif.xpath('.//uses-sdk'):
-        e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
-        minLevel = int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
-        if level < minLevel:
-          if not cmd.endswith('!'):
-            ui.fatal('cannot target API level below requirement ({minlv}); force (!) to downgrade altogether'.format(minlv=minLevel))
-          else:
-            ui.warn('downgrading the requirement')
-            e.attrib['{http://schemas.android.com/apk/res/android}minSdkVersion'] = str(level)
-      with open(path, 'wb') as f:
-        f.write(self._manifest_as_xml(manif))
+    context = self._get_context(self._target)
+    await self._prep_exploit(context)
+
+    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
+    manif = self._parsed_manifest(path)
+    for e in manif.xpath('.//uses-sdk'):
+      e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
+      minLevel = int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
+      if level < minLevel:
+        if not cmd.endswith('!'):
+          ui.fatal('cannot target API level below requirement ({minlv}); force (!) to downgrade altogether'.format(minlv=minLevel))
+        else:
+          ui.warn('downgrading the requirement')
+          e.attrib['{http://schemas.android.com/apk/res/android}minSdkVersion'] = str(level)
+    with open(path, 'wb') as f:
+      f.write(self._manifest_as_xml(manif))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1253,55 +1217,54 @@ class Runner:
     apk = self._target
 
     import os
-    from trueseeing.core.context import Context
 
     boolmap = {True:'yes',False:'no','true':'yes','false':'no',1:'yes',0:'no'}
 
     ui.info(f'info on {apk}')
 
-    with Context(self._target, []) as context:
-      analyzed = os.path.exists(os.path.join(context.wd, '.done'))
+    context = self._get_context(self._target)
+    analyzed = os.path.exists(os.path.join(context.wd, '.done'))
 
-      ui.info('path         {}'.format(apk))
-      ui.info('size         {}'.format(os.stat(apk).st_size))
-      ui.info('fp           {}'.format(context.fingerprint_of()))
-      ui.info('ctx          {}'.format(context.wd))
-      ui.info('has patch?   {}'.format(boolmap[os.path.exists(os.path.join(context.wd, 'p', 'AndroidManifest.xml'))]))
-      ui.info('analyzed?    {}'.format(boolmap[analyzed]))
-      if analyzed:
-        store = context.store()
-        manif = context.parsed_manifest()
-        ui.info('pkg          {}'.format(manif.attrib['package']))
-        ui.info('perms        {}'.format(len(list(context.permissions_declared()))))
-        ui.info('activs       {}'.format(len(list(manif.xpath('.//activity')))))
-        ui.info('servs        {}'.format(len(list(manif.xpath('.//service')))))
-        ui.info('recvs        {}'.format(len(list(manif.xpath('.//receiver')))))
-        ui.info('provs        {}'.format(len(list(manif.xpath('.//provider')))))
-        ui.info('int-flts     {}'.format(len(list(manif.xpath('.//intent-filter')))))
-        with store.db as c:
-          for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
-            ui.info('frags        {}'.format(len(list(manif.xpath('.//activity')))))
-        for e in manif.xpath('.//application'):
-          ui.info('debuggable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}debuggable', 'false')]))
-          ui.info('backupable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}allowBackup', 'false')]))
-          ui.info('netsecconf?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}networkSecurityConfig') is not None]))
-        if manif.xpath('.//uses-sdk'):
-          for e in manif.xpath('.//uses-sdk'):
-            ui.info('api min      {}'.format(int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))))
-            ui.info('api tgt      {}'.format(int(e.attrib.get('{http://schemas.android.com/apk/res/android}targetSdkVersion', '1'))))
-        else:
-          dom = context._parsed_apktool_yml()
-          ui.info('api min      {} (apktool)'.format(int(dom['sdkInfo'].get('minSdkVersion', '1'))))
-          ui.info('api tgt      {} (apktool)'.format(int(dom['sdkInfo'].get('targetSdkVersion', '1'))))
-        with store.db as c:
-          for nr, in c.execute('select count(1) from analysis_issues'):
-            ui.info('issues       {}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))
-          for nr, in c.execute('select count(1) from ops where idx=0'):
-            ui.info('ops          {}'.format(nr))
-          for nr, in c.execute('select count(1) from class_class_name'):
-            ui.info('classes      {}'.format(nr))
-          for nr, in c.execute('select count(1) from method_method_name'):
-            ui.info('methods      {}'.format(nr))
+    ui.info('path         {}'.format(apk))
+    ui.info('size         {}'.format(os.stat(apk).st_size))
+    ui.info('fp           {}'.format(context.fingerprint_of()))
+    ui.info('ctx          {}'.format(context.wd))
+    ui.info('has patch?   {}'.format(boolmap[os.path.exists(os.path.join(context.wd, 'p', 'AndroidManifest.xml'))]))
+    ui.info('analyzed?    {}'.format(boolmap[analyzed]))
+    if analyzed:
+      store = context.store()
+      manif = context.parsed_manifest()
+      ui.info('pkg          {}'.format(manif.attrib['package']))
+      ui.info('perms        {}'.format(len(list(context.permissions_declared()))))
+      ui.info('activs       {}'.format(len(list(manif.xpath('.//activity')))))
+      ui.info('servs        {}'.format(len(list(manif.xpath('.//service')))))
+      ui.info('recvs        {}'.format(len(list(manif.xpath('.//receiver')))))
+      ui.info('provs        {}'.format(len(list(manif.xpath('.//provider')))))
+      ui.info('int-flts     {}'.format(len(list(manif.xpath('.//intent-filter')))))
+      with store.db as c:
+        for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
+          ui.info('frags        {}'.format(len(list(manif.xpath('.//activity')))))
+      for e in manif.xpath('.//application'):
+        ui.info('debuggable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}debuggable', 'false')]))
+        ui.info('backupable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}allowBackup', 'false')]))
+        ui.info('netsecconf?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}networkSecurityConfig') is not None]))
+      if manif.xpath('.//uses-sdk'):
+        for e in manif.xpath('.//uses-sdk'):
+          ui.info('api min      {}'.format(int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))))
+          ui.info('api tgt      {}'.format(int(e.attrib.get('{http://schemas.android.com/apk/res/android}targetSdkVersion', '1'))))
+      else:
+        dom = context._parsed_apktool_yml()
+        ui.info('api min      {} (apktool)'.format(int(dom['sdkInfo'].get('minSdkVersion', '1'))))
+        ui.info('api tgt      {} (apktool)'.format(int(dom['sdkInfo'].get('targetSdkVersion', '1'))))
+      with store.db as c:
+        for nr, in c.execute('select count(1) from analysis_issues'):
+          ui.info('issues       {}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))
+        for nr, in c.execute('select count(1) from ops where idx=0'):
+          ui.info('ops          {}'.format(nr))
+        for nr, in c.execute('select count(1) from class_class_name'):
+          ui.info('classes      {}'.format(nr))
+        for nr, in c.execute('select count(1) from method_method_name'):
+          ui.info('methods      {}'.format(nr))
 
   async def _set_target(self, args: deque[str]) -> None:
     _ = args.popleft()

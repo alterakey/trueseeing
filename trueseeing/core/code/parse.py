@@ -43,6 +43,7 @@ class SmaliAnalyzer:
 
   def analyze(self) -> None:
     import time
+    from trueseeing.core.literalquery import Query
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0
@@ -56,7 +57,7 @@ class SmaliAnalyzer:
       base_id = 1
       last_seen = analyzed_ops
 
-      for f, in c.execute('select blob from files where path like :path', dict(path='smali/%.smali')):
+      for _, f in Query(c=c).file_enum('smali/%.smali'):
         ops = []
         for op in P.parsed_flat(f.decode('utf-8')):
           analyzed_ops += 1

@@ -56,12 +56,6 @@ class Store:
     else:
       return False
 
-  def __enter__(self) -> Store:
-    return self
-
-  def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-    pass
-
   def op_finalize(self) -> None:
     StorePrep(self.db).stage2()
 
@@ -100,4 +94,4 @@ class Store:
     return detected_methods
 
   def query(self) -> Query:
-    return Query(self)
+    return Query(store=self)
