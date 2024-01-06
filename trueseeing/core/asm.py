@@ -45,8 +45,8 @@ class APKDisassembler:
     import glob
     import subprocess
     import shutil
-    from importlib.resources import as_file, files
-    from trueseeing.core.literalquery import StorePrep
+    from trueseeing.core.literalquery import StorePrep, FileTablePrep, Query
+    from trueseeing.core.tools import toolchains
 
     apk, archive = 'target.apk', 'store.db'
 
@@ -54,15 +54,15 @@ class APKDisassembler:
     try:
       os.chdir(self._context.wd)
       c = sqlite3.connect(archive)
+      query = Query(c=c)
       with c:
         StorePrep(c).stage0()
-        c.execute('drop table if exists files')
-        c.execute('create table files(path text not null unique, blob bytes not null)')
+        FileTablePrep(c).prepare()
 
       with c:
-        with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as path:
+        with toolchains() as tc:
           _ = subprocess.run('java -jar {apkeditor} d -i {apk} -o files'.format(
-            apkeditor=path,
+            apkeditor=tc['apkeditor'],
             apk=apk
           ), shell=True, capture_output=True)
           os.chdir('files')
@@ -71,7 +71,7 @@ class APKDisassembler:
           with open(fn, 'rb') as f:
             return fn, f.read()
 
-        c.executemany('insert into files (path, blob) values (?,?)', (read_as_row(fn) for fn in glob.glob('**', recursive=True) if os.path.isfile(fn)))
+        query.file_put_batch(read_as_row(fn) for fn in glob.glob('**', recursive=True) if os.path.isfile(fn))
         c.commit()
     finally:
       os.chdir(cwd)

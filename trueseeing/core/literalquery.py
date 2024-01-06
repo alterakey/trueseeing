@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from trueseeing.core.code.model import Op
+from trueseeing.core.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Dict, Optional
@@ -47,9 +48,24 @@ class StorePrep:
       with open(path, 'r', encoding='utf-8') as f:
         self.c.executescript(f.read())
 
+class FileTablePrep:
+  def __init__(self, c: Any) -> None:
+    self.c = c
+
+  def prepare(self) -> None:
+    from importlib.resources import as_file, files
+    with as_file(files('trueseeing.libs').joinpath('files.0.sql')) as path:
+      with open(path, 'r', encoding='utf-8') as f:
+        self.c.executescript(f.read())
+
 class Query:
-  def __init__(self, store: Store) -> None:
-    self.db = store.db
+  def __init__(self, *, store: Optional[Store] = None, c: Any = None) -> None:
+    if c is not None:
+      self.db = c
+    elif store is not None:
+      self.db = store.db
+    else:
+      raise RuntimeError('store or c is required')
 
   @staticmethod
   def _op_from_row(r: Tuple[Any, ...]) -> Op:
@@ -169,3 +185,84 @@ class Query:
     for r in self.db.execute('select op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from op_vecs where op=(select class from ops_class where op=:from_op)', dict(from_op=method._id)):
       return self._op_from_row(r)
     return None
+
+  def methods_with_modifier(self, pattern: str) -> Iterable[Op]:
+    for r in self.db.execute('select op_vecs.op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from ops_method join op_vecs on (method=ops_method.op and method=op_vecs.op) where v=:pat or v2=:pat or v3=:pat or v4=:pat or v5=:pat or v6=:pat or v7=:pat or v8=:pat or v9=:pat', dict(pat=pattern)):
+      yield Query._op_from_row(r)
+
+  def file_find(self, pat: str) -> Iterable[str]:
+    for f, in self.db.execute('select path from files where path like :pat', dict(pat=pat)):
+      yield f
+
+  def file_get(self, path: str, default: Optional[bytes] = None, patched: bool = False) -> Optional[bytes]:
+    stmt0 = 'select blob from files where path=:path'
+    stmt1 = 'select coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path=:path'
+    for b, in self.db.execute(stmt1 if patched else stmt0, dict(path=path)):
+      return b # type:ignore[no-any-return]
+    else:
+      return default
+
+  def file_get_xml(self, path: str, default: Any = None, patched: bool = False) -> Any:
+    import lxml.etree as ET
+    r = self.file_get(path, patched=patched)
+    if r is not None:
+      return ET.fromstring(r, parser=ET.XMLParser(recover=True))
+    else:
+      return default
+
+  def file_enum(self, pat: Optional[str], patched: bool = False) -> Iterable[Tuple[str, bytes]]:
+    if pat is not None:
+      stmt0 = 'select path, blob from files where path like :pat'
+      stmt1 = 'select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path like :pat'
+      for n, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
+        yield n, o
+    else:
+      stmt2 = 'select path, blob from files'
+      for n, o in self.db.execute(stmt2):
+        yield n, o
+
+  def file_put_batch(self, gen: Iterable[Tuple[str, bytes]]) -> None:
+    self.db.executemany('insert into files (path, blob) values (?,?)', gen)
+
+  def patch_enum(self, pat: Optional[str]) -> Iterable[Tuple[str, bytes]]:
+    if pat is not None:
+      stmt0 = 'select path, blob from patches where path like :pat'
+      for n, o in self.db.execute(stmt0, dict(pat=pat)):
+        yield n, o
+    else:
+      stmt1 = 'select path, blob from patches'
+      for n, o in self.db.execute(stmt1):
+        yield n, o
+
+  def patch_put(self, path: str, blob: bytes) -> None:
+    self.db.execute('replace into patches (path, blob) values (:path,:blob)', dict(path=path, blob=blob))
+
+  def patch_clear(self) -> None:
+    self.db.execute('delete from patches')
+
+  def issue_count(self) -> int:
+    for nr, in self.db.execute('select count(1) from analysis_issues'):
+      return int(nr)
+    else:
+      return 0
+
+  def issue_raise(self, issue: Issue) -> None:
+    self.db.execute(
+      'insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
+      issue.__dict__)
+
+  def issue_clear(self) -> None:
+    self.db.execute('delete from analysis_issues')
+
+  def issues(self) -> Iterable[Issue]:
+    from trueseeing.core.issue import Issue
+    for m in self.db.execute('select * from analysis_issues'):
+      yield Issue.from_analysis_issues_row(m)
+
+  def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, str, str, str, str, float, str]]]:
+    for no, row in enumerate(self.db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
+      yield no, row
+
+  def issues_by_group(self, *, detector: str, summary: str, cvss3_score: float) -> Iterable[Issue]:
+    for m in self.db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', dict(detector=detector, summary=summary, cvss3_score=cvss3_score)):
+      yield Issue.from_analysis_issues_row(m)

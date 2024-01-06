@@ -68,13 +68,13 @@ class Resigner:
     self._outpath = os.path.realpath(outpath)
 
   async def resign(self) -> None:
-    from importlib.resources import as_file, files
+    from trueseeing.core.tools import toolchains
     with tempfile.TemporaryDirectory() as d:
-      with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
+      with toolchains() as tc:
         await invoke_passthru(
           "java -jar {apksigner} sign --ks {ks} --ks-pass pass:android --in {path} --out {d}/signed.apk".format(
             d=d,
-            apksigner=apksignerpath,
+            apksigner=tc['apkeditor'],
             ks=await SigningKey().key(),
             path=self._path,
           )

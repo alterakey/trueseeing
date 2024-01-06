@@ -40,52 +40,52 @@ class Patcher:
     return await self.apply_multi([patch])
 
   async def apply_multi(self, patches: List[Patch]) -> None:
-    with Context(self._path, []) as context:
-      await context.analyze()
-      ui.info(f"{self._path} -> {context.wd}")
-      for p in patches:
-        p.apply(context)
+    context = Context(self._path, [])
+    await context.analyze()
+    ui.info(f"{self._path} -> {context.wd}")
+    for p in patches:
+      p.apply(context)
 
-      await self._build(context)
+    await self._build(context)
 
   async def _build(self, context: Context) -> None:
     from tempfile import TemporaryDirectory
+    from trueseeing.core.literalquery import Query
 
     # XXX insecure
     with TemporaryDirectory() as d:
       with context.store().db as c:
+        query = Query(c=c)
         cwd = os.getcwd()
         try:
           os.chdir(d)
           os.makedirs('files')
           os.chdir('files')
-          for path, blob in c.execute('select path, blob from files'):
+          for path, blob in query.file_enum(pat=None):
             dirname = os.path.dirname(path)
             if dirname:
               os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'wb') as f:
               f.write(blob)
-          for path, blob in c.execute('select path, blob from patches'):
+          for path, blob in query.patch_enum(pat=None):
             dirname = os.path.dirname(path)
             if dirname:
               os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'wb') as f:
               f.write(blob)
-          c.execute('delete from patches')
+          query.patch_clear()
           c.commit()
         finally:
           os.chdir(cwd)
 
-      from trueseeing.core.tools import invoke_passthru
-      from importlib.resources import as_file, files
-      with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
-        with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
-          await invoke_passthru('(cd {root} && java -jar {apkeditor} b -i files -o patched.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android patched.apk && cp -a patched.apk {outpath})'.format(
-            root=d,
-            apkeditor=apkeditorpath,
-            apksigner=apksignerpath,
-            keystore=await SigningKey().key(),
-            outpath=self._outpath,
-          ))
+      from trueseeing.core.tools import invoke_passthru, toolchains
+      with toolchains() as tc:
+        await invoke_passthru('(cd {root} && java -jar {apkeditor} b -i files -o patched.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android patched.apk && cp -a patched.apk {outpath})'.format(
+          root=d,
+          apkeditor=tc['apkeditor'],
+          apksigner=tc['apksigner'],
+          keystore=await SigningKey().key(),
+          outpath=self._outpath,
+        ))
       copyfile(os.path.join(d, 'patched.apk'), self._outpath)
       copyfile(os.path.join(d, 'patched.apk.idsig'), self._outpath + '.idsig')

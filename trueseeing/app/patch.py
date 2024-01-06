@@ -50,23 +50,23 @@ class PatchDebuggable:
     manifest = context.parsed_manifest(patched=True)
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "false"
-    with context.store().db as c:
-      c.execute('replace into patches (path, blob) values (:path,:blob)', dict(path='AndroidManifest.xml', blob=context.manifest_as_xml(manifest)))
+    context.store().query().patch_put(path='AndroidManifest.xml', blob=context.manifest_as_xml(manifest))
 
 class PatchBackupable:
   def apply(self, context: Context) -> None:
     manifest = context.parsed_manifest(patched=True)
     for e in manifest.xpath('.//application'):
       e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "false"
-    with context.store().db as c:
-      c.execute('replace into patches (path, blob) values (:path,:blob)', dict(path='AndroidManifest.xml', blob=context.manifest_as_xml(manifest)))
+    context.store().query().patch_put(path='AndroidManifest.xml', blob=context.manifest_as_xml(manifest))
 
 class PatchLoggers:
   def apply(self, context: Context) -> None:
     import re
     with context.store().db as c:
-      for fn, content in c.execute('select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path like :path', dict(path='smali/%.smali')):
+      from trueseeing.core.literalquery import Query
+      query = Query(c=c)
+      for fn, content in query.file_enum('smali/%.smali'):
         stage0 = re.sub(rb'^.*?invoke-static.*?Landroid/util/Log;->.*?\(.*?$', b'', content, flags=re.MULTILINE)
         stage1 = re.sub(rb'^.*?invoke-virtual.*?Ljava/io/Print(Writer|Stream);->.*?\(.*?$', b'', stage0, flags=re.MULTILINE)
         if content != stage1:
-          c.execute('replace into patches (path, blob) values (:path,:blob)', dict(path=fn, blob=stage1))
+          query.patch_put(path=fn, blob=stage1)

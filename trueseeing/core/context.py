@@ -95,11 +95,7 @@ class Context:
       shutil.copyfile(self._apk, os.path.join(self.wd, 'target.apk'))
 
   def parsed_manifest(self, patched: bool = False) -> Any:
-    stmt0 = 'select blob from files where path=:path'
-    stmt1 = 'select coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path=:path'
-    with self.store().db as db:
-      for o, in db.execute(stmt1 if patched else stmt0, dict(path='AndroidManifest.xml')):
-        return ET.fromstring(o, parser=ET.XMLParser(recover=True))
+    return self.store().query().file_get_xml('AndroidManifest.xml', patched=patched)
 
   def manifest_as_xml(self, manifest: Any) -> bytes:
     assert manifest is not None
@@ -108,9 +104,9 @@ class Context:
   def _parsed_apktool_yml(self) -> Any:
     # FIXME: using ruamel.yaml?
     import yaml
-    with self.store().db as db:
-      for o, in db.execute('select blob from files where path=:path', dict(path='apktool.yml')):
-        return yaml.safe_load(re.sub(r'!!brut\.androlib\..*', '', o.decode('utf-8')))
+    o = self.store().query().file_get('apktool.yml')
+    if o is not None:
+      return yaml.safe_load(re.sub(r'!!brut\.androlib\..*', '', o.decode('utf-8')))
 
   def get_target_sdk_version(self) -> int:
     manif = self.parsed_manifest()
@@ -131,18 +127,15 @@ class Context:
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self) -> List[str]:
-    with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='smali%.smali'))]
+    return list(self.store().query().file_find('smali%.smali'))
 
   @functools.lru_cache(maxsize=1)
   def disassembled_resources(self) -> List[str]:
-    with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='%/res/%.xml'))]
+    return list(self.store().query().file_find('%/res/%.xml'))
 
   @functools.lru_cache(maxsize=1)
   def disassembled_assets(self) -> List[str]:
-    with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='root/%/assets/%'))]
+    return list(self.store().query().file_find('root/%/assets/%'))
 
   def source_name_of_disassembled_class(self, fn: str) -> str:
     return os.path.join(*fn.split('/')[2:])
@@ -161,32 +154,22 @@ class Context:
 
   @functools.lru_cache(maxsize=1)
   def _string_resource_files(self) -> List[str]:
-    with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='%/res/values/%strings%'))]
+    return list(self.store().query().file_find('%/res/values/%strings%'))
 
   def string_resources(self) -> Iterable[Tuple[str, str]]:
-    with self.store().db as db:
-      for o, in db.execute('select blob from files where path like :path', dict(path='%/res/values/%strings%')):
-        yield from ((c.attrib['name'], c.text) for c in ET.fromstring(o, parser=ET.XMLParser(recover=True)).xpath('//resources/string') if c.text)
+    for _, o in self.store().query().file_enum('%/res/values/%strings%'):
+      yield from ((c.attrib['name'], c.text) for c in ET.fromstring(o, parser=ET.XMLParser(recover=True)).xpath('//resources/string') if c.text)
 
   @functools.lru_cache(maxsize=1)
   def _xml_resource_files(self) -> List[str]:
-    with self.store().db as db:
-      return [f for f, in db.execute('select path from files where path like :path', dict(path='%/res/xml/%.xml'))]
+    return list(self.store().query().file_find('%/res/xml/%.xml'))
 
   def xml_resources(self) -> Iterable[Tuple[str, Any]]:
-    with self.store().db as db:
-      for fn, o in db.execute('select path, blob from files where path like :path', dict(path='%/res/xml/%.xml')):
-        yield (fn, ET.fromstring(o, parser=ET.XMLParser(recover=True)))
+    for fn, o in self.store().query().file_enum('%/res/xml/%.xml'):
+      yield (fn, ET.fromstring(o, parser=ET.XMLParser(recover=True)))
 
   def is_qualname_excluded(self, qualname: Optional[str]) -> bool:
     if qualname is not None:
       return any([re.match(f'L{x}', qualname) for x in self.excludes])
     else:
       return False
-
-  def __enter__(self) -> Context:
-    return self
-
-  def __exit__(self, *exc_details: Any) -> None:
-    pass

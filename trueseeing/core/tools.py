@@ -20,11 +20,17 @@ from typing import TYPE_CHECKING
 
 import asyncio
 import functools
+from contextlib import contextmanager
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Any, Optional, AsyncIterable, TypeVar, List
+  from pathlib import Path
+  from typing import Any, Optional, AsyncIterable, TypeVar, List, Iterator, TypedDict
   T = TypeVar('T')
+
+  class Toolchain(TypedDict):
+    apkeditor: Path
+    apksigner: Path
 
 def noneif(x: Any, defaulter: Any) -> Any:
   if x is not None:
@@ -83,3 +89,13 @@ async def try_invoke(as_: str) -> Optional[str]:
     return await invoke(as_)
   except CalledProcessError:
     return None
+
+@contextmanager
+def toolchains() -> Iterator[Toolchain]:
+  from importlib.resources import files, as_file
+  with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
+    with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
+      yield dict(
+        apkeditor=apkeditorpath,
+        apksigner=apksignerpath
+      )

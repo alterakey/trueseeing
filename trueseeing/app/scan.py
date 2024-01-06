@@ -53,10 +53,9 @@ class ScanMode:
           if await session.invoke(f):
             error_found = True
           if not from_inspect_mode:
-            with Context(f, []) as context:
-              with context.store().db as db:
-                for nr, in db.execute('select count(1) from analysis_issues'):
-                  ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=f, nr=nr, t=(time.time() - at)))
+            context = Context(f, [])
+            nr = context.store().query().issue_count()
+            ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=f, nr=nr, t=(time.time() - at)))
         finally:
           if no_cache_mode:
             Context(f, []).remove()
@@ -78,41 +77,42 @@ class AnalyzeSession:
     self._exclude_packages = exclude_packages
 
   async def invoke(self, apkfilename: str) -> bool:
-    with Context(apkfilename, self._exclude_packages) as context:
-      await context.analyze()
-      ui.info(f"{apkfilename} -> {context.wd}")
-      with context.store().db as db:
-        db.execute('delete from analysis_issues')
+    context = Context(apkfilename, self._exclude_packages)
+    await context.analyze()
+    ui.info(f"{apkfilename} -> {context.wd}")
 
-      found = False
+    from trueseeing.core.literalquery import Query
+    query = Query(c=context.store().db)
+    query.issue_clear()
 
-      reporter: ReportGenerator
-      if self._outfile is None:
-        reporter = CIReportGenerator(context)
+    found = False
+
+    reporter: ReportGenerator
+    if self._outfile is None:
+      reporter = CIReportGenerator(context)
+    else:
+      if self._ci_mode == 'json':
+        reporter = JSONReportGenerator(context)
       else:
-        if self._ci_mode == 'json':
-          reporter = JSONReportGenerator(context)
-        else:
-          reporter = HTMLReportGenerator(context)
+        reporter = HTMLReportGenerator(context)
 
-      with context.store().db as db:
-        # XXX
-        def _detected(issue: Issue) -> None:
-          global found
-          found = True # type: ignore[name-defined]
-          reporter.note(issue)
-          db.execute(
-            'insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
-            issue.__dict__)
-        pub.subscribe(_detected, 'issue')
-        await asyncio.gather(*[c(context).detect() for c in self._chain])
-        pub.unsubscribe(_detected, 'issue')
+    with context.store().db:
+      # XXX
+      def _detected(issue: Issue) -> None:
+        global found
+        found = True # type: ignore[name-defined]
+        reporter.note(issue)
+        query.issue_raise(issue)
 
-      if self._outfile is not None:
-        with self._open_outfile() as f:
-          reporter.generate(f)
+      pub.subscribe(_detected, 'issue')
+      await asyncio.gather(*[c(context).detect() for c in self._chain])
+      pub.unsubscribe(_detected, 'issue')
 
-      return reporter.return_(found)
+    if self._outfile is not None:
+      with self._open_outfile() as f:
+        reporter.generate(f)
+
+    return reporter.return_(found)
 
   def _open_outfile(self) -> TextIO:
     assert self._outfile is not None

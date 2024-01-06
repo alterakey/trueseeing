@@ -75,53 +75,54 @@ class CryptoStaticKeyDetector(Detector):
       # XXX: silly
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
-    with self._context.store() as store:
-      for cl in store.query().invocations(InvocationPattern('invoke-', '^Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|^Ljavax?.*/MessageDigest;->(update|digest)')):
-        qn = store.query().qualname_of(cl)
-        if self._context.is_qualname_excluded(qn):
-          continue
-        try:
-          for nr in self._important_args_on_invocation(cl):
-            for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
-              try:
-                decoded = base64.b64decode(found)
-                info1 = '"{target_val}" [{target_val_len}] (base64; "{decoded_val}" [{decoded_val_len}])'.format(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
-              except (ValueError, binascii.Error):
-                info1 = f'"{found}" [{len(found)}]'
+    store = self._context.store()
+    q = store.query()
+    for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|^Ljavax?.*/MessageDigest;->(update|digest)')):
+      qn = q.qualname_of(cl)
+      if self._context.is_qualname_excluded(qn):
+        continue
+      try:
+        for nr in self._important_args_on_invocation(cl):
+          for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
+            try:
+              decoded = base64.b64decode(found)
+              info1 = '"{target_val}" [{target_val_len}] (base64; "{decoded_val}" [{decoded_val_len}])'.format(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
+            except (ValueError, binascii.Error):
+              info1 = f'"{found}" [{len(found)}]'
 
-              if looks_like_real_key(found):
-                self._raise_issue(Issue(
-                  detector_id=self.option,
-                  cvss3_vector=self._cvss,
-                  confidence='firm',
-                  summary='insecure cryptography: static keys',
-                  info1=info1,
-                  info2=store.query().method_call_target_of(cl),
-                  source=qn,
-                  synopsis='Traces of cryptographic material has been found the application binary.',
-                  description='''\
+            if looks_like_real_key(found):
+              self._raise_issue(Issue(
+                detector_id=self.option,
+                cvss3_vector=self._cvss,
+                confidence='firm',
+                summary='insecure cryptography: static keys',
+                info1=info1,
+                info2=q.method_call_target_of(cl),
+                source=qn,
+                synopsis='Traces of cryptographic material has been found the application binary.',
+                description='''\
 Traces of cryptographic material has been found in the application binary.  If cryptographic material is hardcoded, attackers can extract or replace them.
 ''',
-                  solution='''\
+                solution='''\
 Use a device or installation specific information, or obfuscate them.
 '''
-                ))
-              else:
-                self._raise_issue(Issue(
-                  detector_id=self.option,
-                  cvss3_vector=self._cvss_nonkey,
-                  confidence='tentative',
-                  summary='Cryptographic constants detected',
-                  info1=info1,
-                  info2=store.query().method_call_target_of(cl),
-                  source=qn,
-                  synopsis='Possible cryptographic constants have been found.',
-                  description='''\
+              ))
+            else:
+              self._raise_issue(Issue(
+                detector_id=self.option,
+                cvss3_vector=self._cvss_nonkey,
+                confidence='tentative',
+                summary='Cryptographic constants detected',
+                info1=info1,
+                info2=q.method_call_target_of(cl),
+                source=qn,
+                synopsis='Possible cryptographic constants have been found.',
+                description='''\
 Possible cryptographic constants has been found in the application binary.
 '''
-                ))
-        except IndexError:
-          pass
+              ))
+      except IndexError:
+        pass
 
   async def _do_detect_case2(self) -> None:
     # XXX: Crude detection
@@ -133,19 +134,37 @@ Possible cryptographic constants has been found in the application binary.
         return False
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
-    with self._context.store() as store:
-      for cl in store.query().consts(InvocationPattern('const-string', pat)):
-        qn = store.query().qualname_of(cl)
-        if self._context.is_qualname_excluded(qn):
-          continue
-        val = cl.p[1].v
+    store = self._context.store()
+    q = store.query()
+    for cl in q.consts(InvocationPattern('const-string', pat)):
+      qn = q.qualname_of(cl)
+      if self._context.is_qualname_excluded(qn):
+        continue
+      val = cl.p[1].v
+      self._raise_issue(Issue(
+        detector_id=self.option,
+        cvss3_vector=self._cvss,
+        confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
+        summary='insecure cryptography: static keys (2)',
+        info1=f'"{val}" [{len(val)}] (X.509)',
+        source=qn,
+        synopsis='Traces of X.509 certificates has been found the application binary.',
+        description='''\
+Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
+''',
+        solution='''\
+Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
+'''
+      ))
+    for name, val in self._context.string_resources():
+      if re.match(pat, val):
         self._raise_issue(Issue(
           detector_id=self.option,
           cvss3_vector=self._cvss,
-          confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
+          confidence='tentative',
           summary='insecure cryptography: static keys (2)',
           info1=f'"{val}" [{len(val)}] (X.509)',
-          source=qn,
+          source=f'R.string.{name}',
           synopsis='Traces of X.509 certificates has been found the application binary.',
           description='''\
 Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
@@ -154,23 +173,6 @@ Traces of X.509 certificates has been found in the application binary.  X.509 ce
 Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
 '''
         ))
-      for name, val in self._context.string_resources():
-        if re.match(pat, val):
-          self._raise_issue(Issue(
-            detector_id=self.option,
-            cvss3_vector=self._cvss,
-            confidence='tentative',
-            summary='insecure cryptography: static keys (2)',
-            info1=f'"{val}" [{len(val)}] (X.509)',
-            source=f'R.string.{name}',
-            synopsis='Traces of X.509 certificates has been found the application binary.',
-            description='''\
-Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
-''',
-            solution='''\
-Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
-'''
-          ))
 
 
 class CryptoEcbDetector(Detector):
@@ -179,31 +181,32 @@ class CryptoEcbDetector(Detector):
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   async def detect(self) -> None:
-    with self._context.store() as store:
-      for cl in store.query().invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
-        qn = store.query().qualname_of(cl)
-        if self._context.is_qualname_excluded(qn):
-          continue
-        try:
-          target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
-          if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
-            self._raise_issue(Issue(
-              detector_id=self.option,
-              cvss3_vector=self._cvss,
-              confidence='certain',
-              summary='insecure cryptography: cipher might be operating in ECB mode',
-              info1=','.join(target_val),
-              source=qn,
-              synopsis='The application might be using ciphers in ECB mode.',
-              description='''\
-              The application might be using symmetric ciphers in ECB mode.  ECB mode is the most basic operating mode that independently transform data blocks.  Indepent transformation leaks information about distribution in plaintext.
+    store = self._context.store()
+    q = store.query()
+    for cl in q.invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
+      qn = q.qualname_of(cl)
+      if self._context.is_qualname_excluded(qn):
+        continue
+      try:
+        target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
+        if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
+          self._raise_issue(Issue(
+            detector_id=self.option,
+            cvss3_vector=self._cvss,
+            confidence='certain',
+            summary='insecure cryptography: cipher might be operating in ECB mode',
+            info1=','.join(target_val),
+            source=qn,
+            synopsis='The application might be using ciphers in ECB mode.',
+            description='''\
+            The application might be using symmetric ciphers in ECB mode.  ECB mode is the most basic operating mode that independently transform data blocks.  Indepent transformation leaks information about distribution in plaintext.
 ''',
-              solution='''\
+            solution='''\
 Use CBC or CTR mode.
 '''
-            ))
-        except (DataFlows.NoSuchValueError):
-          pass
+          ))
+      except (DataFlows.NoSuchValueError):
+        pass
 
 class CryptoNonRandomXorDetector(Detector):
   option = 'crypto-xor'
@@ -211,18 +214,19 @@ class CryptoNonRandomXorDetector(Detector):
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
 
   async def detect(self) -> None:
-    with self._context.store() as store:
-      for cl in store.query().ops_of('xor-int/lit8'):
-        qn = store.query().qualname_of(cl)
-        if self._context.is_qualname_excluded(qn):
-          continue
-        target_val = int(cl.p[2].v, 16)
-        if (cl.p[0].v == cl.p[1].v) and target_val > 1:
-          self._raise_issue(Issue(
-            detector_id=self.option,
-            cvss3_vector=self._cvss,
-            confidence='firm',
-            summary='insecure cryptography: non-random XOR cipher',
-            info1=f'0x{target_val:02x}',
-            source=store.query().qualname_of(cl)
-          ))
+    store = self._context.store()
+    q = store.query()
+    for cl in q.ops_of('xor-int/lit8'):
+      qn = q.qualname_of(cl)
+      if self._context.is_qualname_excluded(qn):
+        continue
+      target_val = int(cl.p[2].v, 16)
+      if (cl.p[0].v == cl.p[1].v) and target_val > 1:
+        self._raise_issue(Issue(
+          detector_id=self.option,
+          cvss3_vector=self._cvss,
+          confidence='firm',
+          summary='insecure cryptography: non-random XOR cipher',
+          info1=f'0x{target_val:02x}',
+          source=q.qualname_of(cl)
+        ))
