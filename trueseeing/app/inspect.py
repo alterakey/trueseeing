@@ -1245,9 +1245,9 @@ class Runner:
         for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
           ui.info('frags        {}'.format(len(list(manif.xpath('.//activity')))))
       for e in manif.xpath('.//application'):
-        ui.info('debuggable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}debuggable', 'false')]))
-        ui.info('backupable?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}allowBackup', 'false')]))
-        ui.info('netsecconf?  {}'.format(boolmap[e.attrib.get('{http://schemas.android.com/apk/res/android}networkSecurityConfig') is not None]))
+        ui.info('debuggable?  {}'.format(boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}debuggable', 'false'), '?')))
+        ui.info('backupable?  {}'.format(boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}allowBackup', 'false'), '?')))
+        ui.info('netsecconf?  {}'.format(boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}networkSecurityConfig') is not None, '?')))
       if manif.xpath('.//uses-sdk'):
         for e in manif.xpath('.//uses-sdk'):
           ui.info('api min      {}'.format(int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))))
