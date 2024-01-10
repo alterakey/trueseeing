@@ -112,14 +112,14 @@ General:
   -c                        Run commands before prompt
   -d/--debug                Debug mode
   -i                        Run script file before prompt
-  -q                        Quiet mode; quit instead of giving prompt
+  -q                        Batch mode; quit instead of giving prompt
   --version                 Version information
   --help                    Show this text
   --help-signature          Show signatures
-  --inspect                 Inspect mode (default)
-  --scan                    Scan mode
+  --inspect                 Inspect mode (deprecated; now default)
+  --scan                    Scan mode (deprecated; use -qc "aa;g*"; e.g. gh for HTML)
 
-Scan mode:
+Scan mode (DEPRECATED):
   --scan-sigs=<sig>,..      Select signatures (use --help-signatures to list signatures)
   --scan-exclude=<pattern>  Excluding packages matching pattern
   --scan-output=<file>   Report filename ("-" for stdout)
@@ -197,6 +197,7 @@ Scan mode:
       if o in ['--inspect']:
         self._deprecated(f'{o} is deprecated; ignored as default')
       if o in ['--scan']:
+        self._deprecated(f'{o} is deprecated; use -qc "aa;g*"; e.g. gh for HTML')
         mode = 'scan'
       if o in ['--scan-update-cache']:
         update_cache_mode = True
