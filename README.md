@@ -35,6 +35,8 @@ If you want to run statelessly you omit mounting volume onto /cache (not recomme
 
 ## Usage
 
+### Interactive mode
+
 With trueseeing you can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
 	$ docker run -it --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --inspect target.apk
@@ -48,26 +50,47 @@ With trueseeing you can interactively scan/analyze/patch/etc. apps -- making it 
 	...
 	ts[target.apk]> gh report.html
 
-### Non-interactive scan
+### Batch mode
 
-Alternatively, you can scan apps with the following command line to get findings listed in stderr:
+We accept an inline command (`-c`) or script file (`-i`) to run before giving you prompt, as well as quitting right away instead of prompting (`-q`; we don't require a tty in this mode!).
+
+You can use the features to conduct a batch scan, as follows e.g. to dump findings right onto the stderr:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa' target.apk
+
+To generate a report file in HTML format:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gh report.html' target.apk
+
+To generate a report file in JSON format:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gj report.json' target.apk
+
+To get report generated in stdout, omit filename from final `g*` command:
+
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gh' target.apk > report.html
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gj' target.apk > report.json
+
+### Non-interactive scan mode (deprecated)
+
+Traditionally, you can scan apps with the following command line to get findings listed in stderr:
 
 	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan target.apk
 
 To generate a report in HTML format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan -o report.html target.apk
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=html -o report.html target.apk
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-output report.html target.apk
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=html --scan-output report.html target.apk
 
 To generate a report in JSON format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=json -o report.json target.apk
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=json --scan-output report.json target.apk
 
 To get report generated in stdout, specify '-' as filename:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan -o - target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=html -o - target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --format=json -o - target.apk > report.json
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-output - target.apk > report.html
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=html --scan-output - target.apk > report.html
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=json --scan-output - target.apk > report.json
 
 ## Build
 
