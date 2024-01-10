@@ -42,10 +42,13 @@ class InspectMode:
       cmdlines: List[str] = [],
   ) -> NoReturn:
     try:
-      ui.enter_inspect()
+      if not batch:
+        self._require_tty()
+        ui.enter_inspect()
       self._do(target, signatures, batch, cmdlines)
     finally:
-      ui.exit_inspect()
+      if not batch:
+        ui.exit_inspect()
 
   def _do(
       self,
@@ -100,6 +103,11 @@ class InspectMode:
         if x and not isinstance(x, FatalError):
           assert isinstance(x, Exception)
           ui.fatal('unhandled exception', exc=x)
+
+  def _require_tty(self) -> None:
+    from os import isatty
+    if not isatty(sys.stdout.fileno()):
+      ui.fatal('requires a tty')
 
 class Runner:
   _cmds: Mapping[str, Mapping[str, Any]]
@@ -225,7 +233,7 @@ class Runner:
     try:
       o: deque[str] = deque()
       lex = shlex.shlex(s, posix=True, punctuation_chars=';')
-      lex.wordchars += '@:,'
+      lex.wordchars += '@:,!'
       for t in lex:
         if re.fullmatch(';+', t):
           await self._run(o)
