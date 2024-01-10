@@ -28,7 +28,7 @@ if TYPE_CHECKING:
   from trueseeing.signature.base import Detector
   from trueseeing.core.report import ReportFormat
 
-  OpMode = Optional[Literal['grab', 'exploit', 'patch', 'fingerprint', 'scan', 'inspect', 'batch']]
+  OpMode = Optional[Literal['scan', 'inspect', 'batch']]
 
 class Signatures:
   content: Dict[str, Type[Detector]]
@@ -122,7 +122,7 @@ General:
 Scan mode:
   --scan-sigs=<sig>,..      Select signatures (use --help-signatures to list signatures)
   --scan-exclude=<pattern>  Excluding packages matching pattern
-  -o/--scan-output=<file>   Report filename ("-" for stdout)
+  --scan-output=<file>   Report filename ("-" for stdout)
   --scan-report=html|json   Report format (html: HTML (default), json: JSON)
   --scan-max-graph-size=<n> Set max graph size
   --scan-no-cache           Do not keep codebase cache
@@ -158,8 +158,6 @@ Scan mode:
     log_level = ui.INFO
     signature_selected = sigs.default().copy()
     mode: OpMode = None
-    exploit = ''
-    patch = ''
     cmdlines = []
     no_cache_mode = False
     update_cache_mode = False
@@ -168,16 +166,14 @@ Scan mode:
     exclude_packages: List[str] = []
 
     opts, files = getopt.getopt(sys.argv[1:], 'c:i:do:qW:',
-                                ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
-                                 'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
-                                 'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect', 'max-graph-size=',
+                                ['debug',
+                                 'help', 'help-signatures',
+                                 'version', 'inspect',
                                  'scan', 'scan-sigs=', 'scan-output=', 'scan-report=', 'scan-exclude=', 'scan-update-cache', 'scan-no-cache', 'scan-max-graph-size='])
     for o, a in opts:
       if o in ['-d', '--debug']:
         log_level = ui.DEBUG
-      if o == '--output':
-        self._deprecated(f'{o} is deprecated (use --scan-output)')
-      if o in ['-o', '--output']:
+      if o in ['--scan-output']:
         output_filename = a
       if o in ['-q']:
         mode = 'batch'
@@ -190,72 +186,26 @@ Scan mode:
         except OSError as e:
           ui.fatal(f'cannot open script file: {e}')
 
-      if o in ['-W']:
-        self._deprecated('-W<sig>/-Wno-<sig> is deprecated (use --scan-sigs)')
-        if a.startswith('no-'):
-          signature_selected.difference_update(sigs.selected_on(a[3:]))
-        else:
-          signature_selected.update(sigs.selected_on(a))
       if o in ['--scan-sigs']:
         for s in a.split(','):
           if s.startswith('no-'):
             signature_selected.difference_update(sigs.selected_on(s[3:]))
           else:
             signature_selected.update(sigs.selected_on(s))
-      if o in ['--exploit-resign']:
-        self._deprecated(f'{o} is deprecated')
-        mode = 'exploit'
-        exploit = 'resign'
-      if o in ['--exploit-unsign']:
-        self._deprecated(f'{o} is deprecated')
-        mode = 'exploit'
-        exploit = 'unsign'
-      if o in ['--exploit-enable-debug']:
-        self._deprecated(f'{o} is deprecated (try xd in inspect mode)')
-        mode = 'exploit'
-        exploit = 'enable-debug'
-      if o in ['--exploit-enable-backup']:
-        self._deprecated(f'{o} is deprecated (try xb in inspect mode)')
-        mode = 'exploit'
-        exploit = 'enable-backup'
-      if o in ['--exploit-disable-pinning']:
-        self._deprecated(f'{o} is deprecated (try xu in inspect mode)')
-        mode = 'exploit'
-        exploit = 'disable-pinning'
-      if o == '--exclude':
-        self._deprecated(f'{o} is deprecated (use --scan-exclude)')
-      if o in ['--scan-exclude', '--exclude']:
+      if o in ['--scan-exclude']:
         exclude_packages.append(a)
-      if o in ['--patch-all']:
-        self._deprecated(f'{o} is deprecated')
-        mode = 'patch'
-        patch = 'all'
-      if o in ['--grab']:
-        self._deprecated(f'{o} is deprecated')
-        mode = 'grab'
-      if o in ['--fingerprint']:
-        self._deprecated(f'{o} is deprecated (try i in inspect mode)')
-        mode = 'fingerprint'
       if o in ['--inspect']:
-        mode = 'inspect'
+        self._deprecated(f'{o} is deprecated; ignored as default')
       if o in ['--scan']:
         mode = 'scan'
-      if o in ['--update-cache']:
-        self._deprecated(f'{o} is deprecated (use --scan-update-cache)')
-      if o in ['--update-cache', '--scan-update-cache']:
+      if o in ['--scan-update-cache']:
         update_cache_mode = True
-      if o in ['--no-cache']:
-        self._deprecated(f'{o} is deprecated (use --scan-no-cache)')
-      if o in ['--no-cache', '--scan-no-cache']:
+      if o in ['--scan-no-cache']:
         no_cache_mode = True
-      if o == '--max-graph-size':
-        self._deprecated(f'{o} is deprecated (use --scan-max-graph-size)')
-      if o in ['--max-graph-size', '--scan-max-graph-size']:
+      if o in ['--scan-max-graph-size']:
         from trueseeing.core.flow.data import DataFlows
         DataFlows.set_max_graph_size(int(a))
-      if o == '--format':
-        self._deprecated(f'{o} is deprecated (use --scan-report)')
-      if o in ['--scan-report', '--format']:
+      if o in ['--scan-report']:
         # NB: should check "a" conforms to the literal type, ReportFormat
         if a in ['html', 'json']:
           format = a # type: ignore[assignment]
@@ -276,53 +226,34 @@ Scan mode:
     if not mode:
       mode = 'inspect'
 
-    if mode == 'grab':
-      from trueseeing.app.grab import GrabMode
-      return self._launch(GrabMode(packages=files).invoke())
+    if not files:
+      ui.stderr(self._help())
+      return 2
+
+    if mode in ['inspect', 'batch']:
+      if len(files) > 1:
+        ui.fatal(f"{mode} mode accepts at most only one target file")
+      from trueseeing.app.inspect import InspectMode
+      InspectMode().do(
+        files[0] if files else '',
+        signatures=sigs,
+        batch=True if mode == 'batch' else False,
+        cmdlines=cmdlines
+      )
+    elif mode == 'scan':
+      if len(files) > 1:
+        self._deprecated('specifying multiple files is deprecated')
+      from trueseeing.app.scan import ScanMode
+      return self._launch(ScanMode(files).invoke(
+        ci_mode=format,
+        outfile=output_filename,
+        signatures=[v for k, v in sigs.content.items() if k in signature_selected],
+        exclude_packages=exclude_packages,
+        no_cache_mode=no_cache_mode,
+        update_cache_mode=update_cache_mode,
+      ))
     else:
-      if not files:
-        ui.stderr(self._help())
-        return 2
-      if mode in ['inspect', 'batch']:
-        if len(files) > 1:
-          ui.fatal(f"{mode} mode accepts at most only one target file")
-        from trueseeing.app.inspect import InspectMode
-        InspectMode().do(
-          files[0] if files else '',
-          signatures=sigs,
-          batch=True if mode == 'batch' else False,
-          cmdlines=cmdlines
-        )
-      else:
-        if len(files) > 1:
-          self._deprecated('specifying multiple files is deprecated')
-        if mode == 'exploit':
-          from trueseeing.app.exploit import ExploitMode
-          return self._launch(ExploitMode(files).invoke(
-            exploit,
-            no_cache_mode=no_cache_mode
-          ))
-        elif mode == 'patch':
-          from trueseeing.app.patch import PatchMode
-          return self._launch(PatchMode(files).invoke(
-            patch,
-            no_cache_mode=no_cache_mode
-          ))
-        elif mode == 'fingerprint':
-          from trueseeing.app.fingerprint import FingerprintMode
-          return self._launch(FingerprintMode(files).invoke())
-        elif mode == 'scan':
-          from trueseeing.app.scan import ScanMode
-          return self._launch(ScanMode(files).invoke(
-            ci_mode=format,
-            outfile=output_filename,
-            signatures=[v for k, v in sigs.content.items() if k in signature_selected],
-            exclude_packages=exclude_packages,
-            no_cache_mode=no_cache_mode,
-            update_cache_mode=update_cache_mode,
-          ))
-        else:
-          assert False, f'unknown mode: {mode}'
+      assert False, f'unknown mode: {mode}'
 
 def entry() -> None:
   from trueseeing.core.exc import FatalError
