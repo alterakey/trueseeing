@@ -42,12 +42,11 @@ class InspectMode:
       cmdlines: List[str] = [],
   ) -> NoReturn:
     try:
-      if not batch:
-        self._require_tty()
+      if self._on_tty():
         ui.enter_inspect()
       self._do(target, signatures, batch, cmdlines)
     finally:
-      if not batch:
+      if self._on_tty():
         ui.exit_inspect()
 
   def _do(
@@ -67,6 +66,9 @@ class InspectMode:
 
     if batch:
       sys.exit(0)
+
+    if not self._on_tty():
+      ui.fatal('requires a tty')
 
     asyncio.run(runner.greeting())
 
@@ -104,10 +106,9 @@ class InspectMode:
           assert isinstance(x, Exception)
           ui.fatal('unhandled exception', exc=x)
 
-  def _require_tty(self) -> None:
+  def _on_tty(self) -> bool:
     from os import isatty
-    if not isatty(sys.stdout.fileno()):
-      ui.fatal('requires a tty')
+    return isatty(sys.stdout.fileno())
 
 class Runner:
   _cmds: Mapping[str, Mapping[str, Any]]
