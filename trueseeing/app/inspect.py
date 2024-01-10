@@ -37,23 +37,33 @@ class InspectMode:
   def do(
       self,
       target: Optional[str],
-      signatures: Signatures
+      signatures: Signatures,
+      batch: bool = False,
+      cmdlines: List[str] = [],
   ) -> NoReturn:
     try:
       ui.enter_inspect()
-      self._do(target, signatures)
+      self._do(target, signatures, batch, cmdlines)
     finally:
       ui.exit_inspect()
 
   def _do(
       self,
       target: Optional[str],
-      signatures: Signatures
+      signatures: Signatures,
+      batch: bool,
+      cmdlines: List[str],
   ) -> NoReturn:
     from code import InteractiveConsole
 
     sein = self
     runner = Runner(signatures, target)
+
+    for line in cmdlines:
+      asyncio.run(sein._worker(runner.run(line)))
+
+    if batch:
+      sys.exit(0)
 
     asyncio.run(runner.greeting())
 
@@ -213,25 +223,34 @@ class Runner:
 
   async def run(self, s: str) -> None:
     try:
-      tokens = deque(shlex.split(s))
-      if not tokens:
-        return
-
-      c = tokens[0]
-      if c not in self._cmds:
-        ui.error('invalid command, type ? for help')
-      else:
-        try:
-          ent: Any = self._cmds[c]['e']
-          try:
-            await ent(tokens)
-          except KeyboardInterrupt:
-            ui.fatal('interrupted')
-        except FatalError:
-          pass
+      o: deque[str] = deque()
+      lex = shlex.shlex(s, posix=True, punctuation_chars=';')
+      lex.wordchars += '@:,'
+      for t in lex:
+        if re.fullmatch(';+', t):
+          await self._run(o)
+          o.clear()
+        else:
+          o.append(t)
+      if o:
+        await self._run(o)
     finally:
       self._reset_loglevel()
       self.reset_prompt()
+
+  async def _run(self, tokens: deque[str]) -> None:
+    c = tokens[0]
+    if c not in self._cmds:
+      ui.error('invalid command, type ? for help')
+    else:
+      try:
+        ent: Any = self._cmds[c]['e']
+        try:
+          await ent(tokens)
+        except KeyboardInterrupt:
+          ui.fatal('interrupted')
+      except FatalError:
+        pass
 
   def _reset_loglevel(self, debug:bool = False) -> None:
     ui.set_level(ui.INFO)

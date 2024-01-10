@@ -26,7 +26,7 @@ if TYPE_CHECKING:
   from trueseeing.signature.base import Detector
   from trueseeing.core.report import ReportFormat
 
-  OpMode = Optional[Literal['grab', 'exploit', 'patch', 'fingerprint', 'scan', 'inspect']]
+  OpMode = Optional[Literal['grab', 'exploit', 'patch', 'fingerprint', 'scan', 'inspect', 'batch']]
 
 class Signatures:
   content: Dict[str, Type[Detector]]
@@ -117,6 +117,9 @@ Scan mode:
 
 Inspect mode:
   --inspect                 Inspect mode
+  -c                        Run commands before prompt
+  -i                        Run script file before prompt
+  -q                        Quiet mode; quit instead of giving prompt
 
 Misc:
   --update-cache            Analyze and rebuild codebase cache
@@ -155,13 +158,14 @@ Misc:
     mode: OpMode = None
     exploit = ''
     patch = ''
+    cmdlines = []
     no_cache_mode = False
     update_cache_mode = False
     output_filename: Optional[str] = None
     format: ReportFormat = 'html'
     exclude_packages: List[str] = []
 
-    opts, files = getopt.getopt(sys.argv[1:], 'do:W:',
+    opts, files = getopt.getopt(sys.argv[1:], 'c:i:do:qW:',
                                 ['debug', 'exploit-resign', 'exploit-unsign', 'exploit-enable-debug', 'exploit-enable-backup',
                                  'exploit-disable-pinning', 'fingerprint', 'grab', 'help', 'help-signatures',
                                  'output=', 'format=', 'version', 'patch-all', 'exclude=', 'update-cache', 'no-cache', 'inspect', 'max-graph-size=',
@@ -173,6 +177,17 @@ Misc:
         self._deprecated(f'{o} is deprecated (use --scan-output)')
       if o in ['-o', '--output']:
         output_filename = a
+      if o in ['-q']:
+        mode = 'batch'
+      if o in ['-c']:
+        cmdlines = [a]
+      if o in ['-i']:
+        try:
+          with open(a, 'r') as f:
+            cmdlines = [l for l in f]
+        except OSError as e:
+          ui.fatal(f'cannot open script file: {e}')
+
       if o in ['-W']:
         self._deprecated('-W<sig>/-Wno-<sig> is deprecated (use --scan-sigs)')
         if a.startswith('no-'):
@@ -256,11 +271,16 @@ Misc:
     if mode == 'grab':
       from trueseeing.app.grab import GrabMode
       return self._launch(GrabMode(packages=files).invoke())
-    elif mode == 'inspect':
+    elif mode in ['inspect', 'batch']:
       if len(files) > 1:
-        ui.fatal("inspect mode accepts at most only one target file")
+        ui.fatal(f"{mode} mode accepts at most only one target file")
       from trueseeing.app.inspect import InspectMode
-      InspectMode().do(files[0] if files else '', signatures=sigs)
+      InspectMode().do(
+        files[0] if files else '',
+        signatures=sigs,
+        batch=True if mode == 'batch' else False,
+        cmdlines=cmdlines
+      )
     else:
       if not files:
         ui.fatal("no input files")
