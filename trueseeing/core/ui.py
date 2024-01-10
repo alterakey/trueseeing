@@ -57,10 +57,9 @@ class UI:
   def fatal(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> NoReturn:
     if not self._is_inspecting:
       self.stderr(f'fatal: {msg}', nl=nl, ow=ow, onetime=onetime, exc=exc)
-      sys.exit(2)
     else:
       self.failure(f'fatal: {msg}', nl=nl, ow=ow, onetime=onetime, exc=exc)
-      raise FatalError()
+    raise FatalError()
 
   def critical(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.CRITICAL:
