@@ -228,7 +228,7 @@ class Runner:
 
   async def greeting(self) -> None:
     from trueseeing import __version__ as version
-    ui.success(f"Trueseeing {version} [inspect mode]")
+    ui.success(f"Trueseeing {version}")
 
   async def run(self, s: str) -> None:
     try:
