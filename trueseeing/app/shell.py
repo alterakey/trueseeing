@@ -1,20 +1,3 @@
-# -*- coding: utf-8 -*-
-# Trueseeing: Non-decompiling Android application vulnerability scanner
-# Copyright (C) 2017-23 Takahiro Yoshimura <altakey@gmail.com>
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import asyncio
@@ -85,12 +68,11 @@ class Signatures:
 class Shell:
   @classmethod
   def _version(cls) -> str:
-    from pkg_resources import get_distribution
-    version = get_distribution('trueseeing').version
+    from trueseeing import __version__
     #   ..............................................................................80
     return (
-      f'Trueseeing {version}, the app vulnerability scanner\n'
-       'Copyright (C) 2017-23 Takahiro Yoshimura <altakey@gmail.com>\n' # noqa: E131
+      f'Trueseeing {__version__}, the app vulnerability scanner\n'
+       'Copyright (C) Takahiro Yoshimura <altakey@gmail.com> et al.\n' # noqa: E131
        'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
     )
 
