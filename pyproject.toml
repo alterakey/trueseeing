@@ -11,6 +11,7 @@ classifiers = [
     "Topic :: Security",
     "Operating System :: Android",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Private :: Do not Upload",
 ]
 readme = "README.md"
 keywords = ['android', 'security', 'pentest', 'hacking']
