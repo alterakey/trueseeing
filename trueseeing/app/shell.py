@@ -85,7 +85,7 @@ class Shell:
       '''\
 USAGE
 
-    {me} [options ...] <target.apk>
+    {me} [options ...] [<target.apk>]
 '''.format(me=os.path.basename(sys.argv[0])),
       #.........................................................................80
       '''\
@@ -95,6 +95,7 @@ General:
   -c                        Run commands before prompt
   -d/--debug                Debug mode
   -i                        Run script file before prompt
+  -n                        Open empty file
   -q                        Batch mode; quit instead of giving prompt
   --version                 Version information
   --help                    Show this text
@@ -144,11 +145,12 @@ Scan mode (DEPRECATED):
     cmdlines = []
     no_cache_mode = False
     update_cache_mode = False
+    no_target = False
     output_filename: Optional[str] = None
     format: ReportFormat = 'html'
     exclude_packages: List[str] = []
 
-    opts, files = getopt.getopt(sys.argv[1:], 'c:i:do:qW:',
+    opts, files = getopt.getopt(sys.argv[1:], 'c:i:dno:qW:',
                                 ['debug',
                                  'help', 'help-signatures',
                                  'version', 'inspect',
@@ -160,6 +162,8 @@ Scan mode (DEPRECATED):
         output_filename = a
       if o in ['-q']:
         mode = 'batch'
+      if o in ['-n']:
+        no_target = True
       if o in ['-c']:
         cmdlines = [a]
       if o in ['-i']:
@@ -211,8 +215,11 @@ Scan mode (DEPRECATED):
       mode = 'inspect'
 
     if not files:
-      ui.stderr(self._help())
-      return 2
+      if no_target:
+        files.append('/dev/null')
+      else:
+        ui.stderr(self._help())
+        return 2
 
     if mode in ['inspect', 'batch']:
       if len(files) > 1:
