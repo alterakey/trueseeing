@@ -65,20 +65,36 @@ class SmaliAnalyzer:
         if start:
           classmap.add(tuple([start, ops[-1]._id])) # type: ignore[arg-type]
 
-        if analyzed_ops - last_seen > 65536:
-          elapsed = time.time() - begin_at
-          ui.info(f"analyze: {analyzed_ops} ops... ({analyzed_ops / elapsed:.02f} ops/s){' '*20}", nl=False, ow=True)
-          last_seen = analyzed_ops
+        if ui.is_tty():
+          if analyzed_ops - last_seen > 65536:
+            elapsed = time.time() - begin_at
+            ui.info(f"analyze: {analyzed_ops} ops... ({analyzed_ops / elapsed:.02f} ops/s){' '*20}", nl=False, ow=True)
+            last_seen = analyzed_ops
+        else:
+          if analyzed_ops - last_seen > 131072:
+            elapsed = time.time() - begin_at
+            ui.info(f"analyze: ... {analyzed_ops} ops")
+            last_seen = analyzed_ops
 
       analyzed_ops = self._store.op_count_ops(c=c)
 
-      ui.info(f"analyze: {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
+      if ui.is_tty():
+        ui.info(f"analyze: {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
+      else:
+        ui.info(f"analyze: ops: {analyzed_ops}")
+
       analyzed_classes = self._store.op_store_classmap(classmap, c=c)
 
-      ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
+      if ui.is_tty():
+        ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
+      else:
+        ui.info(f"analyze: classes: {analyzed_classes}")
       analyzed_methods = self._store.op_generate_methodmap(c=c)
 
-    ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}", ow=True)
+    if ui.is_tty():
+      ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}", ow=True)
+    else:
+      ui.info(f"analyze: methods: {analyzed_methods}")
     ui.info("analyze: finalizing")
     self._store.op_finalize()
     ui.info(f"analyze: done ({time.time() - started:.02f} sec)")

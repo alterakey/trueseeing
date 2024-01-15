@@ -23,6 +23,10 @@ class UI:
 
   _seen: Set[str] = set()
 
+  def is_tty(self) -> bool:
+    from os import isatty
+    return isatty(sys.stdout.fileno())
+
   def enter_inspect(self) -> None:
     self._is_inspecting = True
 
