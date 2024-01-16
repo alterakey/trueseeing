@@ -17,6 +17,7 @@ class Context:
   wd: str
   excludes: List[str]
   _apk: str
+  _store: Optional[Store] = None
 
   def __init__(self, apk: str, excludes: List[str]) -> None:
     self._apk = apk
@@ -31,11 +32,12 @@ class Context:
       dirname = os.path.join(os.path.dirname(self._apk), f'.trueseeing2-{hashed}')
     return dirname
 
-  @functools.lru_cache(maxsize=None)
   def store(self) -> Store:
-    assert self.wd is not None
-    from trueseeing.core.store import Store
-    return Store(self.wd)
+    if self._store is None:
+      assert self.wd is not None
+      from trueseeing.core.store import Store
+      self._store = Store(self.wd)
+    return self._store
 
   def fingerprint_of(self) -> str:
     from hashlib import sha256
@@ -45,29 +47,43 @@ class Context:
   def remove(self) -> None:
     if os.path.exists(self.wd):
       shutil.rmtree(self.wd)
+    self._store = None
 
   def create(self, exist_ok: bool = False) -> None:
     os.makedirs(self.wd, mode=0o700, exist_ok=exist_ok)
     self._copy_target()
 
-  async def analyze(self, skip_resources: bool = False) -> None:
-    if os.path.exists(os.path.join(self.wd, '.done')):
+  def _get_analysis_flag_name(self, level: int) -> str:
+    return f'.done{level}' if level < 3 else '.done'
+
+  def get_analysis_level(self) -> int:
+    for level in range(3, 0, -1):
+      if os.path.exists(os.path.join(self.wd, self._get_analysis_flag_name(level))):
+        return level
+    return 0
+
+  async def analyze(self, level: int = 3, skip_resources: bool = False) -> None:
+    if self.get_analysis_level() >= level:
       ui.debug('analyzed once')
     else:
+      flagfn = self._get_analysis_flag_name(level)
       from trueseeing.core.asm import APKDisassembler
       from trueseeing.core.code.parse import SmaliAnalyzer
       if os.path.exists(self.wd):
         ui.info('analyze: removing leftover')
         self.remove()
 
-      ui.info('analyze: disassembling... ', nl=False)
-      self.create()
-      APKDisassembler(self, skip_resources).disassemble()
-      ui.info('analyze: disassembling... done.', ow=True)
+      if level > 0:
+        ui.info('analyze: disassembling... ', nl=False)
+        self.create()
+        disasm = APKDisassembler(self, skip_resources)
+        disasm.disassemble(level)
+        ui.info('analyze: disassembling... done.', ow=True)
 
-      SmaliAnalyzer(self.store()).analyze()
+        if level > 2:
+          SmaliAnalyzer(self.store()).analyze()
 
-      with open(os.path.join(self.wd, '.done'), 'w'):
+      with open(os.path.join(self.wd, flagfn), 'w'):
         pass
 
     from trueseeing.core.api import Extension

@@ -109,9 +109,9 @@ class Runner:
       '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
       '?s?':dict(e=self._help_signature, n='?s?', d='signature help'),
       '!':dict(e=self._shell, n='!', d='shell'),
-      'a':dict(e=self._analyze, n='a[!]', d='analyze target'),
+      'a':dict(e=self._analyze, n='a[a][!]', d='analyze target (aa: full analysis)'),
       'a!':dict(e=self._analyze),
-      'aa':dict(e=self._analyze2, n='aa[!]', d='analyze and scan'),
+      'aa':dict(e=self._analyze2),
       'aa!':dict(e=self._analyze2),
       'as':dict(e=self._scan, n='as', d='run a scan'),
       'co':dict(e=self._export_context, n='co[!] /path', d='export codebase'),
@@ -137,7 +137,9 @@ class Runner:
       'xco!':dict(e=self._exploit_device_copyout),
       'xci':dict(e=self._exploit_device_copyin, n='xci[!] package [data.tar]', d='device: copy-in package data'),
       'xci!':dict(e=self._exploit_device_copyin),
-      'i':dict(e=self._info, n='i', d='print general information'),
+      'i':dict(e=self._info, n='i[i][i]', d='print info (ii: overall, iii: detailed)'),
+      'ii':dict(e=self._info2),
+      'iii':dict(e=self._info3),
       'gh':dict(e=self._report_html, n='gh[!] [report.html]', d='generate report (HTML)'),
       'gh!':dict(e=self._report_html),
       'gj':dict(e=self._report_json, n='gj[!] [report.json]', d='generate report (JSON)'),
@@ -308,9 +310,9 @@ class Runner:
     from trueseeing.core.context import Context
     return Context(path, [])
 
-  async def _get_context_analyzed(self, path: str) -> Context:
+  async def _get_context_analyzed(self, path: str, level: int = 3) -> Context:
     c = self._get_context(path)
-    await c.analyze()
+    await c.analyze(level=level)
     return c
 
   @contextmanager
@@ -324,7 +326,7 @@ class Runner:
     finally:
       DataFlows.set_max_graph_size(o)
 
-  async def _analyze(self, args: deque[str]) -> None:
+  async def _analyze(self, args: deque[str], level: int = 2) -> None:
     self._require_target()
     assert self._target is not None
 
@@ -336,13 +338,13 @@ class Runner:
     context = self._get_context(apk)
     if cmd.endswith('!'):
       context.remove()
-    await context.analyze()
-    with context.store().db as db:
-      db.execute('delete from analysis_issues')
+    await context.analyze(level=level)
+    if level > 2:
+      with context.store().db as db:
+        db.execute('delete from analysis_issues')
 
   async def _analyze2(self, args: deque[str]) -> None:
-    await self._analyze(args)
-    await self._scan(args)
+    await self._analyze(args, level=3)
 
   async def _shell(self, args: deque[str]) -> None:
     from asyncio import create_subprocess_shell
@@ -394,7 +396,10 @@ class Runner:
 
     from binascii import hexlify
 
-    context = self._get_context(self._target)
+    context = await self._get_context_analyzed(self._target, level=1)
+    level = context.get_analysis_level()
+    if level < 3:
+      ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._decode_analysis_level(level)))
     d = context.store().query().file_get(path)
     if d is None:
       ui.fatal('file not found')
@@ -424,7 +429,7 @@ class Runner:
       if os.path.exists(outfn) and not cmd.endswith('!'):
         ui.fatal('outfile exists; force (!) to overwrite')
 
-    context = self._get_context(self._target)
+    context = await self._get_context_analyzed(self._target)
     path = '{}.smali'.format(os.path.join(*(class_.split('.'))))
     for _, d in context.store().query().file_enum(f'smali%/{path}'):
       if outfn is None:
@@ -582,7 +587,10 @@ class Runner:
     else:
       pat = '.'
 
-    context = await self._get_context_analyzed(apk)
+    context = await self._get_context_analyzed(apk, level=1)
+    level = context.get_analysis_level()
+    if level < 3:
+      ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._decode_analysis_level(level)))
     for path, in context.store().db.execute('select path from files where path regexp :pat', dict(pat=pat)):
       ui.info(f'{path}')
 
@@ -600,7 +608,10 @@ class Runner:
 
     ui.info('searching in files: {pat}'.format(pat=pat))
 
-    context = await self._get_context_analyzed(apk)
+    context = await self._get_context_analyzed(apk, level=1)
+    level = context.get_analysis_level()
+    if level < 3:
+      ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._decode_analysis_level(level)))
     for path, in context.store().db.execute('select path from files where blob regexp :pat', dict(pat=pat.encode('latin1'))):
       ui.info(f'{path}')
 
@@ -1220,7 +1231,11 @@ class Runner:
     import random
     return (f'{dir}/' if dir is not None else '/data/local/tmp/') + ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=16))
 
-  async def _info(self, args: deque[str]) -> None:
+  def _decode_analysis_level(self, level: int) -> str:
+    analysislevelmap = {0:'no', 1: 'minimally', 2: 'lightly', 3:'fully'}
+    return analysislevelmap.get(level, '?')
+
+  async def _info(self, args: deque[str], level: int = 0) -> None:
     self._require_target()
     assert self._target is not None
 
@@ -1230,19 +1245,28 @@ class Runner:
     import os
 
     boolmap = {True:'yes',False:'no','true':'yes','false':'no',1:'yes',0:'no'}
+    analysisguidemap = {0: 'try ii for more info', 1: 'try iii for more info', 2: 'try iii for more info'}
 
     ui.info(f'info on {apk}')
 
-    context = self._get_context(self._target)
-    analyzed = os.path.exists(os.path.join(context.wd, '.done'))
-
     ui.info('path         {}'.format(apk))
     ui.info('size         {}'.format(os.stat(apk).st_size))
+
+    context = self._get_context(self._target)
+    analyzed = context.get_analysis_level()
+
+    if analyzed < level:
+      await context.analyze(level=level)
+      analyzed = level
+
     ui.info('fp           {}'.format(context.fingerprint_of()))
     ui.info('ctx          {}'.format(context.wd))
     ui.info('has patch?   {}'.format(boolmap[os.path.exists(os.path.join(context.wd, 'p', 'AndroidManifest.xml'))]))
-    ui.info('analyzed?    {}'.format(boolmap[analyzed]))
-    if analyzed:
+    ui.info('analyzed?    {}{}'.format(
+      self._decode_analysis_level(analyzed),
+      ' ({})'.format(analysisguidemap[analyzed]) if analyzed < 3 else '',
+    ))
+    if analyzed > 0:
       store = context.store()
       manif = context.parsed_manifest()
       ui.info('pkg          {}'.format(manif.attrib['package']))
@@ -1256,9 +1280,10 @@ class Runner:
       ui.info('recvs        {}'.format(len(list(manif.xpath('.//receiver')))))
       ui.info('provs        {}'.format(len(list(manif.xpath('.//provider')))))
       ui.info('int-flts     {}'.format(len(list(manif.xpath('.//intent-filter')))))
-      with store.db as c:
-        for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
-          ui.info('frags        {}'.format(len(list(manif.xpath('.//activity')))))
+      if analyzed > 2:
+        with store.db as c:
+          for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
+            ui.info('frags        {}'.format(len(list(manif.xpath('.//activity')))))
       for e in manif.xpath('.//application'):
         ui.info('debuggable?  {}'.format(boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}debuggable', 'false'), '?')))
         ui.info('backupable?  {}'.format(boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}allowBackup', 'false'), '?')))
@@ -1271,15 +1296,22 @@ class Runner:
         dom = context._parsed_apktool_yml()
         ui.info('api min      {} (apktool)'.format(int(dom['sdkInfo'].get('minSdkVersion', '1'))))
         ui.info('api tgt      {} (apktool)'.format(int(dom['sdkInfo'].get('targetSdkVersion', '1'))))
-      with store.db as c:
-        for nr, in c.execute('select count(1) from analysis_issues'):
-          ui.info('issues       {}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))
-        for nr, in c.execute('select count(1) from ops where idx=0'):
-          ui.info('ops          {}'.format(nr))
-        for nr, in c.execute('select count(1) from class_class_name'):
-          ui.info('classes      {}'.format(nr))
-        for nr, in c.execute('select count(1) from method_method_name'):
-          ui.info('methods      {}'.format(nr))
+      if analyzed > 2:
+        with store.db as c:
+          for nr, in c.execute('select count(1) from analysis_issues'):
+            ui.info('issues       {}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))
+          for nr, in c.execute('select count(1) from ops where idx=0'):
+            ui.info('ops          {}'.format(nr))
+          for nr, in c.execute('select count(1) from class_class_name'):
+            ui.info('classes      {}'.format(nr))
+          for nr, in c.execute('select count(1) from method_method_name'):
+            ui.info('methods      {}'.format(nr))
+
+  async def _info2(self, args: deque[str]) -> None:
+    return await self._info(args, level=1)
+
+  async def _info3(self, args: deque[str]) -> None:
+    return await self._info(args, level=2)
 
   async def _set_target(self, args: deque[str]) -> None:
     _ = args.popleft()
