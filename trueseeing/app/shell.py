@@ -101,7 +101,7 @@ General:
   --help                    Show this text
   --help-signature          Show signatures
   --inspect                 Inspect mode (deprecated; now default)
-  --scan                    Scan mode (deprecated; use -qc "aa;g*"; e.g. gh for HTML)
+  --scan                    Scan mode (deprecated; use -qc "as;g*"; e.g. gh for HTML)
 
 Scan mode (DEPRECATED):
   --scan-sigs=<sig>,..      Select signatures (use --help-signatures to list signatures)
@@ -184,7 +184,7 @@ Scan mode (DEPRECATED):
       if o in ['--inspect']:
         self._deprecated(f'{o} is deprecated; ignored as default')
       if o in ['--scan']:
-        self._deprecated(f'{o} is deprecated; use -qc "aa;g*"; e.g. gh for HTML')
+        self._deprecated(f'{o} is deprecated; use -qc "as;g*"; e.g. gh for HTML')
         mode = 'scan'
       if o in ['--scan-update-cache']:
         update_cache_mode = True
