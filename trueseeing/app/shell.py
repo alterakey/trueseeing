@@ -9,7 +9,6 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import List, Type, Set, Dict, Optional, Coroutine, Any, Literal
   from trueseeing.signature.base import Detector
-  from trueseeing.core.report import ReportFormat
 
   OpMode = Optional[Literal['scan', 'inspect', 'batch']]
 
@@ -73,7 +72,7 @@ class Shell:
     from trueseeing import __version__
     #   ..............................................................................80
     return (
-      f'Trueseeing {__version__}, the app vulnerability scanner\n'
+      f'Trueseeing {__version__}, an non-decompiling Android app vulnerability scanner\n'
        'Copyright (C) Takahiro Yoshimura <altakey@gmail.com> et al.\n' # noqa: E131
        'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
     )
@@ -120,8 +119,7 @@ Scan mode (DEPRECATED):
       cls._version(),
       '',
       #.........................................................................80
-      'SIGNATURES',
-      '',
+      'signatures:',
     ] + [
       f'  {name:<36s}{signatures[name].description}' for name in sorted(signatures.keys())
     ])
@@ -133,7 +131,7 @@ Scan mode (DEPRECATED):
     ui.warn(f'warning: {msg}', onetime=True)
 
   def invoke(self) -> int:
-    import getopt
+    from argparse import ArgumentParser
     from trueseeing.core.api import Extension
 
     sigs = Signatures()
@@ -141,110 +139,93 @@ Scan mode (DEPRECATED):
 
     log_level = ui.INFO
     signature_selected = sigs.default().copy()
-    mode: OpMode = None
     cmdlines = []
-    no_cache_mode = False
-    update_cache_mode = False
-    no_target = False
-    output_filename: Optional[str] = None
-    format: ReportFormat = 'html'
-    exclude_packages: List[str] = []
 
-    opts, files = getopt.getopt(sys.argv[1:], 'c:i:dno:qW:',
-                                ['debug',
-                                 'help', 'help-signatures',
-                                 'version', 'inspect',
-                                 'scan', 'scan-sigs=', 'scan-output=', 'scan-report=', 'scan-exclude=', 'scan-update-cache', 'scan-no-cache', 'scan-max-graph-size='])
-    for o, a in opts:
-      if o in ['-d', '--debug']:
-        log_level = ui.DEBUG
-      if o in ['--scan-output']:
-        output_filename = a
-      if o in ['-q']:
-        mode = 'batch'
-      if o in ['-n']:
-        no_target = True
-      if o in ['-c']:
-        cmdlines = [a]
-      if o in ['-i']:
-        try:
-          with open(a, 'r') as f:
-            cmdlines = [l for l in f]
-        except OSError as e:
-          ui.fatal(f'cannot open script file: {e}')
+    parser = ArgumentParser(description='Non-decompiling Android app vulnerability scanner')
+    args_mut = parser.add_mutually_exclusive_group()
+    parser.add_argument('fn', nargs='?', metavar='FILE', help='Target APK file')
+    parser.add_argument('--help-signatures', action='store_true', help='Show signatures')
+    parser.add_argument('--version', action='store_true', help='Version information')
+    parser.add_argument('-c', dest='inline_cmd', metavar='COMMAND', help='Run commands before prompt')
+    parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
+    parser.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
+    parser.add_argument('-n', dest='no_target', action='store_true', help='Open empty file')
+    args_mut.add_argument('-q', dest='mode', action='store_const', const='batch', help='Batch mode; quit instead of giving prompt')
+    args_mut.add_argument('--inspect', dest='mode', action='store_const', const='inspect', help='Inspect mode (deprecated; now default)')
+    args_mut.add_argument('--scan', dest='mode', action='store_const', const='scan', help='Scan mode (deprecated; use -qc "as;g*"; e.g. gh for HTML)')
 
-      if o in ['--scan-sigs']:
-        for s in a.split(','):
-          if s.startswith('no-'):
-            signature_selected.difference_update(sigs.selected_on(s[3:]))
-          else:
-            signature_selected.update(sigs.selected_on(s))
-      if o in ['--scan-exclude']:
-        exclude_packages.append(a)
-      if o in ['--inspect']:
-        self._deprecated(f'{o} is deprecated; ignored as default')
-      if o in ['--scan']:
-        self._deprecated(f'{o} is deprecated; use -qc "as;g*"; e.g. gh for HTML')
-        mode = 'scan'
-      if o in ['--scan-update-cache']:
-        update_cache_mode = True
-      if o in ['--scan-no-cache']:
-        no_cache_mode = True
-      if o in ['--scan-max-graph-size']:
-        from trueseeing.core.flow.data import DataFlows
-        DataFlows.set_max_graph_size(int(a))
-      if o in ['--scan-report']:
-        # NB: should check "a" conforms to the literal type, ReportFormat
-        if a in ['html', 'json']:
-          format = a # type: ignore[assignment]
+    scan_args = parser.add_argument_group('Scan mode (DEPRECATED)')
+    scan_args.add_argument('--scan-sigs', metavar='SIG,...', help='Select signatures (use --help-signatures to list signatures)')
+    scan_args.add_argument('--scan-exclude', dest='scan_exclude_packages', action='append', metavar='PATTERN', help='Excluding packages matching pattern')
+    scan_args.add_argument('--scan-output', dest='scan_output_filename', metavar='FILE', help='Report filename ("-" for stdout)')
+    scan_args.add_argument('--scan-report', dest='scan_report_format', choices=['html', 'json'], help='Report format (html: HTML (default), json: JSON)')
+    scan_args.add_argument('--scan-max-graph-size', type=int, metavar='N', help='Limit graph size')
+    scan_args_mut = scan_args.add_mutually_exclusive_group()
+    scan_args_mut.add_argument('--scan-update-cache', action='store_true', help='Analyze and rebuild codebase cache')
+    scan_args_mut.add_argument('--scan-no-cache', action='store_true', help='Do not keep codebase cache')
+    args = parser.parse_args()
+
+    if args.debug:
+      log_level = ui.DEBUG
+    if not args.mode:
+      args.mode = 'inspect'
+    elif args.mode == 'inspect':
+      self._deprecated('--inspect is deprecated; ignored as default')
+    elif args.mode == 'scan':
+      self._deprecated('--scan is deprecated; use -qc "as;g*"; e.g. gh for HTML')
+    if args.inline_cmd:
+      cmdlines = [args.inline_cmd]
+    if args.scriptfn:
+      try:
+        with open(args.scriptfn, 'r') as f:
+          cmdlines = [l for l in f]
+      except OSError as e:
+        ui.fatal(f'cannot open script file: {e}')
+    if args.scan_sigs:
+      for s in args.scan_sigs.split(','):
+        if s.startswith('no-'):
+          signature_selected.difference_update(sigs.selected_on(s[3:]))
         else:
-          ui.fatal(f'unknown output format: {a}')
-      if o in ['--version']:
-        ui.stderr(self._version())
-        return 0
-      if o in ['--help']:
-        ui.stderr(self._help())
-        return 2
-      if o in ['--help-signatures']:
-        ui.stderr(self._help_signatures(sigs.content))
-        return 2
+          signature_selected.update(sigs.selected_on(s))
+    if args.scan_max_graph_size:
+      from trueseeing.core.flow.data import DataFlows
+      DataFlows.set_max_graph_size(args.scan_max_graph_size)
+    if args.version:
+      ui.stderr(self._version())
+      return 0
+    if args.help_signatures:
+      ui.stderr(self._help_signatures(sigs.content))
+      return 2
 
     ui.set_level(log_level)
 
-    if not mode:
-      mode = 'inspect'
-
-    if not files:
-      if no_target:
-        files.append('/dev/null')
+    if not args.fn:
+      if args.no_target:
+        args.fn = '/dev/null'
       else:
-        ui.stderr(self._help())
+        parser.print_help()
         return 2
 
-    if mode in ['inspect', 'batch']:
-      if len(files) > 1:
-        ui.fatal(f"{mode} mode accepts at most only one target file")
+    if args.mode in ['inspect', 'batch']:
       from trueseeing.app.inspect import InspectMode
       InspectMode().do(
-        files[0] if files else '',
+        args.fn,
         signatures=sigs,
-        batch=True if mode == 'batch' else False,
+        batch=True if args.mode == 'batch' else False,
         cmdlines=cmdlines
       )
-    elif mode == 'scan':
-      if len(files) > 1:
-        self._deprecated('specifying multiple files is deprecated')
+    elif args.mode == 'scan':
       from trueseeing.app.scan import ScanMode
-      return self._launch(ScanMode(files).invoke(
-        ci_mode=format,
-        outfile=output_filename,
+      return self._launch(ScanMode([args.fn]).invoke(
+        ci_mode=args.scan_report_format,
+        outfile=args.scan_output_filename,
         signatures=[v for k, v in sigs.content.items() if k in signature_selected],
-        exclude_packages=exclude_packages,
-        no_cache_mode=no_cache_mode,
-        update_cache_mode=update_cache_mode,
+        exclude_packages=args.scan_exclude_packages if args.scan_exclude_packages else [],
+        no_cache_mode=args.scan_no_cache,
+        update_cache_mode=args.scan_update_cache,
       ))
     else:
-      assert False, f'unknown mode: {mode}'
+      assert False, f'unknown mode: {args.mode}'
 
 def entry() -> None:
   from trueseeing.core.exc import FatalError
