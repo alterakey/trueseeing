@@ -43,11 +43,17 @@ With trueseeing you can interactively scan/analyze/patch/etc. apps -- making it 
 	[+] trueseeing 2.1.9 [inspect mode]
 	ts[target.apk]> ?
 	...
-	ts[target.apk]> aa
+	ts[target.apk]> i                      # show generic information
+	...
+	ts[target.apk]> pf AndroidManifest.xml # show manifest file
+	...
+	ts[target.apk]> a                      # analyze resources too
+	...
+	ts[target.apk]> /s something           # search text
+	...
+	ts[target.apk]> as                     # scan
 	...
 	[+] done, found 6403 issues (174.94 sec.)
-	ts[target.apk]> i
-	...
 	ts[target.apk]> gh report.html
 
 ### Batch mode
@@ -56,20 +62,20 @@ We accept an inline command (`-c`) or script file (`-i`) to run before giving yo
 
 You can use the features to conduct a batch scan, as follows e.g. to dump findings right onto the stderr:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa' target.apk
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as' target.apk
 
 To generate a report file in HTML format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gh report.html' target.apk
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gh report.html' target.apk
 
 To generate a report file in JSON format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gj report.json' target.apk
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gj report.json' target.apk
 
 To get report generated in stdout, omit filename from final `g*` command:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gh' target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'aa;gj' target.apk > report.json
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gh' target.apk > report.html
+	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gj' target.apk > report.json
 
 ### Non-interactive scan mode (deprecated)
 

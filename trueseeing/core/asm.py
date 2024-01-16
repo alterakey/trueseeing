@@ -19,11 +19,12 @@ class APKDisassembler:
     from trueseeing import __version__
     return __version__
 
-  def disassemble(self) -> None:
-    self._do()
-    self._context.store().prepare_schema()
+  def disassemble(self, level: int = 3) -> None:
+    self._do(level)
+    if level > 2:
+      self._context.store().prepare_schema()
 
-  def _do(self) -> None:
+  def _do(self, level: int) -> None:
     import sqlite3
     import glob
     import subprocess
@@ -44,9 +45,10 @@ class APKDisassembler:
 
       with c:
         with toolchains() as tc:
-          _ = subprocess.run('java -jar {apkeditor} d -i {apk} -o files'.format(
+          _ = subprocess.run('java -jar {apkeditor} d -i {apk} {suppressor} -o files'.format(
             apkeditor=tc['apkeditor'],
-            apk=apk
+            apk=apk,
+            suppressor='-dex' if level < 3 else '',
           ), shell=True, capture_output=True)
           os.chdir('files')
 
@@ -54,7 +56,15 @@ class APKDisassembler:
           with open(fn, 'rb') as f:
             return fn, f.read()
 
-        query.file_put_batch(read_as_row(fn) for fn in glob.glob('**', recursive=True) if os.path.isfile(fn))
+        def should_cache(fn: str) -> bool:
+          if not os.path.isfile(fn):
+            return False
+          if level < 2:
+            return fn == 'AndroidManifest.xml'
+          else:
+            return True
+
+        query.file_put_batch(read_as_row(fn) for fn in glob.glob('**', recursive=True) if should_cache(fn))
         c.commit()
     finally:
       os.chdir(cwd)
