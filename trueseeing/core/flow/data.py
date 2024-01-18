@@ -64,6 +64,8 @@ class DataFlows:
     elif ref.t == 'reg':
       regs = ref.v
       return type_([regs.strip()])
+    elif ref.t == 'reflike' and ref.v == '{},': # XXX
+      return type_([])
     else:
       raise cls.RegisterDecodeError(f"unknown type of reference: {ref.t}, {ref.v}")
 

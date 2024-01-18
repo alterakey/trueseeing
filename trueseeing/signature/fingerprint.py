@@ -6,6 +6,7 @@ import os
 import re
 
 from trueseeing.core.code.model import InvocationPattern
+from trueseeing.core.flow.data import DataFlows
 from trueseeing.signature.base import Detector
 from trueseeing.core.issue import Issue
 
@@ -288,3 +289,82 @@ class NativeArchDetector(Detector):
           info2=os.path.basename(d),
           synopsis=self._synopsis,
         ))
+
+class ReflectionDetector(Detector):
+  option = 'detect-reflection'
+  description = 'Detects reflections'
+  _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _summary0 = 'Use of reflection'
+  _synopsis0 = "The application makes use of Java reflection APIs."
+  _summary1 = 'Classloader reference'
+  _synopsis1 = "The application makes use of classloaders."
+
+  _blacklist = [
+    r'Ljava/lang/Object;->getClass\(\)',
+    r'Ljava/lang/Class;->getClassLoader',
+    r'Ljava/lang/Class;->get((Simple)?Name|ComponentType)',
+    r'Ljava/lang/Class;->is(Instance|Array|Primitive)',
+  ]
+
+  async def detect(self) -> None:
+    store = self._context.store()
+    q = store.query()
+    for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(Class|Method|Field);->|^Ljava/lang/[A-Za-z]*?ClassLoader;->')):
+      qn = q.qualname_of(cl)
+      if self._context.is_qualname_excluded(qn):
+        continue
+      ct = q.method_call_target_of(cl)
+      if ct is None:
+        continue
+      if any(re.match(x, ct) for x in self._blacklist):
+        continue
+      if 'ClassLoader;->' in ct:
+        try:
+          for x in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0):
+            self._raise_issue(Issue(
+              detector_id=self.option,
+              cvss3_vector=self._cvss,
+              confidence='firm',
+              summary=self._summary1,
+              info1=ct,
+              info2=x,
+              source=qn,
+              synopsis=self._synopsis1,
+              description=self._synopsis1,
+            ))
+        except IndexError:
+          self._raise_issue(Issue(
+            detector_id=self.option,
+            cvss3_vector=self._cvss,
+            confidence='firm',
+            summary=self._summary1,
+            info1=ct,
+            source=qn,
+            synopsis=self._synopsis1,
+            description=self._synopsis1,
+          ))
+      else:
+        try:
+          for x in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0):
+            self._raise_issue(Issue(
+              detector_id=self.option,
+              cvss3_vector=self._cvss,
+              confidence='firm',
+              summary=self._summary0,
+              info1=ct,
+              info2=x,
+              source=qn,
+              synopsis=self._synopsis0,
+              description=self._synopsis0,
+            ))
+        except IndexError:
+          self._raise_issue(Issue(
+            detector_id=self.option,
+            cvss3_vector=self._cvss,
+            confidence='firm',
+            summary=self._summary0,
+            info1=ct,
+            source=qn,
+            synopsis=self._synopsis0,
+            description=self._synopsis0,
+          ))
