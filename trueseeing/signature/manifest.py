@@ -93,8 +93,9 @@ class ManifestManipBroadcastReceiver(Detector):
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
+    # FIXME: catch API < 9
     for name in set(itertools.chain(
-        self._context.parsed_manifest().xpath('//receiver[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
+        self._context.parsed_manifest().xpath('//receiver[not(@android:permission) and not(@android:exported="false")]/intent-filter/../@android:name', namespaces=ns),
         self._context.parsed_manifest().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
     )):
       filter_ = [name for name in self._context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
