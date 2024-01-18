@@ -191,13 +191,16 @@ class ProGuardDetector(Detector):
   _cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
+  _whitelist = ['R']
+
   @classmethod
   def _class_name_of(self, path: str) -> str:
     return path.replace('.smali', '').replace('/', '.')
 
   async def detect(self) -> None:
     for c in (self._class_name_of(self._context.source_name_of_disassembled_class(r)) for r in self._context.disassembled_classes()):
-      if re.search(r'(?:^|\.)a$', c):
+      m = re.search(r'(?:^|\.)(.)$', c)
+      if m and m.group(1) not in self._whitelist:
         self._raise_issue(Issue(detector_id=self.option, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
         break
     else:
