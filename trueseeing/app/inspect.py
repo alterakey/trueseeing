@@ -115,7 +115,7 @@ class Runner:
       'aa!':dict(e=self._analyze2),
       'as':dict(e=self._scan, n='as[!]', d='run a scan (!: clear current issues)'),
       'as!':dict(e=self._scan),
-      'co':dict(e=self._export_context, n='co[!] /path', d='export codebase'),
+      'co':dict(e=self._export_context, n='co[!] /path [pat]', d='export codebase'),
       'co!':dict(e=self._export_context),
       'cf':dict(e=self._use_framework, n='cf framework.apk', d='use framework'),
       'ca':dict(e=self._assemble, n='ca[!] /path', d='assemble as target from path'),
@@ -798,6 +798,11 @@ class Runner:
     root = args.popleft()
     ui.info('exporting target to {root}'.format(root=root))
 
+    if args:
+      pat = args.popleft()
+    else:
+      pat = None
+
     import os
     import time
 
@@ -805,7 +810,7 @@ class Runner:
     extracted = 0
     context = self._get_context(self._target)
     q = context.store().query()
-    for path,blob in q.file_enum(pat=None):
+    for path,blob in q.file_enum(pat=pat, regex=True):
       target = os.path.join(root, *path.split('/'))
       if extracted % 10000 == 0:
         ui.info(' .. {nr} files'.format(nr=extracted))

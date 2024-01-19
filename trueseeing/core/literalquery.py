@@ -194,10 +194,10 @@ class Query:
     else:
       return default
 
-  def file_enum(self, pat: Optional[str], patched: bool = False) -> Iterable[Tuple[str, bytes]]:
+  def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
-      stmt0 = 'select path, blob from files where path like :pat'
-      stmt1 = 'select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path like :pat'
+      stmt0 = 'select path, blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt1 = 'select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
       for n, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
         yield n, o
     else:
