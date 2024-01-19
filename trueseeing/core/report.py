@@ -98,7 +98,7 @@ class HTMLReportGenerator:
 
       from importlib.resources import as_file, files
       from jinja2 import Environment, FileSystemLoader
-      with as_file(files('trueseeing.libs').joinpath('template')) as path:
+      with as_file(files('trueseeing')/'libs'/'template') as path:
         template = Environment(loader=FileSystemLoader(path), autoescape=True).get_template('report.html')
         f.write(template.render(app=app, issues=issues, toolchain=self._toolchain, ts=ts))
 
