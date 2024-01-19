@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 
+from trueseeing.core.env import get_home_dir
 from trueseeing.core.tools import invoke_passthru
 from trueseeing.core.ui import ui
 
@@ -15,7 +16,7 @@ class SigningKey:
   _path: str
 
   def __init__(self) -> None:
-    self._path = os.path.join(os.environ.get('TS2_HOME', os.path.join(os.environ['HOME'], '.trueseeing2')), 'sign.keystore')
+    self._path = os.path.join(get_home_dir(), 'sign.keystore')
 
   async def key(self) -> str:
     os.makedirs(os.path.dirname(self._path), exist_ok=True)
