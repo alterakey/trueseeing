@@ -832,7 +832,7 @@ class Runner:
 
     apk = args.popleft()
 
-    with as_file(files('trueseeing.libs').joinpath('apktool.jar')) as path:
+    with as_file(files('trueseeing')/'libs'/'apktool.jar') as path:
       await invoke_passthru(
         'java -jar {apktool} if {apk}'.format(
           apk=apk,
@@ -1052,7 +1052,7 @@ class Runner:
 
     # XXX
     path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'xml', f'{key}.xml')
-    with as_file(files('trueseeing.libs').joinpath('nsc.xml')) as nscpath:
+    with as_file(files('trueseeing')/'libs'/'nsc.xml') as nscpath:
       shutil.copy(nscpath, path)
 
     # XXX

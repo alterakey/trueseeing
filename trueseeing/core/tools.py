@@ -77,8 +77,8 @@ async def try_invoke(as_: str) -> Optional[str]:
 @contextmanager
 def toolchains() -> Iterator[Toolchain]:
   from importlib.resources import files, as_file
-  with as_file(files('trueseeing.libs').joinpath('apkeditor.jar')) as apkeditorpath:
-    with as_file(files('trueseeing.libs').joinpath('apksigner.jar')) as apksignerpath:
+  with as_file(files('trueseeing')/'libs'/'apkeditor.jar') as apkeditorpath:
+    with as_file(files('trueseeing')/'libs'/'apksigner.jar') as apksignerpath:
       yield dict(
         apkeditor=apkeditorpath,
         apksigner=apksignerpath

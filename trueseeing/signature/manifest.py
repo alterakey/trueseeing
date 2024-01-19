@@ -32,7 +32,7 @@ class ManifestOpenPermissionDetector(Detector):
 class ComponentNamePolicy:
   def __init__(self) -> None:
     from importlib.resources import files
-    with files('trueseeing.libs').joinpath('tlds.txt').open('r', encoding='utf-8') as f:
+    with (files('trueseeing')/'libs'/'tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
   def looks_public(self, name: str) -> bool:

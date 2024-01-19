@@ -1,9 +1,9 @@
-from python:3.12-alpine
+from python:3.9-alpine
 run pip install flit
 copy . /tmp/build/
 run (cd /tmp/build && flit build)
 
-from python:3.12-alpine
+from python:3.9-alpine
 run apk add --no-cache openjdk17-jre-headless zip android-tools
 run mkdir /data /cache /out && ln -sfn /cache /root/.local
 copy --from=0 /tmp/build/dist/*.whl /tmp/dist/

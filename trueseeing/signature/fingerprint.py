@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class TopLevelSuffixes:
   def __init__(self) -> None:
     from importlib.resources import files
-    with files('trueseeing.libs').joinpath('tlds.txt').open('r', encoding='utf-8') as f:
+    with (files('trueseeing')/'libs'/'tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
   def looks_public(self, names: List[str]) -> bool:
@@ -32,7 +32,7 @@ class PublicSuffixes:
 
   def __init__(self) -> None:
     from importlib.resources import files
-    with files('trueseeing.libs').joinpath('public_suffix_list.dat').open('r', encoding='utf-8') as f:
+    with (files('trueseeing')/'libs'/'public_suffix_list.dat').open('r', encoding='utf-8') as f:
       self._suffixes.update((l for l in f if l and not l.startswith('//')))
 
   def looks_public(self, names: List[str]) -> bool:
@@ -235,7 +235,7 @@ class UrlLikeDetector(Detector):
 
   async def detect(self) -> None:
     from importlib.resources import files
-    with files('trueseeing.libs').joinpath('tlds.txt').open('r', encoding='utf-8') as f:
+    with (files('trueseeing')/'libs'/'tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
     q = self._context.store().query()
