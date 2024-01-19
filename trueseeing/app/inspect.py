@@ -113,7 +113,8 @@ class Runner:
       'a!':dict(e=self._analyze),
       'aa':dict(e=self._analyze2),
       'aa!':dict(e=self._analyze2),
-      'as':dict(e=self._scan, n='as', d='run a scan'),
+      'as':dict(e=self._scan, n='as[!]', d='run a scan (!: clear current issues)'),
+      'as!':dict(e=self._scan),
       'co':dict(e=self._export_context, n='co[!] /path', d='export codebase'),
       'co!':dict(e=self._export_context),
       'cf':dict(e=self._use_framework, n='cf framework.apk', d='use framework'),
@@ -339,9 +340,6 @@ class Runner:
     if cmd.endswith('!'):
       context.remove()
     await context.analyze(level=level)
-    if level > 2:
-      with context.store().db as db:
-        db.execute('delete from analysis_issues')
 
   async def _analyze2(self, args: deque[str]) -> None:
     await self._analyze(args, level=3)
@@ -354,6 +352,7 @@ class Runner:
     self._require_target()
     assert self._target is not None
 
+    cmd = args.popleft()
     apk = self._target
 
     limit = self._get_graph_size_limit(self._get_modifiers(args))
@@ -363,6 +362,10 @@ class Runner:
 
     with self._apply_graph_size_limit(limit):
       at = time.time()
+
+      if cmd.endswith('!'):
+        ui.info('clearing current issues')
+
       await ScanMode([apk]).invoke(
         ci_mode='html',
         outfile=None,
@@ -371,6 +374,7 @@ class Runner:
         no_cache_mode=False,
         update_cache_mode=False,
         from_inspect_mode=True,
+        keep_current_issues=(not cmd.endswith('!')),
       )
       nr = self._get_context(apk).store().query().issue_count()
       ui.success("done, found {nr} issues ({t:.02f} sec.)".format(nr=nr, t=(time.time() - at)))
