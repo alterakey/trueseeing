@@ -4,6 +4,7 @@ import os.path
 from typing import TYPE_CHECKING
 
 from trueseeing.core.ui import ui
+from trueseeing.core.env import get_home_dir
 
 if TYPE_CHECKING:
   from typing import Any, Dict, ClassVar, Optional, Iterable
@@ -29,7 +30,7 @@ class Extension:
     globals_: Dict[str, Any] = dict(__name__='__main__', ui=ui)
     locals_: Dict[str, Any] = dict()
     try:
-      starter = self._importer(os.path.join(os.environ.get('TS2_HOME', os.path.join(os.environ['HOME'], '.trueseeing2')), self._module_name))
+      starter = self._importer(os.path.join(get_home_dir(), self._module_name))
       if starter is not None:
         code = compile(starter, filename='<string>', mode='exec')
         exec(code, globals_, locals_)

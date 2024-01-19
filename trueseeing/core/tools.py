@@ -5,6 +5,7 @@ import asyncio
 import functools
 from contextlib import contextmanager
 from trueseeing.core.ui import ui
+from trueseeing.core.env import is_in_container
 
 if TYPE_CHECKING:
   from pathlib import Path
@@ -49,7 +50,7 @@ def _detect_build_tools() -> str:
 def _invoke_path() -> Any:
   import os
   env = os.environ
-  if not env.get('TS2_IN_DOCKER'):
+  if not is_in_container():
     env.update(dict(PATH=os.pathsep.join([_detect_build_tools(), env.get('PATH', '')])))
   return env
 

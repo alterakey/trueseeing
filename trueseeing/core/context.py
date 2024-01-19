@@ -8,6 +8,7 @@ import re
 import shutil
 
 from trueseeing.core.ui import ui
+from trueseeing.core.env import is_cache_dir_static, get_cache_dir
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional
@@ -26,11 +27,7 @@ class Context:
 
   def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
-    if os.environ.get('TS2_CACHEDIR'):
-      dirname = os.path.join(os.environ['TS2_CACHEDIR'], hashed)
-    else:
-      dirname = os.path.join(os.path.dirname(self._apk), f'.trueseeing2-{hashed}')
-    return dirname
+    return os.path.join(get_cache_dir(self._apk), hashed if is_cache_dir_static() else f'.trueseeing2-{hashed}')
 
   def store(self) -> Store:
     if self._store is None:

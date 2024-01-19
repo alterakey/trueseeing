@@ -7,6 +7,7 @@ import sys
 import re
 from typing import TYPE_CHECKING
 
+from trueseeing.core.env import is_in_container
 from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
@@ -891,7 +892,7 @@ class Runner:
     at = time.time()
 
     with TemporaryDirectory() as td:
-      if opts.get('nocache', 0 if os.environ.get('TS2_IN_DOCKER', 0) else 1):
+      if opts.get('nocache', 0 if is_in_container() else 1):
         path = root
       else:
         ui.info('caching content')

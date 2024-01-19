@@ -1,8 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import os
-
+from trueseeing.core.env import get_adb_host
 from trueseeing.core.tools import invoke, invoke_passthru
 from trueseeing.core.ui import ui
 
@@ -24,7 +23,7 @@ class AndroidDevice:
     await invoke_passthru(line)
 
   def _get_adb_cmdline(self, cmd: str) -> str:
-    host: Optional[str] = os.environ.get('TS2_ADB_HOST', ('tcp:host.docker.internal:5037' if int(os.environ.get('TS2_IN_DOCKER', 0)) else None))
+    host: Optional[str] = get_adb_host()
 
     line = 'adb {host} {cmd}'.format(
       host=f'-L {host}' if host else '',
