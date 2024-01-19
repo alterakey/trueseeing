@@ -67,6 +67,8 @@ class HTMLReportGenerator:
   def generate(self, f: TextIO) -> None:
     with self._context.store().db as db:
       from datetime import datetime
+      from zoneinfo import ZoneInfo
+
       from trueseeing.core.literalquery import Query
       query = Query(c=db)
       issues = []
@@ -74,7 +76,7 @@ class HTMLReportGenerator:
       apk = self._context._apk
       manif = self._context.parsed_manifest()
       ns = dict(android='http://schemas.android.com/apk/res/android')
-      ts = datetime.today().isoformat()
+      ts = datetime.now(tz=ZoneInfo('UTC')).isoformat(timespec='seconds')
 
       for no, row in query.findings_list():
         instances: List[Dict[str, Any]] = []
