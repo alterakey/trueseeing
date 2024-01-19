@@ -595,7 +595,7 @@ class Runner:
     level = context.get_analysis_level()
     if level < 3:
       ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._decode_analysis_level(level)))
-    for path, in context.store().db.execute('select path from files where path regexp :pat', dict(pat=pat)):
+    for path in context.store().query().file_find(pat=pat, regex=True):
       ui.info(f'{path}')
 
   async def _search_string(self, args: deque[str]) -> None:
@@ -616,7 +616,7 @@ class Runner:
     level = context.get_analysis_level()
     if level < 3:
       ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._decode_analysis_level(level)))
-    for path, in context.store().db.execute('select path from files where blob regexp :pat', dict(pat=pat.encode('latin1'))):
+    for path in context.store().query().file_search(pat=pat.encode('latin1'), regex=True):
       ui.info(f'{path}')
 
   async def _search_call(self, args: deque[str]) -> None:
