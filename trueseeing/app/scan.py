@@ -19,7 +19,7 @@ class ScanMode:
   def __init__(self, files: List[str]) -> None:
     self._files = files
 
-  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False, from_inspect_mode: bool = False) -> int:
+  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False, from_inspect_mode: bool = False, keep_current_issues: bool = False) -> int:
     if update_cache_mode:
       for f in self._files:
         ctx = Context(f, [])
@@ -33,7 +33,7 @@ class ScanMode:
       for f in self._files:
         at = time.time()
         try:
-          if await session.invoke(f):
+          if await session.invoke(f, keep_current_issues=keep_current_issues):
             error_found = True
           if not from_inspect_mode:
             context = Context(f, [])
@@ -59,14 +59,15 @@ class AnalyzeSession:
     self._chain = chain
     self._exclude_packages = exclude_packages
 
-  async def invoke(self, apkfilename: str) -> bool:
+  async def invoke(self, apkfilename: str, keep_current_issues: bool = False) -> bool:
     context = Context(apkfilename, self._exclude_packages)
     await context.analyze()
     ui.info(f"{apkfilename} -> {context.wd}")
 
     from trueseeing.core.literalquery import Query
     query = Query(c=context.store().db)
-    query.issue_clear()
+    if not keep_current_issues:
+      query.issue_clear()
 
     found = False
 
