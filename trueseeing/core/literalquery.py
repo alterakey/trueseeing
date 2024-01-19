@@ -263,9 +263,18 @@ class Query:
     for m in self.db.execute('select * from analysis_issues'):
       yield self._issue_from_row(m)
 
-  def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, str, str, str, str, float, str]]]:
-    for no, row in enumerate(self.db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
-      yield no, row
+  def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, Optional[str], Optional[str], Optional[str], Optional[str], float, str]]]:
+    for no, r in enumerate(self.db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
+      yield no, (
+        r[0],
+        r[1],
+        r[2] if r[2] else None,
+        r[3] if r[3] else None,
+        r[4] if r[4] else None,
+        r[5] if r[5] else None,
+        r[6],
+        r[7],
+      )
 
   def issues_by_group(self, *, detector: str, summary: str, cvss3_score: float) -> Iterable[Issue]:
     for m in self.db.execute('select detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', dict(detector=detector, summary=summary, cvss3_score=cvss3_score)):
