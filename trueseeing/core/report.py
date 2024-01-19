@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import os
+
 from trueseeing.core.issue import Issue
 from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
@@ -64,9 +66,16 @@ class HTMLReportGenerator:
 
   def generate(self, f: TextIO) -> None:
     with self._context.store().db as db:
+      from datetime import datetime
       from trueseeing.core.literalquery import Query
       query = Query(c=db)
       issues = []
+
+      apk = self._context._apk
+      manif = self._context.parsed_manifest()
+      ns = dict(android='http://schemas.android.com/apk/res/android')
+      ts = datetime.today().isoformat()
+
       for no, row in query.findings_list():
         instances: List[Dict[str, Any]] = []
         issues.append(dict(no=no, detector=row[0], summary=row[1].title(), synopsis=row[2], description=row[3], seealso=row[4], solution=row[5], cvss3_score=row[6], cvss3_vector=row[7], severity=CVSS3Scoring.severity_of(row[6]).title(), instances=instances, severity_panel_style={'critical':'panel-danger', 'high':'panel-warning', 'medium':'panel-warning', 'low':'panel-success', 'info':'panel-info'}[CVSS3Scoring.severity_of(row[6])]))
@@ -74,20 +83,24 @@ class HTMLReportGenerator:
           instances.append(dict(info=issue.brief_info(), source=issue.source, row=issue.row, col=issue.col))
 
       app = dict(
-        package=self._context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
+        package=manif.xpath('/manifest/@package', namespaces=ns)[0],
+        version_name=manif.xpath('/manifest/@android:versionName', namespaces=ns)[0],
+        version_code=manif.xpath('/manifest/@android:versionCode', namespaces=ns)[0],
+        size=os.stat(apk).st_size,
+        fp=self._context.fingerprint_of(),
         issues=len(issues),
         issues_critical=len([_ for _ in issues if _['severity'] == 'Critical']),
         issues_high=len([_ for _ in issues if _['severity'] == 'High']),
         issues_medium=len([_ for _ in issues if _['severity'] == 'Medium']),
         issues_low=len([_ for _ in issues if _['severity'] == 'Low']),
-        issues_info=len([_ for _ in issues if _['severity'] == 'Info'])
+        issues_info=len([_ for _ in issues if _['severity'] == 'Info']),
       )
 
       from importlib.resources import as_file, files
       from jinja2 import Environment, FileSystemLoader
       with as_file(files('trueseeing.libs').joinpath('template')) as path:
         template = Environment(loader=FileSystemLoader(path), autoescape=True).get_template('report.html')
-        f.write(template.render(app=app, issues=issues, toolchain=self._toolchain))
+        f.write(template.render(app=app, issues=issues, toolchain=self._toolchain, ts=ts))
 
 class JSONReportGenerator:
   def __init__(self, context: Context) -> None:
@@ -105,6 +118,11 @@ class JSONReportGenerator:
       from trueseeing.core.literalquery import Query
       query = Query(c=db)
       issues = []
+
+      apk = self._context._apk
+      manif = self._context.parsed_manifest()
+      ns = dict(android='http://schemas.android.com/apk/res/android')
+
       for no, row in query.findings_list():
         instances: List[Dict[str, Any]] = []
         issues.append(dict(
@@ -128,7 +146,11 @@ class JSONReportGenerator:
             col=issue.col))
 
       app = dict(
-        package=self._context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0],
+        package=self._context.parsed_manifest().xpath('/manifest/@package', namespaces=ns)[0],
+        version_name=manif.xpath('/manifest/@android:versionName', namespaces=ns)[0],
+        version_code=manif.xpath('/manifest/@android:versionCode', namespaces=ns)[0],
+        size=os.stat(apk).st_size,
+        fp=self._context.fingerprint_of(),
         issues=len(issues)
       )
       f.write(dumps({"app": app, "issues": issues}, indent=2))

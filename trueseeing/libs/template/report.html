@@ -16,8 +16,24 @@
 	<h2>1. Overview</h2>
       </div>
       <div>
-	<p>Trueseeing has analyzed the given application '{{app.package}}'.</p>
+	<p>We have analyzed the following application.</p>
+	<ul>
+	  <li>Package name: {{app.package}}</li>
+	  <li>Package version: {{app.version_name}} ({{app.version_code}})</li>
+	  <li>File size: {{app.size}}</li>
+	  <li>Fingerprint (SHA-256): {{app.fp}}</li>
+	</ul>
 
+	<p>And here is summary of the report:</p>
+	<ul>
+	  <li>Report timestamp: {{ts}}</li>
+	  <li>Trueseeing version: {{toolchain.version}}</li>
+	</ul>
+      </div>
+      <div class="pageheader">
+	<h2>2. Executive Summary</h2>
+      </div>
+      <div>
 {% if issues %}
 	<p>We have detected {{app.issues}} issues.</p>
 
@@ -66,7 +82,7 @@
 
       </div>
       <div class="pageheader">
-	<h2>2. Details</h2>
+	<h2>3. Details</h2>
       </div>
 {% if issues %}
       <div>
@@ -75,11 +91,15 @@
       {% for issue in issues %}
       <div class="panel {{issue.severity_panel_style}}" id="issue-{{issue.no}}">
 	<div class="panel-heading">
-	  <h3 class="panel-title">2.{{issue.no+1}} {{issue.summary}} <span class="badge">{{issue.instances|length}}</span></h3>
+	  <h3 class="panel-title">3.{{issue.no+1}} {{issue.summary}} <span class="badge">{{issue.instances|length}}</span></h3>
 	</div>
 	<div class="panel-body">
 	    <h4>Synopsis</h4>
+	    {% if issue.synopsis is not none %}
 	    <p>{{issue.synopsis}}</p>
+	    {% else %}
+	    <p>No synopsis provided.</p>
+	    {% endif %}
 	    <h4>Description</h4>
 	    {% if issue.description is not none %}
 	    <p>{{issue.description}}</p>
