@@ -63,7 +63,7 @@ Finally if you would like to use plain old installation (e.g. for interacting wi
 With trueseeing you can interactively examine/analyze/patch/etc. apks -- making it the ideal choice for manual analysis:
 
 	$ docker run -it --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --inspect target.apk
-	[+] trueseeing 2.1.9 [inspect mode]
+	[+] trueseeing 2.1.10 [inspect mode]
 	ts[target.apk]> ?
 	...
 	ts[target.apk]> aa
