@@ -174,8 +174,12 @@ class Query:
     for r in self.db.execute('select op_vecs.op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from ops_method join op_vecs on (method=ops_method.op and method=op_vecs.op) where v=:pat or v2=:pat or v3=:pat or v4=:pat or v5=:pat or v6=:pat or v7=:pat or v8=:pat or v9=:pat', dict(pat=pattern)):
       yield Query._op_from_row(r)
 
-  def file_find(self, pat: str) -> Iterable[str]:
-    for f, in self.db.execute('select path from files where path like :pat', dict(pat=pat)):
+  def file_find(self, pat: str, regex: bool = False) -> Iterable[str]:
+    for f, in self.db.execute('select path from files where path {op} :pat'.format(op=('like' if not regex else 'regexp')), dict(pat=pat)):
+      yield f
+
+  def file_search(self, pat: bytes, regex: bool = False) -> Iterable[str]:
+    for f, in self.db.execute('select path from files where blob {op} :pat'.format(op=('like' if not regex else 'regexp')), dict(pat=pat)):
       yield f
 
   def file_get(self, path: str, default: Optional[bytes] = None, patched: bool = False) -> Optional[bytes]:
