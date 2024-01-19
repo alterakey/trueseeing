@@ -7,7 +7,6 @@ from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
-  from typing import List, Any
   from typing_extensions import Literal
   IssueSeverity = Literal['critical', 'high', 'medium', 'low', 'info']
   IssueConfidence = Literal['certain', 'firm', 'tentative']
@@ -33,27 +32,6 @@ class Issue:
   def __attrs_post_init__(self) -> None:
     self.cvss3_vector = CVSS3Scoring.temporalified(self.cvss3_vector, self.confidence)
     self.cvss3_score = noneif(self.cvss3_score, lambda: CVSS3Scoring.score_of(self.cvss3_vector))
-
-  @staticmethod
-  def from_analysis_issues_row(row: List[Any]) -> Issue:
-    map_ = [
-      'detector_id',
-      'summary',
-      'synopsis',
-      'description',
-      'seealso',
-      'solution',
-      'info1',
-      'info2',
-      'info3',
-      'confidence',
-      'cvss3_score',
-      'cvss3_vector',
-      'source',
-      'row',
-      'col'
-    ]
-    return Issue(**{k:row[map_.index(k)] for k in map_})
 
   def severity(self) -> IssueSeverity:
     assert self.cvss3_score is not None

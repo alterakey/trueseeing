@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from trueseeing.core.code.model import Op
 from trueseeing.core.issue import Issue
+from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Dict, Optional
@@ -229,23 +230,59 @@ class Query:
     else:
       return 0
 
-  def issue_raise(self, issue: Issue) -> None:
+  def issue_raise(self, i: Issue) -> None:
+    assert i.cvss3_score is not None
     self.db.execute(
-      'insert into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
-      issue.__dict__)
+      'insert or ignore into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
+      dict(
+        detector_id=i.detector_id,
+        summary=i.summary,
+        confidence=i.confidence,
+        cvss3_vector=i.cvss3_vector,
+        cvss3_score=i.cvss3_score,
+        synopsis=noneif(i.synopsis, ''),
+        description=noneif(i.description, ''),
+        seealso=noneif(i.seealso, ''),
+        solution=noneif(i.solution, ''),
+        info1=noneif(i.info1, ''),
+        info2=noneif(i.info2, ''),
+        info3=noneif(i.info3, ''),
+        source=noneif(i.source, ''),
+        row=noneif(i.row, ''),
+        col=noneif(i.col, ''),
+      ))
 
   def issue_clear(self) -> None:
     self.db.execute('delete from analysis_issues')
 
   def issues(self) -> Iterable[Issue]:
-    from trueseeing.core.issue import Issue
     for m in self.db.execute('select * from analysis_issues'):
-      yield Issue.from_analysis_issues_row(m)
+      yield self._issue_from_row(m)
 
   def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, str, str, str, str, float, str]]]:
     for no, row in enumerate(self.db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
       yield no, row
 
   def issues_by_group(self, *, detector: str, summary: str, cvss3_score: float) -> Iterable[Issue]:
-    for m in self.db.execute('select * from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', dict(detector=detector, summary=summary, cvss3_score=cvss3_score)):
-      yield Issue.from_analysis_issues_row(m)
+    for m in self.db.execute('select detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', dict(detector=detector, summary=summary, cvss3_score=cvss3_score)):
+      yield self._issue_from_row(m)
+
+  @staticmethod
+  def _issue_from_row(r: Tuple[Any, ...]) -> Issue:
+    return Issue(
+      detector_id=r[0],
+      summary=r[1],
+      confidence=r[9],
+      cvss3_vector=r[11],
+      cvss3_score=r[10],
+      synopsis=r[2] if r[2] else None,
+      description=r[3] if r[3] else None,
+      seealso=r[4] if r[4] else None,
+      solution=r[5] if r[5] else None,
+      info1=r[6] if r[6] else None,
+      info2=r[7] if r[7] else None,
+      info3=r[8] if r[8] else None,
+      source=r[12] if r[12] else None,
+      row=r[13] if r[13] else None,
+      col=r[14] if r[14] else None,
+    )
