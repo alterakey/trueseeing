@@ -41,7 +41,7 @@ If you want to run statelessly you omit mounting volume onto /cache (not recomme
 Alternatively, you can install it with pip as follows. This might be useful for extensions, as it allows us the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
 
 	$ pip install --user trueseeing
-
+	$ trueseeing
 
 ## Usage
 
