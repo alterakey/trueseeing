@@ -956,19 +956,17 @@ class Runner:
     _ = args.popleft()
     apk = self._target
 
-    import os.path
-    import shutil
     import time
 
     at = time.time()
 
-    context = self._get_context(self._target)
-    path = os.path.join(context.wd, 'p')
-    if not os.path.exists(path):
-      ui.fatal('nothing to discard')
+    context = await self._get_context_analyzed(self._target, level=2)
+    with context.store().query().scoped() as q:
+      if not q.patch_exists(None):
+        ui.fatal('nothing to discard')
+      ui.info('discarding patches to {apk}'.format(apk=apk))
+      q.patch_clear()
 
-    ui.info('discarding patches to {apk}'.format(apk=apk))
-    shutil.rmtree(path)
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
   async def _exploit_apply(self, args: deque[str]) -> None:
@@ -989,38 +987,31 @@ class Runner:
 
     at = time.time()
 
-    context = self._get_context(self._target)
-    path = os.path.join(context.wd, 'p')
-    if not os.path.exists(path):
-      ui.fatal('nothing to apply')
+    context = await self._get_context_analyzed(self._target, level=2)
+    with context.store().query().scoped() as q:
+      if not q.patch_exists(None):
+        ui.fatal('nothing to apply')
 
-    with TemporaryDirectory() as td:
-      ui.info('applying patches to {apk}'.format(apk=apk))
-      outapk, outsig = await self._assemble_apk_from_path(td, path)
+      with TemporaryDirectory(dir=context.wd) as td:
+        ui.info('applying patches to {apk}'.format(apk=apk))
+        root = os.path.join(td, 'f')
 
-      if os.path.exists(apk):
-        self._move_apk(apk, origapk)
+        for path,blob in q.file_enum(None, patched=True):
+          target = os.path.join(root, *path.split('/'))
+          os.makedirs(os.path.dirname(target), exist_ok=True)
+          with open(target, 'wb') as f:
+            f.write(blob)
 
-      self._move_apk(outapk, apk)
+        outapk, outsig = await self._assemble_apk_from_path(td, root)
+
+        if os.path.exists(apk):
+          self._move_apk(apk, origapk)
+
+        self._move_apk(outapk, apk)
+
+      q.patch_clear()
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
-
-  async def _prep_exploit(self, ctx: Context) -> None:
-    import os.path
-    from trueseeing.core.tools import invoke_passthru, toolchains
-
-    ctx.create(exist_ok=True)
-
-    apk = os.path.join(ctx.wd, 'target.apk')
-    path = os.path.join(ctx.wd, 'p')
-    if not os.path.exists(path):
-      with toolchains() as tc:
-        await invoke_passthru(
-          '(java -jar {apkeditor} d -o {path} -i {apk} -dex)'.format(
-            apk=apk, path=path,
-            apkeditor=tc['apkeditor'],
-          )
-        )
 
   async def _exploit_disable_pinning(self, args: deque[str]) -> None:
     self._require_target()
@@ -1028,53 +1019,48 @@ class Runner:
 
     _ = args.popleft()
 
-    import os.path
     import time
-    import shutil
     import random
-    from importlib.resources import as_file, files
+    from importlib.resources import files
 
     ui.info('disabling declarative TLS pinning {apk}'.format(apk=self._target))
 
     at = time.time()
-    context = self._get_context(self._target)
+    context = await self._get_context_analyzed(self._target, level=2)
+    with context.store().query().scoped() as q:
+      key = 'nsc{:04x}'.format(random.randint(0, 2**16))
 
-    await self._prep_exploit(context)
-    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-    key = 'nsc{:04x}'.format(random.randint(0, 2**16))
+      path = 'AndroidManifest.xml'
+      blob = q.file_get(path, patched=True)
+      assert blob is not None
 
-    manif = self._parsed_manifest(path)
-    for e in manif.xpath('.//application'):
-      e.attrib['{http://schemas.android.com/apk/res/android}usesCleartextTraffic'] = "true"
-      e.attrib['{http://schemas.android.com/apk/res/android}networkSecurityConfig'] = f'@xml/{key}'
-    with open(path, 'wb') as f:
-      f.write(self._manifest_as_xml(manif))
+      manif = self._parsed_manifest(blob)
+      for e in manif.xpath('.//application'):
+        e.attrib['{http://schemas.android.com/apk/res/android}usesCleartextTraffic'] = "true"
+        e.attrib['{http://schemas.android.com/apk/res/android}networkSecurityConfig'] = f'@xml/{key}'
+      q.patch_put(path, self._manifest_as_xml(manif))
 
-    # XXX
-    path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'xml', f'{key}.xml')
-    with as_file(files('trueseeing')/'libs'/'nsc.xml') as nscpath:
-      shutil.copy(nscpath, path)
+      # XXX
+      path = f'resources/package_1/res/xml/{key}.xml'
+      q.patch_put(path, (files('trueseeing')/'libs'/'nsc.xml').read_bytes())
 
-    # XXX
-    import lxml.etree as ET
-    path = os.path.join(context.wd, 'p', 'resources', 'package_1', 'res', 'values', 'public.xml')
-    with open(path, 'rb') as f:
-      root = ET.fromstring(f.read(), parser=ET.XMLParser(recover=True))
-    if root.xpath('./public[@type="xml"]'):
-      maxid = max(int(e.attrib["id"], 16) for e in root.xpath('./public[@type="xml"]'))
-      n = ET.SubElement(root, 'public')
-      n.attrib['id'] = f'0x{maxid+1:08x}'
-      n.attrib['type'] = 'xml'
-      n.attrib['name'] = key
-    else:
-      maxid = (max(int(e.attrib["id"], 16) for e in root.xpath('./public')) & 0xffff0000)
-      n = ET.SubElement(root, 'public')
-      n.attrib['id'] = f'0x{maxid+0x10000:08x}'
-      n.attrib['type'] = 'xml'
-      n.attrib['name'] = key
-
-    with open(path, 'wb') as f1:
-      f1.write(ET.tostring(root))
+      # XXX
+      import lxml.etree as ET
+      path = 'resources/package_1/res/values/public.xml'
+      root = ET.fromstring(q.file_get(path, patched=True), parser=ET.XMLParser(recover=True))
+      if root.xpath('./public[@type="xml"]'):
+        maxid = max(int(e.attrib["id"], 16) for e in root.xpath('./public[@type="xml"]'))
+        n = ET.SubElement(root, 'public')
+        n.attrib['id'] = f'0x{maxid+1:08x}'
+        n.attrib['type'] = 'xml'
+        n.attrib['name'] = key
+      else:
+        maxid = (max(int(e.attrib["id"], 16) for e in root.xpath('./public')) & 0xffff0000)
+        n = ET.SubElement(root, 'public')
+        n.attrib['id'] = f'0x{maxid+0x10000:08x}'
+        n.attrib['type'] = 'xml'
+        n.attrib['name'] = key
+      q.patch_put(path, ET.tostring(root))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1084,21 +1070,20 @@ class Runner:
 
     _ = args.popleft()
 
-    import os.path
     import time
 
     ui.info('enabling debug {apk}'.format(apk=self._target))
 
     at = time.time()
-    context = self._get_context(self._target)
-    await self._prep_exploit(context)
-
-    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-    manif = self._parsed_manifest(path)
-    for e in manif.xpath('.//application'):
-      e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "true"
-    with open(path, 'wb') as f:
-      f.write(self._manifest_as_xml(manif))
+    context = await self._get_context_analyzed(self._target, level=2)
+    with context.store().query().scoped() as q:
+      path = 'AndroidManifest.xml'
+      blob = q.file_get(path, patched=True)
+      assert blob is not None
+      manif = self._parsed_manifest(blob)
+      for e in manif.xpath('.//application'):
+        e.attrib['{http://schemas.android.com/apk/res/android}debuggable'] = "true"
+      q.patch_put(path, self._manifest_as_xml(manif))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1108,23 +1093,22 @@ class Runner:
 
     _ = args.popleft()
 
-    import os.path
     import time
 
     ui.info('enabling full backup {apk}'.format(apk=self._target))
 
     at = time.time()
-    context = self._get_context(self._target)
-    await self._prep_exploit(context)
-
-    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-    manif = self._parsed_manifest(path)
-    for e in manif.xpath('.//application'):
-      e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "true"
-      if '{http://schemas.android.com/apk/res/android}fullBackupContent' in e.attrib:
-        del e.attrib['{http://schemas.android.com/apk/res/android}fullBackupContent']
-    with open(path, 'wb') as f:
-      f.write(self._manifest_as_xml(manif))
+    context = await self._get_context_analyzed(self._target, level=1)
+    with context.store().query().scoped() as q:
+      path = 'AndroidManifest.xml'
+      blob = q.file_get(path, patched=True)
+      assert blob is not None
+      manif = self._parsed_manifest(blob)
+      for e in manif.xpath('.//application'):
+        e.attrib['{http://schemas.android.com/apk/res/android}allowBackup'] = "true"
+        if '{http://schemas.android.com/apk/res/android}fullBackupContent' in e.attrib:
+          del e.attrib['{http://schemas.android.com/apk/res/android}fullBackupContent']
+      q.patch_put(path, self._manifest_as_xml(manif))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1139,29 +1123,28 @@ class Runner:
     except (IndexError, ValueError):
       ui.fatal('need API level')
 
-    import os.path
     import time
 
     ui.info('retargetting API level {level} {apk}'.format(level=level, apk=self._target))
 
     at = time.time()
 
-    context = self._get_context(self._target)
-    await self._prep_exploit(context)
-
-    path = os.path.join(context.wd, 'p', 'AndroidManifest.xml')
-    manif = self._parsed_manifest(path)
-    for e in manif.xpath('.//uses-sdk'):
-      e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
-      minLevel = int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
-      if level < minLevel:
-        if not cmd.endswith('!'):
-          ui.fatal('cannot target API level below requirement ({minlv}); force (!) to downgrade altogether'.format(minlv=minLevel))
-        else:
-          ui.warn('downgrading the requirement')
-          e.attrib['{http://schemas.android.com/apk/res/android}minSdkVersion'] = str(level)
-    with open(path, 'wb') as f:
-      f.write(self._manifest_as_xml(manif))
+    context = await self._get_context_analyzed(self._target, level=2)
+    with context.store().query().scoped() as q:
+      path = 'AndroidManifest.xml'
+      blob = q.file_get(path, patched=True)
+      assert blob is not None
+      manif = self._parsed_manifest(blob)
+      for e in manif.xpath('.//uses-sdk'):
+        e.attrib['{http://schemas.android.com/apk/res/android}targetSdkVersion'] = str(level)
+        minLevel = int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
+        if level < minLevel:
+          if not cmd.endswith('!'):
+            ui.fatal('cannot target API level below requirement ({minlv}); force (!) to downgrade altogether'.format(minlv=minLevel))
+          else:
+            ui.warn('downgrading the requirement')
+            e.attrib['{http://schemas.android.com/apk/res/android}minSdkVersion'] = str(level)
+      q.patch_put(path, self._manifest_as_xml(manif))
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -1263,15 +1246,17 @@ class Runner:
     ui.info('size         {}'.format(os.stat(apk).st_size))
 
     context = self._get_context(self._target)
-    analyzed = context.get_analysis_level()
 
+    ui.info('fp           {}'.format(context.fingerprint_of()))
+    ui.info('ctx          {}'.format(context.wd))
+
+    patched = context.has_patches()
+    analyzed = context.get_analysis_level()
     if analyzed < level:
       await context.analyze(level=level)
       analyzed = level
 
-    ui.info('fp           {}'.format(context.fingerprint_of()))
-    ui.info('ctx          {}'.format(context.wd))
-    ui.info('has patch?   {}'.format(boolmap[os.path.exists(os.path.join(context.wd, 'p', 'AndroidManifest.xml'))]))
+    ui.info('has patch?   {}'.format(boolmap[patched]))
     ui.info('analyzed?    {}{}'.format(
       self._decode_analysis_level(analyzed),
       ' ({})'.format(analysisguidemap[analyzed]) if analyzed < 3 else '',
@@ -1331,10 +1316,9 @@ class Runner:
 
     self._target = args.popleft()
 
-  def _parsed_manifest(self, path: str) -> Any:
+  def _parsed_manifest(self, blob: bytes) -> Any:
     import lxml.etree as ET
-    with open(path, 'rb') as f:
-      return ET.parse(f, parser=ET.XMLParser(recover=True))
+    return ET.fromstring(blob, parser=ET.XMLParser(recover=True))
 
   def _manifest_as_xml(self, manifest: Any) -> bytes:
     import lxml.etree as ET

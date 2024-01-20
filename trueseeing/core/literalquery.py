@@ -1,12 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from contextlib import contextmanager
 from trueseeing.core.code.model import Op
 from trueseeing.core.issue import Issue
 from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
-  from typing import Any, Iterable, Tuple, Dict, Optional
+  from typing import Any, Iterable, Tuple, Dict, Optional, Iterator
   from trueseeing.core.store import Store
   from trueseeing.core.code.model import InvocationPattern
 
@@ -50,6 +51,11 @@ class Query:
       self.db = store.db
     else:
       raise RuntimeError('store or c is required')
+
+  @contextmanager
+  def scoped(self) -> Iterator[Query]:
+    with self.db:
+      yield self
 
   @staticmethod
   def _op_from_row(r: Tuple[Any, ...]) -> Op:
@@ -184,7 +190,7 @@ class Query:
 
   def file_get(self, path: str, default: Optional[bytes] = None, patched: bool = False) -> Optional[bytes]:
     stmt0 = 'select blob from files where path=:path'
-    stmt1 = 'select coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path=:path'
+    stmt1 = 'select coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path=:path'
     for b, in self.db.execute(stmt1 if patched else stmt0, dict(path=path)):
       return b # type:ignore[no-any-return]
     else:
@@ -201,12 +207,13 @@ class Query:
   def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
       stmt0 = 'select path, blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select path, coalesce(B.blob, A.blob) as blob from files as A left join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt1 = 'select path, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
       for n, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
         yield n, o
     else:
       stmt2 = 'select path, blob from files'
-      for n, o in self.db.execute(stmt2):
+      stmt3 = 'select path, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path)'
+      for n, o in self.db.execute(stmt3 if patched else stmt2):
         yield n, o
 
   def file_put_batch(self, gen: Iterable[Tuple[str, bytes]]) -> None:
@@ -224,6 +231,14 @@ class Query:
 
   def patch_put(self, path: str, blob: bytes) -> None:
     self.db.execute('replace into patches (path, blob) values (:path,:blob)', dict(path=path, blob=blob))
+
+  def patch_exists(self, path: Optional[str]) -> bool:
+    stmt0 = 'select 1 from patches where path=:path'
+    stmt1 = 'select 1 from patches'
+    for r, in self.db.execute(stmt0 if path is not None else stmt1, dict(path=path)):
+      return True
+    else:
+      return False
 
   def patch_clear(self) -> None:
     self.db.execute('delete from patches')

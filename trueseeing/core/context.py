@@ -46,9 +46,18 @@ class Context:
       shutil.rmtree(self.wd)
     self._store = None
 
+  def exists(self) -> bool:
+    return os.path.isdir(self.wd)
+
   def create(self, exist_ok: bool = False) -> None:
     os.makedirs(self.wd, mode=0o700, exist_ok=exist_ok)
     self._copy_target()
+
+  def has_patches(self) -> bool:
+    if self.exists():
+      return self.store().query().patch_exists(None)
+    else:
+      return False
 
   def _get_analysis_flag_name(self, level: int) -> str:
     return f'.done{level}' if level < 3 else '.done'
