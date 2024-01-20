@@ -34,3 +34,7 @@ def get_adb_host() -> Optional[str]:
 @lru_cache(maxsize=None)
 def is_in_container() -> bool:
   return 'TS2_IN_DOCKER' in os.environ
+
+@lru_cache(maxsize=None)
+def get_shell() -> str:
+  return os.environ.get('SHELL', '/bin/sh')

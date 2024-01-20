@@ -342,8 +342,9 @@ class Runner:
     await self._analyze(args, level=3)
 
   async def _shell(self, args: deque[str]) -> None:
-    from asyncio import create_subprocess_shell
-    await (await create_subprocess_shell('sh', shell=True)).wait()
+    from trueseeing.core.env import get_shell
+    from asyncio import create_subprocess_exec
+    await (await create_subprocess_exec(get_shell())).wait()
 
   async def _scan(self, args: deque[str]) -> None:
     self._require_target()
