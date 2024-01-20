@@ -231,6 +231,13 @@ Scan mode (DEPRECATED):
 def entry() -> None:
   from trueseeing.core.exc import FatalError
   try:
+    _require_platform()
     Shell().invoke()
   except FatalError:
     sys.exit(2)
+
+def _require_platform() -> None:
+  import sys
+  val = sys.platform
+  if val == 'win32':
+    ui.fatal(f'platform not supported: {val} (consider using containers)')

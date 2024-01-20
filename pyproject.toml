@@ -9,6 +9,10 @@ authors = [
 ]
 classifiers = [
     "Topic :: Security",
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: POSIX :: BSD",
+    "Operating System :: MacOS :: MacOS X",
     "Operating System :: Android",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
