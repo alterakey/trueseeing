@@ -5,7 +5,6 @@ import asyncio
 import functools
 from contextlib import contextmanager
 from trueseeing.core.ui import ui
-from trueseeing.core.env import is_in_container
 
 if TYPE_CHECKING:
   from pathlib import Path
@@ -37,32 +36,22 @@ def _check_return_code(p: Any, args: Any, out: Any, err: Any) -> None:
     raise CalledProcessError(p.returncode, args, out, err)
 
 @functools.lru_cache(maxsize=1)
-def _detect_build_tools() -> str:
-  import os.path
-  import glob
+def require_in_path(cmd: str, cmdline: str) -> None:
+  from subprocess import run, CalledProcessError
   try:
-    return list(sorted(glob.glob(os.path.join(os.environ['ANDROID_HOME'], 'build-tools', '*'))))[-1]
-  except KeyError:
-    ui.fatal('ANDROID_HOME required')
-  except IndexError:
-    ui.fatal('No build tool detected; install one')
-
-def _invoke_path() -> Any:
-  import os
-  env = os.environ
-  if not is_in_container():
-    env.update(dict(PATH=os.pathsep.join([_detect_build_tools(), env.get('PATH', '')])))
-  return env
+    run(cmdline, capture_output=True, check=True, shell=True)
+  except CalledProcessError:
+    ui.fatal('not found: {cmd}')
 
 async def invoke(as_: str, redir_stderr: bool = False) -> str:
   from subprocess import PIPE, STDOUT
-  p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None), env=_invoke_path())
+  p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
   out, _ = await p.communicate()
   _check_return_code(p, as_, out, None)
   return out.decode('UTF-8')
 
 async def invoke_passthru(as_: str, nocheck: bool = False) -> None:
-  p = await asyncio.create_subprocess_shell(as_, env=_invoke_path())
+  p = await asyncio.create_subprocess_shell(as_)
   await p.communicate()
   if not nocheck:
     _check_return_code(p, as_, None, None)
@@ -77,6 +66,7 @@ async def try_invoke(as_: str) -> Optional[str]:
 @contextmanager
 def toolchains() -> Iterator[Toolchain]:
   from importlib.resources import files, as_file
+  require_in_path('java', 'java -version')
   with as_file(files('trueseeing')/'libs'/'apkeditor.jar') as apkeditorpath:
     with as_file(files('trueseeing')/'libs'/'apksigner.jar') as apksignerpath:
       yield dict(
