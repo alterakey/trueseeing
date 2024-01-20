@@ -12,12 +12,20 @@ def get_home_dir() -> str:
   return os.environ.get('TS2_HOME', os.path.join(os.environ['HOME'], '.trueseeing2'))
 
 @lru_cache(maxsize=None)
-def get_cache_dir(target: str) -> str:
+def get_cache_dir() -> str:
+  return get_cache_dir_v2()
+
+@lru_cache(maxsize=None)
+def get_cache_dir_v0() -> str:
+  return get_home_dir()
+
+@lru_cache(maxsize=None)
+def get_cache_dir_v1(target: str) -> str:
   return os.environ.get('TS2_CACHEDIR', os.path.dirname(target))
 
 @lru_cache(maxsize=None)
-def is_cache_dir_static() -> bool:
-  return 'TS2_CACHEDIR' in os.environ
+def get_cache_dir_v2() -> str:
+  return os.environ.get('TS2_CACHEDIR', os.path.join(get_home_dir(), 'cache'))
 
 @lru_cache(maxsize=None)
 def get_adb_host() -> Optional[str]:
