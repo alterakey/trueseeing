@@ -39,9 +39,8 @@ class APKDisassembler:
       os.chdir(self._context.wd)
       c = sqlite3.connect(archive)
       query = Query(c=c)
-      with c:
-        StorePrep(c).stage0()
-        FileTablePrep(c).prepare()
+      StorePrep(c).stage0()
+      FileTablePrep(c).prepare()
 
       with c:
         with toolchains() as tc:
