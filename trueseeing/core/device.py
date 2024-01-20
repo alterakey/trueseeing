@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import functools
 from trueseeing.core.env import get_adb_host
 from trueseeing.core.tools import invoke, invoke_passthru
 from trueseeing.core.ui import ui
@@ -13,11 +14,13 @@ class AndroidDevice:
     pass
 
   async def invoke_adb(self, cmd: str) -> str:
+    self._require_adb()
     line = self._get_adb_cmdline(cmd)
     ui.debug("invoking: {line}")
     return await invoke(line)
 
   async def invoke_adb_passthru(self, cmd: str) -> None:
+    self._require_adb()
     line = self._get_adb_cmdline(cmd)
     ui.debug("invoking: {line}")
     await invoke_passthru(line)
@@ -30,3 +33,8 @@ class AndroidDevice:
       cmd=cmd
     )
     return line
+
+  @functools.lru_cache(maxsize=1)
+  def _require_adb(self) -> None:
+    from trueseeing.core.tools import require_in_path
+    require_in_path('adb', 'adb version')
