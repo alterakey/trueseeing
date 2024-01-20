@@ -21,17 +21,27 @@ Currently we can:
 
 ## Installation
 
+### Containers
+
 NOTE:
  * As of 2.1.9, we are on ghcr.io. (Docker Hub is somewhat deprecated)
  * Requires adbd in the host to control devices.
 
-We provide containers so you can use right away as follows; now this is also the recommended way to run:
+We provide containers so you can use right away as follows; now this is also the recommended way, and the only way if you are on Windows, to run:
 
 	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing
 
 If you want to run statelessly you omit mounting volume onto /cache (not recommended for day-to-day use though; also see [#254](https://github.com/alterakey/trueseeing/issues/254)):
 
 	$ docker run --rm -v $(pwd):/out ghcr.io/alterakey/trueseeing
+
+
+### With pip
+
+Alternatively, you can install it with pip as follows. This might be useful for extensions, as it allows us the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
+
+	$ pip install --user trueseeing
+
 
 ## Usage
 
@@ -40,7 +50,7 @@ If you want to run statelessly you omit mounting volume onto /cache (not recomme
 With trueseeing you can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
 	$ docker run -it --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --inspect target.apk
-	[+] trueseeing 2.1.9 [inspect mode]
+	[+] trueseeing 2.1.9
 	ts[target.apk]> ?
 	...
 	ts[target.apk]> i                      # show generic information
