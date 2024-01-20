@@ -8,7 +8,7 @@ import re
 import shutil
 
 from trueseeing.core.ui import ui
-from trueseeing.core.env import is_cache_dir_static, get_cache_dir
+from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v1
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional
@@ -27,7 +27,29 @@ class Context:
 
   def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
-    return os.path.join(get_cache_dir(self._apk), hashed if is_cache_dir_static() else f'.trueseeing2-{hashed}')
+    return self._find_workdir(hashed)
+
+  def _find_workdir(self, fp: str) -> str:
+    path = self._get_workdir(fp)
+    if os.path.isdir(path):
+      return path
+    else:
+      paths = dict(v0=self._get_workdir_v0(fp), v1=self._get_workdir_v1(fp))
+      for vers,trypath in paths.items():
+        if os.path.isdir(trypath):
+          ui.warn(f'cpntext uses old path ({vers}), consider moving it to {path}')
+          return trypath
+      else:
+        return path
+
+  def _get_workdir(self, fp: str) -> str:
+    return os.path.join(get_cache_dir(), fp)
+
+  def _get_workdir_v1(self, fp: str) -> str:
+    return os.path.join(get_cache_dir_v1(self._apk), f'.trueseeing2-{fp}')
+
+  def _get_workdir_v0(self, fp: str) -> str:
+    return os.path.join(get_cache_dir_v0(), fp)
 
   def store(self) -> Store:
     if self._store is None:
