@@ -23,9 +23,12 @@ class UI:
 
   _seen: Set[str] = set()
 
-  def is_tty(self) -> bool:
+  def is_tty(self, stdin: bool = False) -> bool:
     from os import isatty
-    return isatty(sys.stdout.fileno())
+    if not stdin:
+      return isatty(sys.stderr.fileno())
+    else:
+      return isatty(sys.stdin.fileno())
 
   def enter_inspect(self) -> None:
     self._is_inspecting = True
@@ -37,10 +40,11 @@ class UI:
     self.level = level
     self.is_debugging = (self.level == self.DEBUG)
 
+  # XXX: check color capability on our own because we are coloring stderr -- termcolor cares stdout only.
   @cache
   def colored(self, x: str, **kw: Any) -> str:
     from termcolor import colored
-    return colored(x, **kw)
+    return colored(x, force_color=self._can_do_colour_stderr(), **kw)
 
   def fatal(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> NoReturn:
     if not self._is_inspecting:
@@ -118,6 +122,29 @@ class UI:
       return msg
     else:
       return '{flag} {msg}'.format(flag=self.colored(f'[{flag}]', **kw), msg=msg)
+
+  # termcolor 2.4 compatible color capability checker
+  @cache
+  def _can_do_colour_stderr(self) -> bool:
+    from io import UnsupportedOperation
+    from os import environ, isatty
+
+    if "ANSI_COLORS_DISABLED" in environ:
+      return False
+    if "NO_COLOR" in environ:
+      return False
+    if "FORCE_COLOR" in environ:
+      return True
+
+    if environ.get("TERM") == "dumb":
+      return False
+    if not hasattr(sys.stderr, "fileno"):
+      return False
+
+    try:
+      return isatty(sys.stderr.fileno())
+    except UnsupportedOperation:
+      return sys.stderr.isatty()
 
 
 ui = UI()
