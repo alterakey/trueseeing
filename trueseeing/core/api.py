@@ -4,7 +4,7 @@ import os.path
 from typing import TYPE_CHECKING
 
 from trueseeing.core.ui import ui
-from trueseeing.core.env import get_home_dir
+from trueseeing.core.env import get_extension_dir, get_extension_dir_v0
 
 if TYPE_CHECKING:
   from typing import Any, Dict, ClassVar, Optional, Iterable
@@ -30,7 +30,16 @@ class Extension:
     globals_: Dict[str, Any] = dict(__name__='__main__', ui=ui)
     locals_: Dict[str, Any] = dict()
     try:
-      starter = self._importer(os.path.join(get_home_dir(), self._module_name))
+      starter: Optional[str] = None
+      path = get_extension_dir()
+      if os.path.isdir(path):
+        starter = self._importer(path)
+      else:
+        for trypath in self._get_extensions_v0():
+          if os.path.exists(trypath):
+            ui.warn('extension uses old path ({vers}), consider moving it to {path}'.format(vers='v0', path=os.path.join(get_extension_dir(), os.path.basename(trypath))))
+            starter = self._importer_v0(trypath)
+            break
       if starter is not None:
         code = compile(starter, filename='<string>', mode='exec')
         exec(code, globals_, locals_)
@@ -42,28 +51,47 @@ class Extension:
       return {}
 
   def patch_context(self, context: Context) -> None:
-    if 'patch_context' in self._ns:
-      self._ns['patch_context'](context)
+    for n,m in self._ns.items():
+      if hasattr(m, 'patch_context'):
+        getattr(m, 'patch_context')(context)
 
   def patch_signatures(self, sigs: Signatures) -> None:
-    if 'patch_signatures' in self._ns:
-      self._ns['patch_signatures'](sigs)
+    for n,m in self._ns.items():
+      if hasattr(m, 'patch_signatures'):
+        getattr(m, 'patch_signatures')(sigs)
 
   # XXX: gross hack
-  def _importer(self, path: str) -> Optional[str]:
+  def _importer(self, path: str, /, only: Optional[str] = None) -> Optional[str]:
+    from glob import iglob
     import re
     path = os.path.expandvars(os.path.expanduser(path))
-    dirname = os.path.dirname(path)
-    basename = os.path.splitext(os.path.basename(path))[0]
-    if any([os.path.exists(x) for x in self._as_module_filenames(path)]):
-      if re.fullmatch(r'[0-9A-Za-z_]+', basename):
-        return f'import sys\ntry:\n sys.dont_write_bytecode=True;sys.path.insert(0,"{dirname}");from {basename} import *\nfinally:\n sys.dont_write_bytecode=False;sys.path.pop(0)'
-      else:
-        raise ValueError(f'invalid filename: {basename}')
-    else:
-      return None
+    mods: Dict[str, str] = dict()
+    fns: Iterable[str] = iglob(f'{path}/*') if not only else [os.path.join(path, only)]
+    for fn in fns:
+      bn = os.path.basename(fn)
+      ns, ne = os.path.splitext(bn)
+      if not re.fullmatch(r'[0-9A-Za-z_]+', ns):
+        ui.warn(f'cannot load extension {bn}: invalid filename')
+        continue
+      if ne and ne not in ['py', 'pyc', 'pyo']:
+        ui.warn(f'cannot load extension {bn}: invalid filename')
+        continue
+      mods[bn] = ns
 
-  @staticmethod
-  def _as_module_filenames(fn: str) -> Iterable[str]:
-    for suffix in '', '.pyc', '.py':
-      yield fn + suffix
+    return 'import sys\ntry:\n sys.dont_write_bytecode=True;sys.path.insert(0,"{path}");\n{importblock}\nfinally:\n sys.dont_write_bytecode=False;sys.path.pop(0);del sys'.format(
+      path=path,
+      importblock='\n'.join([
+        ' try:\n'
+        '  import {ns}\n'
+        ' except Exception as e:\n'
+        '  ui.warn(f"cannot load extension {bn}: {{e}}")\n'.format(ns=ns, bn=bn) for bn, ns in mods.items()
+      ])
+    )
+
+  def _importer_v0(self, path: str) -> Optional[str]:
+    root = get_extension_dir_v0()
+    return self._importer(root, only=os.path.relpath(path, start=root))
+
+  def _get_extensions_v0(self) -> Iterable[str]:
+    for fn in 'ext.pyc', 'ext.py', 'ext':
+      yield os.path.join(get_extension_dir_v0(), fn)
