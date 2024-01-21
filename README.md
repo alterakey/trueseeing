@@ -108,6 +108,15 @@ To get report generated in stdout, specify '-' as filename:
 	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=html --scan-output - target.apk > report.html
 	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=json --scan-output - target.apk > report.json
 
+## Advanced Usages
+
+### Extensions
+
+You can write your own signatures etc. as extensions.  Extensions are placed under `/ext` (containers) or `~/.trueseeing2/extensions/` (pip) . We provide type information so you can not only type-check your extensions with `mypy` but also get a decent assist from IDEs.
+
+_TBD: Document extension APIs_
+
+
 ## Build
 
 To build:
