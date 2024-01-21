@@ -8,7 +8,7 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from pathlib import Path
-  from typing import Any, Optional, AsyncIterable, TypeVar, List, Iterator, TypedDict
+  from typing import Any, Optional, AsyncIterable, TypeVar, List, Iterator, TypedDict, AsyncIterator
   T = TypeVar('T')
 
   class Toolchain(TypedDict):
@@ -31,9 +31,14 @@ async def list_async(iter: AsyncIterable[T]) -> List[T]:
   return o
 
 def _check_return_code(p: Any, args: Any, out: Any, err: Any) -> None:
-  if p.returncode:
+  code: int
+  if isinstance(p, int):
+    code = p
+  elif hasattr(p, 'returncode'):
+    code = p.returncode
+  if code:
     from subprocess import CalledProcessError
-    raise CalledProcessError(p.returncode, args, out, err)
+    raise CalledProcessError(code, args, out, err)
 
 @functools.lru_cache(maxsize=1)
 def require_in_path(cmd: str, cmdline: str) -> None:
@@ -55,6 +60,14 @@ async def invoke_passthru(as_: str, nocheck: bool = False) -> None:
   await p.communicate()
   if not nocheck:
     _check_return_code(p, as_, None, None)
+
+async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterator[bytes]:
+  from subprocess import PIPE, STDOUT
+  p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
+  if p.stdout is not None:
+    async for l in p.stdout:
+      yield l
+  _check_return_code(await p.wait(), as_, None, None)
 
 async def try_invoke(as_: str) -> Optional[str]:
   from subprocess import CalledProcessError

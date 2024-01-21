@@ -27,6 +27,7 @@ class SmaliAnalyzer:
 
   def analyze(self) -> None:
     import time
+    import progressbar
     from trueseeing.core.literalquery import Query
     analyzed_ops = 0
     analyzed_methods = 0
@@ -35,13 +36,32 @@ class SmaliAnalyzer:
 
     classmap: Set[Tuple[int, int]] = set()
 
-    begin_at = started
     with self._store.db as c:
       c.execute('begin exclusive')
+      q = Query(c=c)
       base_id = 1
-      last_seen = analyzed_ops
+      analyzed_ops = 0
 
-      for _, f in Query(c=c).file_enum('smali/%.smali'):
+      pat = 'smali/%.smali'
+      total = q.file_count(pat)
+
+      if ui.is_tty():
+        bar = progressbar.ProgressBar(
+          max_value=total,
+          widgets=[
+            ui.bullet('info'),
+            'analyze: analyzing... ',
+            progressbar.Percentage(), ' ',  # type:ignore[no-untyped-call]
+            progressbar.GranularBar(), ' ',  # type:ignore[no-untyped-call]
+            progressbar.SimpleProgress(format='%(value_s)s/%(max_value_s)s'), ' ',   # type:ignore[no-untyped-call]
+            '(', progressbar.ETA(), ')'   # type:ignore[no-untyped-call]
+          ]
+        )
+      else:
+        bar = None
+
+      nr = 0
+      for _, f in q.file_enum(pat):
         ops = []
         for op in P.parsed_flat(f.decode('utf-8')):
           analyzed_ops += 1
@@ -65,34 +85,34 @@ class SmaliAnalyzer:
         if start:
           classmap.add(tuple([start, ops[-1]._id])) # type: ignore[arg-type]
 
-        if ui.is_tty():
-          if analyzed_ops - last_seen > 65536:
-            elapsed = time.time() - begin_at
-            ui.info(f"analyze: {analyzed_ops} ops... ({analyzed_ops / elapsed:.02f} ops/s){' '*20}", nl=False, ow=True)
-            last_seen = analyzed_ops
+        if bar is not None:
+          bar.update(nr)   # type:ignore[no-untyped-call]
         else:
-          if analyzed_ops - last_seen > 131072:
-            elapsed = time.time() - begin_at
-            ui.info(f"analyze: ... {analyzed_ops} ops")
-            last_seen = analyzed_ops
+          if (nr % 128) == 0:
+            ui.info(f"analyze: analyzing ... {nr} classes")
+
+        nr += 1
+
+      if bar is not None:
+        bar.finish()   # type:ignore[no-untyped-call]
 
       analyzed_ops = self._store.op_count_ops(c=c)
 
-      if ui.is_tty():
-        ui.info(f"analyze: {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
+      if bar:
+        ui.info(f"analyze: got {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
       else:
         ui.info(f"analyze: ops: {analyzed_ops}")
 
       analyzed_classes = self._store.op_store_classmap(classmap, c=c)
 
-      if ui.is_tty():
-        ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
+      if bar:
+        ui.info(f"analyze: got {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
       else:
         ui.info(f"analyze: classes: {analyzed_classes}")
       analyzed_methods = self._store.op_generate_methodmap(c=c)
 
-    if ui.is_tty():
-      ui.info(f"analyze: {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}", ow=True)
+    if bar:
+      ui.info(f"analyze: got {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}", ow=True)
     else:
       ui.info(f"analyze: methods: {analyzed_methods}")
     ui.info("analyze: finalizing")
