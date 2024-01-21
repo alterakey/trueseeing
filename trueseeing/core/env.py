@@ -38,3 +38,11 @@ def is_in_container() -> bool:
 @lru_cache(maxsize=None)
 def get_shell() -> str:
   return os.environ.get('SHELL', '/bin/sh')
+
+@lru_cache(maxsize=None)
+def get_extension_dir() -> str:
+  return os.environ.get('TS2_EXTDIR', os.path.join(get_home_dir(), 'extensions'))
+
+@lru_cache(maxsize=None)
+def get_extension_dir_v0() -> str:
+  return get_home_dir()
