@@ -216,6 +216,19 @@ class Query:
       for n, o in self.db.execute(stmt3 if patched else stmt2):
         yield n, o
 
+  def file_count(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> int:
+    if pat is not None:
+      stmt0 = 'select count(1) from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt1 = 'select conut(1) from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      for nr, in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
+        return nr # type:ignore[no-any-return]
+    else:
+      stmt2 = 'select count(1) from files'
+      stmt3 = 'select count(1) from files as A full outer join patches as B using (path)'
+      for nr, in self.db.execute(stmt3 if patched else stmt2):
+        return nr # type:ignore[no-any-return]
+    return 0
+
   def file_put_batch(self, gen: Iterable[Tuple[str, bytes]]) -> None:
     self.db.executemany('insert into files (path, blob) values (?,?)', gen)
 

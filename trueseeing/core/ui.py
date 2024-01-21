@@ -46,6 +46,25 @@ class UI:
     from termcolor import colored
     return colored(x, force_color=self._can_do_colour_stderr(), **kw)
 
+  def bullet(self, what: str) -> str:
+    if not self._is_inspecting:
+      return ''
+    if what == 'critical':
+      return self.colored('[!] ', color='red', attrs=('bold',))
+    elif what == 'error':
+      return self.colored('[-] ', color='red', attrs=('bold',))
+    elif what == 'warn':
+      return self.colored('[*] ', color='yellow', attrs=('bold',))
+    elif what == 'info':
+      return self.colored('[*] ', color='blue', attrs=('bold',))
+    elif what == 'debug':
+      return self.colored('[.] ', color='grey', attrs=('bold',))
+    elif what == 'success':
+      return self.colored('[+] ', color='green', attrs=('bold',))
+    elif what == 'failure':
+      return self.colored('[-] ', color='red', attrs=('bold',))
+    assert False, f'invalid type of bullet: {what}'
+
   def fatal(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> NoReturn:
     if not self._is_inspecting:
       self.stderr(f'fatal: {msg}', nl=nl, ow=ow, onetime=onetime, exc=exc)
@@ -55,29 +74,29 @@ class UI:
 
   def critical(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.CRITICAL:
-      self.stderr(self._format_msg(msg, '!', color='red', attrs=('bold',)), nl=nl, ow=ow, onetime=onetime, exc=exc)
+      self.stderr(self._format_msg(msg, 'critical'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
   def error(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.ERROR:
-      self.stderr(self._format_msg(msg, '-', color='red', attrs=('bold',)), nl=nl, ow=ow, onetime=onetime, exc=exc)
+      self.stderr(self._format_msg(msg, 'error'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
   def warn(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.WARN:
-      self.stderr(self._format_msg(msg, '*', color='yellow', attrs=('bold',)), nl=nl, ow=ow, onetime=onetime, exc=exc)
+      self.stderr(self._format_msg(msg, 'warn'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
   def info(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.INFO:
-      self.stderr(self._format_msg(msg, '*', color='blue', attrs=('bold',)), nl=nl, ow=ow, onetime=onetime, exc=exc)
+      self.stderr(self._format_msg(msg, 'info'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
   def debug(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
     if self.level <= self.DEBUG:
-      self.stderr(self._format_msg(msg, '.', color='grey', attrs=('bold',)), nl=nl, ow=ow, onetime=onetime, exc=exc)
+      self.stderr(self._format_msg(msg, 'debug'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
   def success(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
-    self.stderr(self._format_msg(msg, '+', color='green', attrs=('bold',)), nl=nl, ow=ow, onetime=onetime, exc=exc)
+    self.stderr(self._format_msg(msg, 'success'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
   def failure(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
-    self.stderr(self._format_msg(msg, '-', color='red', attrs=('bold',)), nl=nl, ow=ow, onetime=onetime, exc=exc)
+    self.stderr(self._format_msg(msg, 'failure'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
   def stdout(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
     if onetime:
@@ -117,11 +136,8 @@ class UI:
     if nl:
       f.write('\n')
 
-  def _format_msg(self, msg: str, flag: str, **kw: Any) -> str:
-    if not self._is_inspecting:
-      return msg
-    else:
-      return '{flag} {msg}'.format(flag=self.colored(f'[{flag}]', **kw), msg=msg)
+  def _format_msg(self, msg: str, flagtyp: str, **kw: Any) -> str:
+    return '{flag}{msg}'.format(flag=self.bullet(flagtyp), msg=msg)
 
   # termcolor 2.4 compatible color capability checker
   @cache

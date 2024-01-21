@@ -105,7 +105,7 @@ class Context:
         ui.info('analyze: disassembling... ', nl=False)
         self.create()
         disasm = APKDisassembler(self, skip_resources)
-        disasm.disassemble(level)
+        await disasm.disassemble(level)
         ui.info('analyze: disassembling... done.', ow=True)
 
         if level > 2:
