@@ -1303,7 +1303,7 @@ class Runner:
     return await self._info(args, level=1)
 
   async def _info3(self, args: deque[str]) -> None:
-    return await self._info(args, level=2)
+    return await self._info(args, level=3)
 
   async def _set_target(self, args: deque[str]) -> None:
     _ = args.popleft()
