@@ -171,7 +171,7 @@ class Runner:
     self._cmdpats = {
       r'\$[a-zA-Z0-9=]+':dict(e=self._alias, n='$alias=value', d='alias command'),
       r'\(.+\)':dict(e=self._alias2, raw=True, n='(macro x y; cmd; cmd; ..)', d='define macro'),
-      r'\.\(.+\)':dict(e=self._alias2_call, n='.(macro x y)', d='call macro'),
+      r'\.\(.+\)':dict(e=self._alias2_call, raw=True, n='.(macro x y)', d='call macro'),
       r'^\(\*$':dict(e=self._help_alias2, raw=True, n='(*', d='macro help'),
     }
 
@@ -234,7 +234,7 @@ class Runner:
     if not await self._run_raw(s):
       o: deque[str] = deque()
       lex = shlex(s, posix=True, punctuation_chars=';=')
-      lex.wordchars += '@:,!$.()'
+      lex.wordchars += '@:,!$'
       for t in lex:
         if re.fullmatch(';+', t):
           if not await self._run_cmd(o, line=None):
@@ -482,8 +482,33 @@ class Runner:
 
     self._macros[newcmd] = argn, line, body
 
-  async def _alias2_call(self, args: deque[str]) -> None:
-    print(args)
+  async def _alias2_call(self, line: str) -> None:
+    content = re.match(r'\.\((.+)\)', line)
+    assert content is not None
+    lex = shlex(content.group(1), posix=True, punctuation_chars=';=')
+    lex.wordchars += '@:,!$'
+
+    tokens = deque(lex)
+    cmd = tokens.popleft()
+
+    argn, _, body = self._macros[cmd]
+    args = []
+
+    for _ in range(argn):
+      try:
+        t = tokens.popleft()
+      except IndexError:
+        ui.fatal('not enough arg (requires {})'.format(argn))
+      else:
+        args.append(t)
+
+    if tokens:
+      ui.warn('igonring extra {} args'.format(len(tokens)))
+
+    asl: deque[str] = deque()
+    for t in body:
+      asl.append(re.sub(r'\$([0-9]+)', lambda m: args[int(m.group(1))], t))
+    await self._run_cmd(asl, None)
 
   async def _analyze(self, args: deque[str], level: int = 2) -> None:
     self._require_target()
