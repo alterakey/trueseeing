@@ -12,7 +12,7 @@ from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Type, Tuple, Iterator
+  from typing import Mapping, Optional, Any, NoReturn, List, Type, Tuple, Iterator, Dict
   from trueseeing.signature.base import Detector
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context
@@ -92,6 +92,7 @@ class InspectMode:
 
 class Runner:
   _cmds: Mapping[str, Mapping[str, Any]]
+  _cmdpats: Mapping[str, Mapping[str, Any]]
   _quiet: bool = False
   _verbose: bool = False
   _target: Optional[str]
@@ -100,11 +101,13 @@ class Runner:
   def __init__(self, signatures: Signatures, target: Optional[str]) -> None:
     self._sigs = signatures
     self._target = target
+    self._aliases: Dict[str,str] = {}
     self._cmds = {
       '?':dict(e=self._help, n='?', d='help'),
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
       '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
       '?s?':dict(e=self._help_signature, n='?s?', d='signature help'),
+      '?$?':dict(e=self._help_alias, n='?$?', d='alias help'),
       '!':dict(e=self._shell, n='!', d='shell'),
       'a':dict(e=self._analyze, n='a[a][!]', d='analyze target (aa: full analysis)'),
       'a!':dict(e=self._analyze),
@@ -164,6 +167,9 @@ class Runner:
       '/f':dict(e=self._search_file, n='/f [pat]', d='search files those names matching pattern'),
       '/s':dict(e=self._search_string, n='/s pat', d='search files for string'),
     }
+    self._cmdpats = {
+      r'\$[a-zA-Z0-9=]+':dict(e=self._alias, n='$alias=value', d='alias command'),
+    }
 
   def _get_modifiers(self, args: deque[str]) -> List[str]:
     o = []
@@ -215,28 +221,42 @@ class Runner:
 
   async def run(self, s: str) -> None:
     try:
-      o: deque[str] = deque()
-      lex = shlex.shlex(s, posix=True, punctuation_chars=';')
-      lex.wordchars += '@:,!'
-      for t in lex:
-        if re.fullmatch(';+', t):
-          await self._run(o)
-          o.clear()
-        else:
-          o.append(t)
-      if o:
-        await self._run(o)
+      await self._run(s)
     finally:
       self._reset_loglevel()
       self.reset_prompt()
 
-  async def _run(self, tokens: deque[str]) -> None:
-    c = tokens[0]
-    if c not in self._cmds:
+  async def _run(self, s: str) -> None:
+    o: deque[str] = deque()
+    lex = shlex.shlex(s, posix=True, punctuation_chars=';=')
+    lex.wordchars += '@:,!$'
+    for t in lex:
+      if re.fullmatch(';+', t):
+        await self._run_list(o, line=None)
+        o.clear()
+      else:
+        o.append(t)
+    if o:
+      await self._run_list(o, line=s)
+
+  async def _run_list(self, tokens: deque[str], line: Optional[str]) -> None:
+    ent: Any = None
+    if line is not None:
+      for pat in self._cmdpats:
+        m = re.match(pat, line)
+        if m:
+          ent = self._cmdpats[pat]['e']
+          break
+
+    if ent is None:
+      c = tokens[0]
+      if c in self._cmds:
+        ent = self._cmds[c]['e']
+
+    if ent is None:
       ui.error('invalid command, type ? for help')
     else:
       try:
-        ent: Any = self._cmds[c]['e']
         try:
           await ent(tokens)
         except KeyboardInterrupt:
@@ -256,8 +276,14 @@ class Runner:
   async def _help(self, args: deque[str]) -> None:
     ui.success('Commands:')
     width = (2 + max([len(e.get('d', '')) for e in self._cmds.values()]) // 4) * 4
-    for c in sorted(self._cmds):
-      e = self._cmds[c]
+    ents: Dict[str, Any] = dict()
+    for k,v in self._cmds.items():
+      ents[k] = v
+    for k,v in self._cmdpats.items():
+      ents[k] = v
+
+    for k in sorted(ents):
+      e = ents[k]
       if 'n' in e:
         ui.stderr(
           f'{{n:<{width}s}}{{d}}'.format(n=e['n'], d=e['d'])
@@ -300,6 +326,17 @@ class Runner:
         f'{{n:<{width}s}}{{d}}'.format(n=k, d=mods[k])
       )
 
+  async def _help_alias(self, args: deque[str]) -> None:
+    if self._aliases:
+      ui.success('Aliases:')
+      width = 2 + max([len(k) for k in self._aliases.keys()])
+      for k in sorted(self._aliases):
+        ui.stderr(
+          f'${{n:<{width}s}}{{d}}'.format(n=k, d=self._aliases[k])
+        )
+    else:
+      ui.success('no alias known')
+
   def _require_target(self, msg: Optional[str] = None) -> None:
     if self._target is None:
       ui.fatal(msg if msg else 'need target')
@@ -323,6 +360,35 @@ class Runner:
       yield None
     finally:
       DataFlows.set_max_graph_size(o)
+
+  async def _alias(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+    n = cmd[1:]
+
+    if args:
+      op = args.popleft()
+      if op != '=':
+        ui.fatal('alias cannot take arguments')
+      if args:
+        val = args.popleft()
+      else:
+        val = None
+    else:
+      op = None
+      val = None
+
+    if op is None:
+      try:
+        v = self._aliases[n]
+      except KeyError:
+        ui.error('invalid command, type ? for help')
+      else:
+        await self._run(v)
+    elif op == '=':
+      if val is not None:
+        self._aliases[n] = val
+      else:
+        del self._aliases[n]
 
   async def _analyze(self, args: deque[str], level: int = 2) -> None:
     self._require_target()
