@@ -1,12 +1,12 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from collections import deque
 import asyncio
 from contextlib import contextmanager
-import shlex
+from shlex import shlex
 import sys
 import re
-from typing import TYPE_CHECKING
-
 from trueseeing.core.env import is_in_container
 from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
@@ -102,6 +102,7 @@ class Runner:
     self._sigs = signatures
     self._target = target
     self._aliases: Dict[str,str] = {}
+    self._macros: Dict[str, Tuple[int, str, deque[str]]] = {}
     self._cmds = {
       '?':dict(e=self._help, n='?', d='help'),
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
@@ -169,6 +170,9 @@ class Runner:
     }
     self._cmdpats = {
       r'\$[a-zA-Z0-9=]+':dict(e=self._alias, n='$alias=value', d='alias command'),
+      r'\(.+\)':dict(e=self._alias2, raw=True, n='(macro x y; cmd; cmd; ..)', d='define macro'),
+      r'\.\(.+\)':dict(e=self._alias2_call, n='.(macro x y)', d='call macro'),
+      r'^\(\*$':dict(e=self._help_alias2, raw=True, n='(*', d='macro help'),
     }
 
   def _get_modifiers(self, args: deque[str]) -> List[str]:
@@ -227,42 +231,68 @@ class Runner:
       self.reset_prompt()
 
   async def _run(self, s: str) -> None:
-    o: deque[str] = deque()
-    lex = shlex.shlex(s, posix=True, punctuation_chars=';=')
-    lex.wordchars += '@:,!$'
-    for t in lex:
-      if re.fullmatch(';+', t):
-        await self._run_list(o, line=None)
-        o.clear()
-      else:
-        o.append(t)
-    if o:
-      await self._run_list(o, line=s)
+    if not await self._run_raw(s):
+      o: deque[str] = deque()
+      lex = shlex(s, posix=True, punctuation_chars=';=')
+      lex.wordchars += '@:,!$.()'
+      for t in lex:
+        if re.fullmatch(';+', t):
+          if not await self._run_cmd(o, line=None):
+            ui.error('invalid command, type ? for help')
+          o.clear()
+        else:
+          o.append(t)
+      if o:
+        if not await self._run_cmd(o, line=s):
+          ui.error('invalid command, type ? for help')
 
-  async def _run_list(self, tokens: deque[str], line: Optional[str]) -> None:
+  async def _run_raw(self, line: str) -> bool:
+    ent: Any = None
+    for pat in [k for k,v in self._cmdpats.items() if v.get('raw')]:
+      m = re.match(pat, line)
+      if m:
+        ent = self._cmdpats[pat]
+        if m.end() < (len(line) - 1):
+          ui.warn('ignoring trailer: {}'.format(line[m.end():]))
+        break
+    if ent is None:
+      return False
+    else:
+      assert m is not None
+      try:
+        try:
+          await ent['e'](line=m.group(0))
+        except KeyboardInterrupt:
+          ui.fatal('interrupted')
+      except FatalError:
+        pass
+      return True
+
+  async def _run_cmd(self, tokens: deque[str], line: Optional[str]) -> bool:
     ent: Any = None
     if line is not None:
-      for pat in self._cmdpats:
+      for pat in [k for k,v in self._cmdpats.items() if not v.get('raw')]:
         m = re.match(pat, line)
         if m:
-          ent = self._cmdpats[pat]['e']
+          ent = self._cmdpats[pat]
           break
 
     if ent is None:
       c = tokens[0]
       if c in self._cmds:
-        ent = self._cmds[c]['e']
+        ent = self._cmds[c]
 
     if ent is None:
-      ui.error('invalid command, type ? for help')
+      return False
     else:
       try:
         try:
-          await ent(tokens)
+          await ent['e'](args=tokens)
         except KeyboardInterrupt:
           ui.fatal('interrupted')
       except FatalError:
         pass
+      return True
 
   def _reset_loglevel(self, debug:bool = False) -> None:
     ui.set_level(ui.INFO)
@@ -337,6 +367,17 @@ class Runner:
     else:
       ui.success('no alias known')
 
+  async def _help_alias2(self, line: str) -> None:
+    if self._macros:
+      ui.success('Macroes:')
+      width = 2 + max([len(k) for k in self._macros.keys()])
+      for k in sorted(self._macros):
+        ui.stderr(
+          f'{{n:<{width}s}}{{d}}'.format(n=k, d=self._macros[k][1])
+        )
+    else:
+      ui.success('no macro known')
+
   def _require_target(self, msg: Optional[str] = None) -> None:
     if self._target is None:
       ui.fatal(msg if msg else 'need target')
@@ -389,6 +430,60 @@ class Runner:
         self._aliases[n] = val
       else:
         del self._aliases[n]
+
+  async def _alias2(self, line: str) -> None:
+    lex = shlex(line, posix=True, punctuation_chars=';=')
+    lex.wordchars += '@:,!$'
+
+    args = deque(lex)
+    args.popleft()
+
+    newcmd = args.popleft()
+    if not re.fullmatch('-?[a-zA-Z0-9_]+', newcmd):
+      ui.fatal(f'invalid macro name: {newcmd}')
+
+    argn = 0
+    while args:
+      t = args.popleft()
+      if re.fullmatch(';+', t) or t == ')':
+        break
+      elif not re.fullmatch('[a-zA-Z0-9_]+', t):
+        ui.fatal(f'invalid arg name: {t}')
+      else:
+        argn += 1
+
+    body: deque[str] = deque()
+    while args:
+      t = args.popleft()
+      if t == ')':
+        break
+      else:
+        body.append(t)
+
+    if body:
+      if newcmd.startswith('-'):
+        ui.fatal(f'invalid macro name: {newcmd}')
+      for t in body:
+        m = re.search(r'\$([0-9]+)', t)
+        if m:
+          nr = int(m.group(1))
+          if not nr < argn:
+            ui.fatal('arg index out of range: {} (macro takes {} args)'.format(m.group(0), argn))
+    else:
+      if not newcmd.startswith('-'):
+        ui.fatal('invalid macro: no body found')
+      else:
+        cmd = newcmd[1:]
+        try:
+          del self._macros[cmd]
+        except KeyError:
+          ui.fatal(f'macro not found: {cmd}')
+        return
+
+    self._macros[newcmd] = argn, line, body
+
+  async def _alias2_call(self, args: deque[str]) -> None:
+    print(args)
 
   async def _analyze(self, args: deque[str], level: int = 2) -> None:
     self._require_target()
