@@ -93,7 +93,7 @@ class InspectMode:
           assert isinstance(x, Exception)
           if isinstance(x, QuitSession):
             raise x
-          elif isinstance(x, FatalError):
+          elif not isinstance(x, FatalError):
             ui.fatal('unhandled exception', exc=x)
 
 class QuitSession(Exception):
@@ -1356,6 +1356,8 @@ class Runner:
     ui.success('done, {nr} packages found ({t:.02f} sec.)'.format(nr=nr, t=(time.time() - at)))
 
   async def _exploit_device_copyout(self, args: deque[str]) -> None:
+    success: bool = False
+
     cmd = args.popleft()
     if not args:
       ui.fatal('need package name')
@@ -1368,22 +1370,86 @@ class Runner:
     else:
       outfn = args.popleft()
 
+    outfn0 = outfn.replace('.tar', '') + '-int.tar'
+    outfn1 = outfn.replace('.tar', '') + '-ext.tar'
+
     if os.path.exists(outfn) and not cmd.endswith('!'):
       ui.fatal('outfile exists; force (!) to overwrite')
 
     ui.info(f'copying out: {target} -> {outfn}')
 
     import time
+    from subprocess import CalledProcessError
     from trueseeing.core.device import AndroidDevice
+    from trueseeing.core.tools import toolchains, invoke_passthru
 
     at = time.time()
-    tfn = self._generate_tempfilename_for_device()
-    await AndroidDevice().invoke_adb_passthru(f'shell "run-as {target} tar -cv . > {tfn}"')
-    await AndroidDevice().invoke_adb_passthru(f'pull {tfn} {outfn}')
-    await AndroidDevice().invoke_adb_passthru(f'shell rm {tfn}')
-    ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+    dev = AndroidDevice()
+
+    if not await dev.is_fullbackup_available():
+      ui.warn('full backup feature is not available')
+    else:
+      ui.info('initiating a backup on device; give "1" as the password if asked')
+      await dev.invoke_adb_passthru(f'backup -f {outfn}.ab {target}')
+      try:
+        try:
+          with toolchains() as tc:
+            await invoke_passthru('java -jar {abe} unpack {outfn}.ab {outfn} 1'.format(
+              abe=tc['abe'],
+              outfn=outfn,
+            ))
+        except CalledProcessError:
+          ui.warn('unpack failed (did you give the correct password?); trying the next method')
+        else:
+          ui.success('unpack success')
+          if os.stat(outfn).st_size > 1024:
+            ui.success(f'copied out: {outfn}')
+            success = True
+          else:
+            ui.warn('got an empty backup; trying the next method')
+            try:
+              os.remove(outfn)
+            except FileNotFoundError:
+              pass
+      finally:
+        try:
+          os.remove(f'{outfn}.ab')
+        except FileNotFoundError:
+          pass
+
+    if not success:
+      if not await dev.is_package_debuggable(target):
+        ui.warn('target is not debuggable')
+      else:
+        ui.info('target seems debuggable; trying extraction with debug interface')
+
+        tfn0 = self._generate_tempfilename_for_device()
+        ui.info('copying internal storage')
+        await dev.invoke_adb_passthru(f'shell "run-as {target} tar -cv . > {tfn0}"')
+        await dev.invoke_adb_passthru(f'pull {tfn0} {outfn0}')
+        await dev.invoke_adb_passthru(f'shell rm -f {tfn0}')
+        ui.success(f'copied out: {outfn0}')
+
+        ui.info('copying external storage')
+        tfn1 = self._generate_tempfilename_for_device()
+        try:
+          await dev.invoke_adb_passthru(f'shell "cd /storage/emulated/0/Android/ && tar -cv data/{target} obb/{target} > {tfn1}"')
+        except CalledProcessError:
+          ui.warn('detected errors during extraction from external storage (may indicate partial extraction)')
+        await dev.invoke_adb_passthru(f'pull {tfn1} {outfn1}')
+        await dev.invoke_adb_passthru(f'shell rm -f {tfn1}')
+        ui.success(f'copied out: {outfn1}')
+
+        success = True
+
+    if success:
+      ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+    else:
+      ui.failure('copyout failed')
 
   async def _exploit_device_copyin(self, args: deque[str]) -> None:
+    success: bool = False
+
     _ = args.popleft()
     if not args:
       ui.fatal('need package name')
@@ -1396,19 +1462,81 @@ class Runner:
     else:
       fn = args.popleft()
 
-    if not os.path.exists(fn):
+    fn0 = fn.replace('.tar', '') + '-int.tar'
+    fn1 = fn.replace('.tar', '') + '-ext.tar'
+
+    if not any(os.path.exists(x) for x in [fn, fn0, fn1]):
       ui.fatal('bundle file not found')
 
     ui.info(f'copying in: {fn} -> {target}')
 
     import time
+    from subprocess import CalledProcessError
     from trueseeing.core.device import AndroidDevice
+    from trueseeing.core.tools import toolchains, invoke_passthru
 
     at = time.time()
-    tfn = self._generate_tempfilename_for_device()
-    await AndroidDevice().invoke_adb_passthru(f'push {fn} {tfn}')
-    await AndroidDevice().invoke_adb_passthru(f'shell "run-as {target} tar -xv < {tfn}; rm -f {tfn}"')
-    ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+    dev = AndroidDevice()
+
+    if not await dev.is_fullbackup_available():
+      ui.warn('full backup feature is not available')
+    else:
+      if not os.path.exists(fn):
+        ui.warn(f'data not found, trying the next method: {fn}')
+      else:
+        try:
+          try:
+            with toolchains() as tc:
+              await invoke_passthru('java -jar {abe} pack-kk {fn} {fn}.ab 1'.format(
+                abe=tc['abe'],
+                fn=fn,
+              ))
+          except CalledProcessError:
+            ui.warn('pack failed; trying the next method')
+          else:
+            ui.success('pack success')
+            ui.info('initiating a restore on device; give "1" as the password if asked')
+            await dev.invoke_adb_passthru(f'restore {fn}.ab')
+            ui.success(f'copied in: {fn}')
+            success = True
+        finally:
+          try:
+            os.remove(f'{fn}.ab')
+          except FileNotFoundError:
+            pass
+
+    if not success:
+      if not await dev.is_package_debuggable(target):
+        ui.warn('target is not debuggable')
+      else:
+        ui.info('target seems debuggable; trying injection with debug interface')
+
+        ui.info('copying internal storage')
+        if not os.path.exists(fn0):
+          ui.warn('data not found: {fn0}')
+        else:
+          tfn0 = self._generate_tempfilename_for_device()
+          await dev.invoke_adb_passthru(f'push {fn0} {tfn0}')
+          await dev.invoke_adb_passthru(f'shell "run-as {target} tar -xv < {tfn0}; rm -f {tfn0}"')
+          ui.success(f'copied in: {fn}')
+          success = True
+
+        ui.info('copying external storage')
+        if not os.path.exists(fn1):
+          ui.warn('data not found: {fn1}')
+        else:
+          tfn1 = self._generate_tempfilename_for_device()
+          await dev.invoke_adb_passthru(f'push {fn1} {tfn1}')
+          await dev.invoke_adb_passthru(f'shell "cd /storage/emulated/0/Android/ && tar -xv < {tfn1}; rm -f {tfn1}"')
+          ui.success(f'copied in: {fn1}')
+          success = True
+
+        success = True
+
+    if success:
+      ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+    else:
+      ui.failure('copyin failed')
 
   def _generate_tempfilename_for_device(self, dir: Optional[str] = None) -> str:
     import random
