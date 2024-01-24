@@ -12,6 +12,10 @@ def get_home_dir() -> str:
   return os.environ.get('TS2_HOME', os.path.join(os.environ['HOME'], '.trueseeing2'))
 
 @lru_cache(maxsize=None)
+def get_rc_path() -> str:
+  return os.path.join(get_home_dir(), 'rc')
+
+@lru_cache(maxsize=None)
 def get_cache_dir() -> str:
   return get_cache_dir_v2()
 
