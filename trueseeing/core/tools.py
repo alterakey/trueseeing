@@ -14,6 +14,7 @@ if TYPE_CHECKING:
   class Toolchain(TypedDict):
     apkeditor: Path
     apksigner: Path
+    abe: Path
 
 def noneif(x: Any, defaulter: Any) -> Any:
   if x is not None:
@@ -82,7 +83,9 @@ def toolchains() -> Iterator[Toolchain]:
   require_in_path('java', 'java -version')
   with as_file(files('trueseeing')/'libs'/'apkeditor.jar') as apkeditorpath:
     with as_file(files('trueseeing')/'libs'/'apksigner.jar') as apksignerpath:
-      yield dict(
-        apkeditor=apkeditorpath,
-        apksigner=apksignerpath
-      )
+      with as_file(files('trueseeing')/'libs'/'abe.jar') as abepath:
+        yield dict(
+          apkeditor=apkeditorpath,
+          apksigner=apksignerpath,
+          abe=abepath,
+        )
