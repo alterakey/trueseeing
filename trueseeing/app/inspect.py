@@ -12,7 +12,7 @@ from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Type, Tuple, Iterator, Dict
+  from typing import Mapping, Optional, Any, NoReturn, List, Type, Tuple, Iterator, Dict, Awaitable
   from trueseeing.signature.base import Detector
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context
@@ -71,7 +71,10 @@ class InspectMode:
     ps1, ps2 = getattr(sys, 'ps1', None), getattr(sys, 'ps2', None)
     try:
       runner.reset_prompt()
-      LambdaConsole(locals=locals(), filename='<input>').interact(banner='', exitmsg='')
+      try:
+        LambdaConsole(locals=locals(), filename='<input>').interact(banner='', exitmsg='')
+      except QuitSession:
+        pass
       sys.exit(0)
     finally:
       sys.ps1, sys.ps2 = ps1, ps2
@@ -86,9 +89,15 @@ class InspectMode:
     for t in done:
       if not t.cancelled():
         x = t.exception()
-        if x and not isinstance(x, FatalError):
+        if x:
           assert isinstance(x, Exception)
-          ui.fatal('unhandled exception', exc=x)
+          if isinstance(x, QuitSession):
+            raise x
+          elif isinstance(x, FatalError):
+            ui.fatal('unhandled exception', exc=x)
+
+class QuitSession(Exception):
+  pass
 
 class Runner:
   _cmds: Mapping[str, Mapping[str, Any]]
@@ -157,6 +166,7 @@ class Runner:
       'pd!':dict(e=self._show_disasm),
       'pk':dict(e=self._show_solved_constant, n='pk op index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
       'pt':dict(e=self._show_solved_typeset, n='pt op index', d='guess and show what type would flow into the index-th arg of op'),
+      'q':dict(e=self._quit, n='q', d='quit'),
       '/c':dict(e=self._search_call, n='/c [pat]', d='search call for pattern'),
       '/k':dict(e=self._search_const, n='/k insn [pat]', d='search consts for pattern'),
       '/p':dict(e=self._search_put, n='/p[i] [pat]', d='search s/iputs for pattern'),
@@ -259,13 +269,7 @@ class Runner:
       return False
     else:
       assert m is not None
-      try:
-        try:
-          await ent['e'](line=m.group(0))
-        except KeyboardInterrupt:
-          ui.fatal('interrupted')
-      except FatalError:
-        pass
+      await self._as_cmd(ent['e'](line=m.group(0)))
       return True
 
   async def _run_cmd(self, tokens: deque[str], line: Optional[str]) -> bool:
@@ -285,14 +289,17 @@ class Runner:
     if ent is None:
       return False
     else:
-      try:
-        try:
-          await ent['e'](args=tokens)
-        except KeyboardInterrupt:
-          ui.fatal('interrupted')
-      except FatalError:
-        pass
+      await self._as_cmd(ent['e'](args=tokens))
       return True
+
+  async def _as_cmd(self, coro: Awaitable[Any]) -> None:
+    try:
+      try:
+        await coro
+      except KeyboardInterrupt:
+        ui.fatal('interrupted')
+    except FatalError:
+      pass
 
   def _reset_loglevel(self, debug:bool = False) -> None:
     ui.set_level(ui.INFO)
@@ -1490,6 +1497,9 @@ class Runner:
 
   async def _info3(self, args: deque[str]) -> None:
     return await self._info(args, level=3)
+
+  async def _quit(self, args: deque[str]) -> None:
+    raise QuitSession()
 
   async def _set_target(self, args: deque[str]) -> None:
     _ = args.popleft()
