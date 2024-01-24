@@ -1,7 +1,8 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import os
 import os.path
-from typing import TYPE_CHECKING
 
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_extension_dir, get_extension_dir_v0
@@ -11,6 +12,7 @@ if TYPE_CHECKING:
   from typing_extensions import Final
   from trueseeing.core.context import Context
   from trueseeing.app.shell import Signatures
+  from trueseeing.app.inspect import Runner, CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry
 
 class Extension:
   _ns: Any
@@ -60,6 +62,11 @@ class Extension:
       if hasattr(m, 'patch_signatures'):
         getattr(m, 'patch_signatures')(sigs)
 
+  def patch_command_map(self, runner: Runner, cmds: Dict[str, CommandEntry], cmdpats: Dict[str, CommandPatternEntry], opts: Dict[str, OptionEntry], mods: Dict[str, ModifierEntry]) -> None:
+    for n,m in self._ns.items():
+      if hasattr(m, 'patch_command_map'):
+        getattr(m, 'patch_command_map')(runner=runner, cmds=cmds, cmdpats=cmdpats, opts=opts, mods=mods)
+
   # XXX: gross hack
   def _importer(self, path: str, /, only: Optional[str] = None) -> Optional[str]:
     from glob import iglob
@@ -95,3 +102,13 @@ class Extension:
   def _get_extensions_v0(self) -> Iterable[str]:
     for fn in 'ext.pyc', 'ext.py', 'ext':
       yield os.path.join(get_extension_dir_v0(), fn)
+
+class Command:
+  def get_commands(self) -> Dict[str, CommandEntry]:
+    return dict()
+  def get_command_patterns(self) -> Dict[str, CommandPatternEntry]:
+    return dict()
+  def get_modifiers(self) -> Dict[str, ModifierEntry]:
+    return dict()
+  def get_options(self) -> Dict[str, OptionEntry]:
+    return dict()
