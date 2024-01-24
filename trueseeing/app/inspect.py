@@ -93,7 +93,7 @@ class InspectMode:
           assert isinstance(x, Exception)
           if isinstance(x, QuitSession):
             raise x
-          elif isinstance(x, FatalError):
+          elif not isinstance(x, FatalError):
             ui.fatal('unhandled exception', exc=x)
 
 class QuitSession(Exception):
