@@ -143,17 +143,19 @@ Scan mode (DEPRECATED):
     cmdlines = []
 
     parser = ArgumentParser(description='Non-decompiling Android app vulnerability scanner')
-    args_mut = parser.add_mutually_exclusive_group()
+    args_mut0 = parser.add_mutually_exclusive_group()
+    args_mut1 = parser.add_mutually_exclusive_group()
     parser.add_argument('fn', nargs='?', metavar='FILE', help='Target APK file')
     parser.add_argument('--help-signatures', action='store_true', help='Show signatures')
     parser.add_argument('--version', action='store_true', help='Version information')
-    parser.add_argument('-c', dest='inline_cmd', metavar='COMMAND', help='Run commands before prompt')
+    parser.add_argument('--norc', action='store_true', help='Ignore startup file')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
-    parser.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
     parser.add_argument('-n', dest='no_target', action='store_true', help='Open empty file')
-    args_mut.add_argument('-q', dest='mode', action='store_const', const='batch', help='Batch mode; quit instead of giving prompt')
-    args_mut.add_argument('--inspect', dest='mode', action='store_const', const='inspect', help='Inspect mode (deprecated; now default)')
-    args_mut.add_argument('--scan', dest='mode', action='store_const', const='scan', help='Scan mode (deprecated; use -qc "as;g*"; e.g. gh for HTML)')
+    args_mut0.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
+    args_mut0.add_argument('-c', dest='inline_cmd', metavar='COMMAND', help='Run commands before prompt')
+    args_mut1.add_argument('-q', dest='mode', action='store_const', const='batch', help='Batch mode; quit instead of giving prompt')
+    args_mut1.add_argument('--inspect', dest='mode', action='store_const', const='inspect', help='Inspect mode (deprecated; now default)')
+    args_mut1.add_argument('--scan', dest='mode', action='store_const', const='scan', help='Scan mode (deprecated; use -qc "as;g*"; e.g. gh for HTML)')
 
     scan_args = parser.add_argument_group('Scan mode (DEPRECATED)')
     scan_args.add_argument('--scan-sigs', metavar='SIG,...', help='Select signatures (use --help-signatures to list signatures)')
@@ -209,11 +211,23 @@ Scan mode (DEPRECATED):
 
     if args.mode in ['inspect', 'batch']:
       from trueseeing.app.inspect import InspectMode
+
+      if not args.norc:
+        from trueseeing.core.env import get_rc_path
+        try:
+          with open(get_rc_path(), 'r') as f:
+            rc = [l for l in f]
+          cmdlines = rc + cmdlines
+        except FileNotFoundError:
+          pass
+        except OSError as e:
+          ui.warn(f'cannot open rc file, ignoring: {e}')
+
       InspectMode().do(
         args.fn,
         signatures=sigs,
         batch=True if args.mode == 'batch' else False,
-        cmdlines=cmdlines
+        cmdlines=cmdlines,
       )
     elif args.mode == 'scan':
       from trueseeing.app.scan import ScanMode
