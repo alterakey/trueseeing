@@ -50,3 +50,7 @@ def get_extension_dir() -> str:
 @lru_cache(maxsize=None)
 def get_extension_dir_v0() -> str:
   return get_home_dir()
+
+@lru_cache(maxsize=None)
+def get_extension_package_prefix() -> str:
+  return 'trueseeing_ext0_'
