@@ -17,6 +17,7 @@ class Extension:
   _ns: Any
   _inst: ClassVar[Optional[Extension]] = None
   _module_name: Final[str] = 'ext'
+  disabled: ClassVar[bool] = False
 
   @classmethod
   def get(cls) -> Extension:
@@ -26,8 +27,9 @@ class Extension:
 
   def __init__(self) -> None:
     self._ns = {}
-    self._ns.update(self._import())
-    self._ns.update(self._compile())
+    if not self.disabled:
+      self._ns.update(self._import())
+      self._ns.update(self._compile())
 
   def _import(self) -> Any:
     from importlib import import_module

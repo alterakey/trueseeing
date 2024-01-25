@@ -135,12 +135,7 @@ Scan mode (DEPRECATED):
     from argparse import ArgumentParser
     from trueseeing.core.api import Extension
 
-    sigs = Signatures()
-    for clazz in Extension.get().get_signatures():
-      sigs.content[clazz.option] = clazz
-
     log_level = ui.INFO
-    signature_selected = sigs.default().copy()
     cmdlines = []
 
     parser = ArgumentParser(description='Non-decompiling Android app vulnerability scanner')
@@ -150,6 +145,7 @@ Scan mode (DEPRECATED):
     parser.add_argument('--help-signatures', action='store_true', help='Show signatures')
     parser.add_argument('--version', action='store_true', help='Version information')
     parser.add_argument('--norc', action='store_true', help='Ignore startup file')
+    parser.add_argument('--noext', action='store_true', help='Ignore extensions')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('-n', dest='no_target', action='store_true', help='Open empty file')
     args_mut0.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
@@ -171,6 +167,16 @@ Scan mode (DEPRECATED):
 
     if args.debug:
       log_level = ui.DEBUG
+    if args.noext:
+      ui.warn('disabling extensions')
+      Extension.disabled = True
+
+    sigs = Signatures()
+    for clazz in Extension.get().get_signatures():
+      sigs.content[clazz.option] = clazz
+
+    signature_selected = sigs.default().copy()
+
     if not args.mode:
       args.mode = 'inspect'
     elif args.mode == 'inspect':
