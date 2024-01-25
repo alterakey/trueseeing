@@ -6,7 +6,7 @@ import os.path
 
 from trueseeing.signature.base import Detector
 from trueseeing.core.ui import ui
-from trueseeing.core.env import get_extension_dir, get_extension_dir_v0
+from trueseeing.core.env import get_extension_dir, get_extension_dir_v0, get_extension_package_prefix
 
 if TYPE_CHECKING:
   from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type
@@ -25,7 +25,19 @@ class Extension:
     return cls._inst
 
   def __init__(self) -> None:
-    self._ns = self._compile()
+    self._ns = {}
+    self._ns.update(self._import())
+    self._ns.update(self._compile())
+
+  def _import(self) -> Any:
+    from importlib import import_module
+    from importlib_metadata import packages_distributions
+    o = {}
+    for n in packages_distributions():
+      if not n.startswith(get_extension_package_prefix()):
+        continue
+      o[n] = import_module(n)
+    return o
 
   def _compile(self) -> Any:
     globals_: Dict[str, Any] = dict(__name__='__main__', ui=ui)
