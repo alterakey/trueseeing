@@ -114,9 +114,6 @@ class Context:
       with open(os.path.join(self.wd, flagfn), 'w'):
         pass
 
-    from trueseeing.core.api import Extension
-    Extension.get().patch_context(self)
-
   def _copy_target(self) -> None:
     if not os.path.exists(os.path.join(self.wd, 'target.apk')):
       shutil.copyfile(self._apk, os.path.join(self.wd, 'target.apk'))

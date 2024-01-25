@@ -157,7 +157,12 @@ class Runner:
         self._mods.update(t.get_modifiers())
         self._opts.update(t.get_options())
 
-    Extension.get().patch_command_map(runner=self, cmds=self._cmds, cmdpats=self._cmdpats, opts=self._opts, mods=self._mods)
+    for clazz in Extension.get().get_commands():
+      t = clazz(self)
+      self._cmds.update(t.get_commands())
+      self._cmdpats.update(t.get_command_patterns())
+      self._mods.update(t.get_modifiers())
+      self._opts.update(t.get_options())
 
   def _get_modifiers(self, args: deque[str]) -> List[str]:
     o = []
