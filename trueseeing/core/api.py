@@ -4,15 +4,14 @@ from typing import TYPE_CHECKING
 import os
 import os.path
 
+from trueseeing.signature.base import Detector
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_extension_dir, get_extension_dir_v0
 
 if TYPE_CHECKING:
-  from typing import Any, Dict, ClassVar, Optional, Iterable
+  from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type
   from typing_extensions import Final
-  from trueseeing.core.context import Context
-  from trueseeing.app.shell import Signatures
-  from trueseeing.app.inspect import Runner, CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry
+  from trueseeing.app.inspect import CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry
 
 class Extension:
   _ns: Any
@@ -52,20 +51,19 @@ class Extension:
       ui.warn('Uncaught exception during invocation', exc=e)
       return {}
 
-  def patch_context(self, context: Context) -> None:
-    for n,m in self._ns.items():
-      if hasattr(m, 'patch_context'):
-        getattr(m, 'patch_context')(context)
+  def get_signatures(self) -> Iterator[Type[Detector]]:
+    from inspect import getmembers, isclass
+    for _,m in self._ns.items():
+      for n, clazz in getmembers(m, lambda x: isclass(x) and x != Detector and issubclass(x, Detector)):
+        if not n.startswith('_'):
+          yield clazz
 
-  def patch_signatures(self, sigs: Signatures) -> None:
-    for n,m in self._ns.items():
-      if hasattr(m, 'patch_signatures'):
-        getattr(m, 'patch_signatures')(sigs)
-
-  def patch_command_map(self, runner: Runner, cmds: Dict[str, CommandEntry], cmdpats: Dict[str, CommandPatternEntry], opts: Dict[str, OptionEntry], mods: Dict[str, ModifierEntry]) -> None:
-    for n,m in self._ns.items():
-      if hasattr(m, 'patch_command_map'):
-        getattr(m, 'patch_command_map')(runner=runner, cmds=cmds, cmdpats=cmdpats, opts=opts, mods=mods)
+  def get_commands(self) -> Iterator[Type[Command]]:
+    from inspect import getmembers, isclass
+    for _,m in self._ns.items():
+      for n, clazz in getmembers(m, lambda x: isclass(x) and x != Command and issubclass(x, Command)):
+        if not n.startswith('_'):
+          yield clazz
 
   # XXX: gross hack
   def _importer(self, path: str, /, only: Optional[str] = None) -> Optional[str]:

@@ -136,7 +136,8 @@ Scan mode (DEPRECATED):
     from trueseeing.core.api import Extension
 
     sigs = Signatures()
-    Extension.get().patch_signatures(sigs)
+    for clazz in Extension.get().get_signatures():
+      sigs.content[clazz.option] = clazz
 
     log_level = ui.INFO
     signature_selected = sigs.default().copy()
