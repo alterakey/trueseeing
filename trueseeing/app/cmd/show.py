@@ -108,7 +108,7 @@ class ShowCommand(Command):
     limit = self._runner._get_graph_size_limit(self._runner._get_modifiers(args))
 
     from trueseeing.core.flow.data import DataFlows
-    with self._runner._apply_graph_size_limit(limit):
+    with DataFlows.apply_max_graph_size(limit):
       context = await self._runner._get_context_analyzed(apk)
       store = context.store()
       op = store.op_get(opn)
@@ -141,7 +141,7 @@ class ShowCommand(Command):
     limit = self._runner._get_graph_size_limit(self._runner._get_modifiers(args))
 
     from trueseeing.core.flow.data import DataFlows
-    with self._runner._apply_graph_size_limit(limit):
+    with DataFlows.apply_max_graph_size(limit):
       context = await self._runner._get_context_analyzed(apk)
       store = context.store()
       op = store.op_get(opn)

@@ -10,6 +10,7 @@ if TYPE_CHECKING:
   from typing import Dict, List, Type
   from trueseeing.app.inspect import Runner, CommandEntry, ModifierEntry
   from trueseeing.signature.base import Detector
+  from trueseeing.core.issue import Issue
 
 class ScanCommand(Command):
   _runner: Runner
@@ -40,34 +41,37 @@ class ScanCommand(Command):
       )
 
   async def _scan(self, args: deque[str]) -> None:
+    import time
+    from trueseeing.core.report import HTMLReportGenerator
+    from trueseeing.core.scan import Scanner
+    from pubsub import pub
+
     self._runner._require_target()
     assert self._runner._target is not None
 
     cmd = args.popleft()
     apk = self._runner._target
 
+    context = await self._runner._get_context_analyzed(apk, level=3)
     limit = self._runner._get_graph_size_limit(self._runner._get_modifiers(args))
+    sigs = self._get_effective_sigs(self._runner._get_modifiers(args))
+    scanner = Scanner(context, reporter=HTMLReportGenerator(context), sigs=sigs, max_graph_size=limit)
 
-    import time
-    from trueseeing.app.scan import ScanMode
-
-    with self._runner._apply_graph_size_limit(limit):
-      at = time.time()
+    at = time.time()
+    with context.store().query().scoped() as q:
+      # XXX
+      def _detected(issue: Issue) -> None:
+        global found
+        found = True # type: ignore[name-defined]
 
       if cmd.endswith('!'):
         ui.info('clearing current issues')
+        await scanner.clear(q)
 
-      await ScanMode([apk]).invoke(
-        ci_mode='html',
-        outfile=None,
-        signatures=self._get_effective_sigs(self._runner._get_modifiers(args)),
-        exclude_packages=[],
-        no_cache_mode=False,
-        update_cache_mode=False,
-        from_inspect_mode=True,
-        keep_current_issues=(not cmd.endswith('!')),
-      )
-      nr = self._runner._get_context(apk).store().query().issue_count()
+      pub.subscribe(_detected, 'issue')
+      nr = await scanner.scan(q)
+      pub.unsubscribe(_detected, 'issue')
+
       ui.success("done, found {nr} issues ({t:.02f} sec.)".format(nr=nr, t=(time.time() - at)))
 
   def _get_effective_sigs(self, mods: List[str]) -> List[Type[Detector]]:

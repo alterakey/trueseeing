@@ -16,31 +16,44 @@ if TYPE_CHECKING:
 
 class ScanMode:
   _files: List[str]
-  def __init__(self, files: List[str]) -> None:
-    self._files = files
+  _ci_mode: ReportFormat
+  _outfile: Optional[str] = None
+  _sigs: List[Type[Detector]]
+  _exclude_packages: List[str] = []
+  _update_cache_mode: bool = False
+  _no_cache_mode: bool = False
+  _from_inspect_mode: bool = False
+  _keep_current_issues: bool = False
 
-  async def invoke(self, ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False, from_inspect_mode: bool = False, keep_current_issues: bool = False) -> int:
-    if update_cache_mode:
+  def __init__(self, files: List[str], ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False, from_inspect_mode: bool = False, keep_current_issues: bool = False) -> None:
+    self._files = files
+    self._ci_mode = ci_mode
+    self._outfile = outfile
+    self._sigs = signatures
+    self._exclude_packages = exclude_packages
+    self._update_cache_mode = update_cache_mode
+    self._no_cache_mode = no_cache_mode
+    self._from_inspect_mode = from_inspect_mode
+    self._keep_current_issues = keep_current_issues
+
+  async def invoke(self) -> int:
+    if self._update_cache_mode:
       for f in self._files:
-        ctx = Context(f, [])
-        ctx.remove()
-        await ctx.analyze()
+        await self._do_update_cache(f)
       return 0
     else:
       import time
       error_found = False
-      session = AnalyzeSession(signatures, ci_mode=ci_mode, outfile=outfile, exclude_packages=exclude_packages)
       for f in self._files:
         at = time.time()
         try:
-          if await session.invoke(f, keep_current_issues=keep_current_issues):
+          nr = await self._do_scan(f)
+          if nr:
             error_found = True
-          if not from_inspect_mode:
-            context = Context(f, [])
-            nr = context.store().query().issue_count()
+          if not self._from_inspect_mode:
             ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=f, nr=nr, t=(time.time() - at)))
         finally:
-          if no_cache_mode:
+          if self._no_cache_mode:
             Context(f, []).remove()
 
       if not error_found:
@@ -48,55 +61,32 @@ class ScanMode:
       else:
         return 1
 
-class AnalyzeSession:
-  _chain: List[Type[Detector]]
-  _ci_mode: ReportFormat
-  _outfile: Optional[str]
-  _exclude_packages: List[str]
-  def __init__(self, chain: List[Type[Detector]], outfile: Optional[str], ci_mode: ReportFormat = "html", exclude_packages: List[str] = []):
-    self._ci_mode = ci_mode
-    self._outfile = outfile
-    self._chain = chain
-    self._exclude_packages = exclude_packages
+  async def _do_update_cache(self, path: str) -> None:
+    ctx = Context(path, [])
+    ctx.remove()
+    await ctx.analyze()
 
-  async def invoke(self, apkfilename: str, keep_current_issues: bool = False) -> bool:
-    context = Context(apkfilename, self._exclude_packages)
+  async def _do_scan(self, path: str) -> int:
+    from trueseeing.core.scan import Scanner
+
+    context = Context(path, self._exclude_packages)
+    reporter = self._get_reporter(context)
+    scanner = Scanner(context, reporter=reporter, sigs=self._sigs, excludes=self._exclude_packages)
+
     await context.analyze()
-    ui.info(f"{apkfilename} -> {context.wd}")
+    ui.info(f"{path} -> {context.wd}")
 
-    from trueseeing.core.literalquery import Query
-    query = Query(c=context.store().db)
-    if not keep_current_issues:
-      query.issue_clear()
-
-    found = False
-
-    reporter: ReportGenerator
-    if self._outfile is None:
-      reporter = CIReportGenerator(context)
-    else:
-      if self._ci_mode == 'json':
-        reporter = JSONReportGenerator(context)
-      else:
-        reporter = HTMLReportGenerator(context)
-
-    with context.store().db:
-      # XXX
-      def _detected(issue: Issue) -> None:
-        global found
-        found = True # type: ignore[name-defined]
-        reporter.note(issue)
-        query.issue_raise(issue)
-
-      pub.subscribe(_detected, 'issue')
-      await asyncio.gather(*[c(context).detect() for c in self._chain])
-      pub.unsubscribe(_detected, 'issue')
+    with context.store().query().scoped() as q:
+      if not self._keep_current_issues:
+        await scanner.clear(q)
+      nr = await scanner.scan(q)
 
     if self._outfile is not None:
       with self._open_outfile() as f:
         reporter.generate(f)
 
-    return reporter.return_(found)
+    reporter.return_(True if nr else False)
+    return nr
 
   def _open_outfile(self) -> TextIO:
     assert self._outfile is not None
@@ -105,3 +95,12 @@ class AnalyzeSession:
       return sys.stdout
     else:
       return open(self._outfile, 'w')
+
+  def _get_reporter(self, context: Context) -> ReportGenerator:
+    if self._outfile is None:
+      return CIReportGenerator(context)
+    else:
+      if self._ci_mode == 'json':
+        return JSONReportGenerator(context)
+      else:
+        return HTMLReportGenerator(context)

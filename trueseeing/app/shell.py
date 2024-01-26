@@ -238,14 +238,15 @@ Scan mode (DEPRECATED):
       )
     elif args.mode == 'scan':
       from trueseeing.app.scan import ScanMode
-      return self._launch(ScanMode([args.fn]).invoke(
+      return self._launch(ScanMode(
+        [args.fn],
         ci_mode=args.scan_report_format,
         outfile=args.scan_output_filename,
         signatures=[v for k, v in sigs.content.items() if k in signature_selected],
         exclude_packages=args.scan_exclude_packages if args.scan_exclude_packages else [],
         no_cache_mode=args.scan_no_cache,
         update_cache_mode=args.scan_update_cache,
-      ))
+      ).invoke())
     else:
       assert False, f'unknown mode: {args.mode}'
 
