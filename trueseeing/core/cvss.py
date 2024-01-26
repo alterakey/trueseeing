@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import re
 
 if TYPE_CHECKING:
-  from trueseeing.core.issue import IssueSeverity, IssueConfidence
+  from trueseeing.core.model.issue import IssueSeverity, IssueConfidence
 
 class CVSS3Scoring:
   def __init__(self, m: re.Match[str]):

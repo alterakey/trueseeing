@@ -4,12 +4,13 @@ from typing import TYPE_CHECKING
 import re
 from collections import deque
 
-from trueseeing.core.api import Command
+from trueseeing.core.model.cmd import Command
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Dict
-  from trueseeing.app.inspect import Runner, CommandEntry
+  from trueseeing.app.inspect import Runner
+  from trueseeing.core.model.cmd import CommandEntry
 
 class SearchCommand(Command):
   _runner: Runner
@@ -83,7 +84,7 @@ class SearchCommand(Command):
 
     pat = args.popleft()
 
-    from trueseeing.core.code.model import InvocationPattern
+    from trueseeing.core.model.code import InvocationPattern
     context = await self._runner._get_context_analyzed(apk)
     q = context.store().query()
     for op in q.invocations(InvocationPattern('invoke-', pat)):
@@ -106,7 +107,7 @@ class SearchCommand(Command):
     else:
       pat = '.'
 
-    from trueseeing.core.code.model import InvocationPattern
+    from trueseeing.core.model.code import InvocationPattern
     context = await self._runner._get_context_analyzed(apk)
     q = context.store().query()
     for op in q.consts(InvocationPattern(insn, pat)):

@@ -2,14 +2,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from contextlib import contextmanager
-from trueseeing.core.code.model import Op
-from trueseeing.core.issue import Issue
+from trueseeing.core.model.code import Op
+from trueseeing.core.model.issue import Issue
 from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Dict, Optional, Iterator
   from trueseeing.core.store import Store
-  from trueseeing.core.code.model import InvocationPattern
+  from trueseeing.core.model.code import InvocationPattern
 
 class StorePrep:
   def __init__(self, c: Any) -> None:

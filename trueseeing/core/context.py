@@ -96,7 +96,7 @@ class Context:
     else:
       flagfn = self._get_analysis_flag_name(level)
       from trueseeing.core.asm import APKDisassembler
-      from trueseeing.core.code.parse import SmaliAnalyzer
+      from trueseeing.core.analysis.smali import SmaliAnalyzer
       if os.path.exists(self.wd):
         ui.info('analyze: removing leftover')
         self.remove()

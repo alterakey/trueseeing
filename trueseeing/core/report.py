@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 import os
 
-from trueseeing.core.issue import Issue
+from trueseeing.core.model.issue import Issue
 from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
 from trueseeing.core.ui import ui
@@ -69,7 +69,7 @@ class HTMLReportGenerator:
       from datetime import datetime
       from zoneinfo import ZoneInfo
 
-      from trueseeing.core.literalquery import Query
+      from trueseeing.core.db import Query
       query = Query(c=db)
       issues = []
 
@@ -117,7 +117,7 @@ class JSONReportGenerator:
   def generate(self, f: TextIO) -> None:
     from json import dumps
     with self._context.store().db as db:
-      from trueseeing.core.literalquery import Query
+      from trueseeing.core.db import Query
       query = Query(c=db)
       issues = []
 

@@ -5,14 +5,14 @@ import asyncio
 import re
 import math
 
-from trueseeing.core.code.model import InvocationPattern
-from trueseeing.core.flow.data import DataFlows
-from trueseeing.signature.base import Detector
-from trueseeing.core.issue import Issue
+from trueseeing.core.model.code import InvocationPattern
+from trueseeing.core.analysis.flow import DataFlows
+from trueseeing.core.model.sig import Detector
+from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Dict, Iterable
-  from trueseeing.core.code.model import Op
+  from trueseeing.core.model.code import Op
   from trueseeing.core.store import Store
 
 class CryptoStaticKeyDetector(Detector):

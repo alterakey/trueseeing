@@ -8,14 +8,14 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import List, Type, Set, Dict, Optional, Coroutine, Any, Literal
-  from trueseeing.signature.base import Detector
+  from trueseeing.core.model.sig import Detector
 
   OpMode = Optional[Literal['scan', 'inspect', 'batch']]
 
 class Signatures:
   content: Dict[str, Type[Detector]]
   def __init__(self) -> None:
-    from trueseeing.signature import crypto, fingerprint, manifest, privacy, security
+    from trueseeing.sig import crypto, fingerprint, manifest, privacy, security
 
     sigs: List[Type[Detector]] = [
       crypto.CryptoStaticKeyDetector,
@@ -133,7 +133,7 @@ Scan mode (DEPRECATED):
 
   def invoke(self) -> int:
     from argparse import ArgumentParser
-    from trueseeing.core.api import Extension
+    from trueseeing.core.ext import Extension
 
     log_level = ui.INFO
     cmdlines = []
@@ -198,7 +198,7 @@ Scan mode (DEPRECATED):
         else:
           signature_selected.update(sigs.selected_on(s))
     if args.scan_max_graph_size:
-      from trueseeing.core.flow.data import DataFlows
+      from trueseeing.core.analysis.flow import DataFlows
       DataFlows.set_max_graph_size(args.scan_max_graph_size)
     if args.version:
       ui.stderr(self._version())

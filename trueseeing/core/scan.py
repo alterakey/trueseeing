@@ -6,10 +6,10 @@ from contextlib import contextmanager
 if TYPE_CHECKING:
   from typing import List, Type, Optional, Iterator
   from trueseeing.core.context import Context
-  from trueseeing.core.literalquery import Query
+  from trueseeing.core.db import Query
   from trueseeing.core.report import ReportGenerator
-  from trueseeing.signature.base import Detector
-  from trueseeing.core.issue import Issue
+  from trueseeing.core.model.sig import Detector
+  from trueseeing.core.model.issue import Issue
 
 class Scanner:
   def __init__(self, context: Context, reporter: ReportGenerator, sigs: List[Type[Detector]], excludes: List[str] = [], max_graph_size: Optional[int] = None) -> None:
@@ -22,7 +22,7 @@ class Scanner:
   async def scan(self, q: Query) -> int:
     import asyncio
     from pubsub import pub
-    from trueseeing.core.flow.data import DataFlows
+    from trueseeing.core.analysis.flow import DataFlows
     with DataFlows.apply_max_graph_size(self._max_graph_size):
       with self._apply_excludes_on_context():
         # XXX

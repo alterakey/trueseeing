@@ -6,10 +6,10 @@ import io
 import re
 import os
 
-from trueseeing.core.code.model import InvocationPattern
-from trueseeing.core.flow.data import DataFlows
-from trueseeing.signature.base import Detector
-from trueseeing.core.issue import Issue
+from trueseeing.core.model.code import InvocationPattern
+from trueseeing.core.analysis.flow import DataFlows
+from trueseeing.core.model.sig import Detector
+from trueseeing.core.model.issue import Issue
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:

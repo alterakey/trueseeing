@@ -3,12 +3,13 @@ from typing import TYPE_CHECKING
 
 from collections import deque
 
-from trueseeing.core.api import Command
+from trueseeing.core.model.cmd import Command
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Dict, Optional
-  from trueseeing.app.inspect import Runner, CommandEntry
+  from trueseeing.app.inspect import Runner
+  from trueseeing.core.model.cmd import CommandEntry
 
 class ReportCommand(Command):
   _runner: Runner

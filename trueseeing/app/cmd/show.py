@@ -4,12 +4,13 @@ from typing import TYPE_CHECKING
 import sys
 from collections import deque
 
-from trueseeing.core.api import Command
+from trueseeing.core.model.cmd import Command
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Dict, Optional
-  from trueseeing.app.inspect import Runner, CommandEntry
+  from trueseeing.app.inspect import Runner
+  from trueseeing.core.model.cmd import CommandEntry
 
 class ShowCommand(Command):
   _runner: Runner
@@ -107,7 +108,7 @@ class ShowCommand(Command):
 
     limit = self._runner._get_graph_size_limit(self._runner._get_modifiers(args))
 
-    from trueseeing.core.flow.data import DataFlows
+    from trueseeing.core.analysis.flow import DataFlows
     with DataFlows.apply_max_graph_size(limit):
       context = await self._runner._get_context_analyzed(apk)
       store = context.store()
@@ -140,7 +141,7 @@ class ShowCommand(Command):
 
     limit = self._runner._get_graph_size_limit(self._runner._get_modifiers(args))
 
-    from trueseeing.core.flow.data import DataFlows
+    from trueseeing.core.analysis.flow import DataFlows
     with DataFlows.apply_max_graph_size(limit):
       context = await self._runner._get_context_analyzed(apk)
       store = context.store()

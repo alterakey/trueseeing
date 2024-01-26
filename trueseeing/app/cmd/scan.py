@@ -3,14 +3,15 @@ from typing import TYPE_CHECKING
 
 from collections import deque
 
-from trueseeing.core.api import Command
+from trueseeing.core.model.cmd import Command
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Dict, List, Type
-  from trueseeing.app.inspect import Runner, CommandEntry, ModifierEntry
-  from trueseeing.signature.base import Detector
-  from trueseeing.core.issue import Issue
+  from trueseeing.app.inspect import Runner
+  from trueseeing.core.model.cmd import CommandEntry, ModifierEntry
+  from trueseeing.core.model.sig import Detector
+  from trueseeing.core.model.issue import Issue
 
 class ScanCommand(Command):
   _runner: Runner

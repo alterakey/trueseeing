@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 from collections import deque
 import asyncio
-from contextlib import contextmanager
 from shlex import shlex
 import sys
 import re
@@ -11,26 +10,10 @@ from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Iterator, Dict, Awaitable, TypedDict
+  from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context
-
-  class Entry(TypedDict, total=False):
-    e: Any
-    n: str
-    d: str
-
-  class CommandEntry(Entry):
-    pass
-
-  class CommandPatternEntry(CommandEntry, total=False):
-    raw: bool
-
-  class OptionEntry(Entry):
-    pass
-
-  class ModifierEntry(Entry):
-    pass
+  from trueseeing.core.model.cmd import Entry, CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry
 
 class InspectMode:
   def do(
@@ -145,7 +128,8 @@ class Runner:
     self._init_cmds()
 
   def _init_cmds(self) -> None:
-    from trueseeing.core.api import Command, Extension
+    from trueseeing.core.ext import Extension
+    from trueseeing.core.model.cmd import Command
     from inspect import getmembers, isclass
     from importlib import import_module
     for n in 'alias', 'analyze', 'asm', 'exploit', 'info', 'report', 'search', 'scan', 'show':
