@@ -2,13 +2,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import itertools
+from contextlib import contextmanager
 
 from trueseeing.core.flow.code import CodeFlows
 from trueseeing.core.ui import ui
 from trueseeing.core.code.model import Op
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict
+  from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict, Iterator
   from typing_extensions import Final
   from trueseeing.core.store import Store
 
@@ -36,11 +37,21 @@ class DataFlows:
   @classmethod
   def set_max_graph_size(cls, l: Optional[int]) -> int:
     o = cls._max_graph_size
-    if l is not None:
+    if l is not None and l != cls._default_max_graph_size:
+      ui.info('using graph size limit: {} nodes'.format(l))
       cls._max_graph_size = l
     else:
       cls._max_graph_size = cls._default_max_graph_size
     return o
+
+  @classmethod
+  @contextmanager
+  def apply_max_graph_size(cls, l: Optional[int]) -> Iterator[None]:
+    try:
+      o = cls.set_max_graph_size(l)
+      yield None
+    finally:
+      cls.set_max_graph_size(o)
 
   @classmethod
   def likely_calling_in(cls, store: Store, ops: List[Op]) -> None:

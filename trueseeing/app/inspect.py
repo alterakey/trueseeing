@@ -313,17 +313,6 @@ class Runner:
     await c.analyze(level=level)
     return c
 
-  @contextmanager
-  def _apply_graph_size_limit(self, l: Optional[int]) -> Iterator[None]:
-    from trueseeing.core.flow.data import DataFlows
-    try:
-      if l is not None:
-        ui.info('using graph size limit: {} nodes'.format(l))
-      o = DataFlows.set_max_graph_size(l)
-      yield None
-    finally:
-      DataFlows.set_max_graph_size(o)
-
   async def _shell(self, args: deque[str]) -> None:
     from trueseeing.core.env import get_shell
     from asyncio import create_subprocess_exec
