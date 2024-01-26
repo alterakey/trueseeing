@@ -90,3 +90,39 @@ class APKDisassembler:
       shutil.rmtree(os.path.join(self._context.wd, 'files'), ignore_errors=True)
       if bar:
         bar.finish(end='\r')   # type:ignore[no-untyped-call]
+
+  @classmethod
+  async def disassemble_to_path(cls, wd: str, apk: str, path: str, nodex: bool = False) -> None:
+    import shutil
+    from trueseeing.core.tools import toolchains, invoke_passthru
+    with toolchains() as tc:
+      await invoke_passthru(
+        '(java -jar {apkeditor} d -o {wd}/f -i {apk} {s})'.format(
+          wd=wd, apk=apk,
+          s='-dex' if nodex else '',
+          apkeditor=tc['apkeditor'],
+        )
+      )
+
+    if os.path.exists(path):
+      shutil.rmtree(path)
+    shutil.move(os.path.join(wd, 'f'), path)
+
+class APKAssembler:
+  @classmethod
+  async def assemble_from_path(cls, wd: str, path: str) -> Tuple[str, str]:
+    import os
+    from trueseeing.core.sign import SigningKey
+    from trueseeing.core.tools import invoke_passthru, toolchains
+
+    with toolchains() as tc:
+      await invoke_passthru(
+        '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
+          wd=wd, path=path,
+          apkeditor=tc['apkeditor'],
+          apksigner=tc['apksigner'],
+          keystore=await SigningKey().key(),
+        )
+      )
+
+    return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')

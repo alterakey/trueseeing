@@ -11,7 +11,7 @@ from trueseeing.core.ui import ui
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Tuple, Iterator, Dict, Awaitable, TypedDict
+  from typing import Mapping, Optional, Any, NoReturn, List, Iterator, Dict, Awaitable, TypedDict
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context
 
@@ -328,31 +328,6 @@ class Runner:
     from trueseeing.core.env import get_shell
     from asyncio import create_subprocess_exec
     await (await create_subprocess_exec(get_shell())).wait()
-
-  async def _assemble_apk_from_path(self, wd: str, path: str) -> Tuple[str, str]:
-    import os
-    from trueseeing.core.sign import SigningKey
-    from trueseeing.core.tools import invoke_passthru, toolchains
-
-    with toolchains() as tc:
-      await invoke_passthru(
-        '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
-          wd=wd, path=path,
-          apkeditor=tc['apkeditor'],
-          apksigner=tc['apksigner'],
-          keystore=await SigningKey().key(),
-        )
-      )
-
-    return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
-
-  def _move_apk(self, src: str, dest: str) -> None:
-    import shutil
-    shutil.move(src, dest)
-    try:
-      shutil.move(src.replace('.apk', '.apk.idsig'), dest.replace('.apk', '.apk.idsig'))
-    except OSError:
-      pass
 
   def _decode_analysis_level(self, level: int) -> str:
     analysislevelmap = {0:'no', 1: 'minimally', 2: 'lightly', 3:'fully'}
