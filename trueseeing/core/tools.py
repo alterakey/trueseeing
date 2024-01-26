@@ -89,3 +89,11 @@ def toolchains() -> Iterator[Toolchain]:
           apksigner=apksignerpath,
           abe=abepath,
         )
+
+def move_apk(src: str, dest: str) -> None:
+  import shutil
+  shutil.move(src, dest)
+  try:
+    shutil.move(src.replace('.apk', '.apk.idsig'), dest.replace('.apk', '.apk.idsig'))
+  except OSError:
+    pass

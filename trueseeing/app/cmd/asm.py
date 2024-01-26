@@ -48,6 +48,8 @@ class AssembleCommand(Command):
     import time
     import shutil
     from tempfile import TemporaryDirectory
+    from trueseeing.core.asm import APKAssembler
+    from trueseeing.core.tools import move_apk
 
     root = args.popleft()
     apk = self._runner._target
@@ -70,12 +72,12 @@ class AssembleCommand(Command):
         path = os.path.join(td, 'f')
         shutil.copytree(os.path.join(root, '.'), path)
 
-      outapk, outsig = await self._runner._assemble_apk_from_path(td, path)
+      outapk, outsig = await APKAssembler.assemble_from_path(td, path)
 
       if os.path.exists(apk):
-        self._runner._move_apk(apk, origapk)
+        move_apk(apk, origapk)
 
-      self._runner._move_apk(outapk, apk)
+      move_apk(outapk, apk)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
@@ -90,9 +92,8 @@ class AssembleCommand(Command):
 
     import os
     import time
-    import shutil
     from tempfile import TemporaryDirectory
-    from trueseeing.core.tools import invoke_passthru, toolchains
+    from trueseeing.core.asm import APKDisassembler
 
     path = args.popleft()
     apk = self._runner._target
@@ -105,18 +106,7 @@ class AssembleCommand(Command):
     at = time.time()
 
     with TemporaryDirectory() as td:
-      with toolchains() as tc:
-        await invoke_passthru(
-          '(java -jar {apkeditor} d -o {td}/f -i {apk} {s})'.format(
-            td=td, apk=apk,
-            s='-dex' if 's' in cmd else '',
-            apkeditor=tc['apkeditor'],
-          )
-        )
-
-      if os.path.exists(path):
-        shutil.rmtree(path)
-      shutil.move(os.path.join(td, 'f'), path)
+      await APKDisassembler.disassemble_to_path(td, apk, path)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
