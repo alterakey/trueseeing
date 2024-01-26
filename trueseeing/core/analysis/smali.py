@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import re
 from collections import deque
 
-from trueseeing.core.code.model import Op, Annotation, Param
+from trueseeing.core.model.code import Op, Annotation, Param
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class SmaliAnalyzer:
   def analyze(self) -> None:
     import time
     import progressbar
-    from trueseeing.core.literalquery import Query
+    from trueseeing.core.db import Query
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0

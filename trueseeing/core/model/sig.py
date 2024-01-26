@@ -8,7 +8,7 @@ from pubsub import pub
 if TYPE_CHECKING:
   from typing import ClassVar
   from trueseeing.core.context import Context
-  from trueseeing.core.issue import Issue
+  from trueseeing.core.model.issue import Issue
 
 class Detector(ABC):
   option: ClassVar[str]

@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 import itertools
 import re
 
-from trueseeing.signature.base import Detector
-from trueseeing.core.issue import Issue
+from trueseeing.core.model.sig import Detector
+from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   pass

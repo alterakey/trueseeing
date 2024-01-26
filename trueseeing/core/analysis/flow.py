@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING
 import itertools
 from contextlib import contextmanager
 
-from trueseeing.core.flow.code import CodeFlows
 from trueseeing.core.ui import ui
-from trueseeing.core.code.model import Op
+from trueseeing.core.model.code import Op
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict, Iterator
@@ -14,6 +13,18 @@ if TYPE_CHECKING:
   from trueseeing.core.store import Store
 
   DataGraph = Union[Op, Mapping[Op, Any]]
+
+class CodeFlows:
+  @classmethod
+  def callers_of(cls, store: Store, method: Op) -> Iterable[Op]:
+    yield from store.query().callers_of(method)
+
+  @classmethod
+  def callstacks_of(cls, store: Store, method: Op) -> Mapping[Op, Any]:
+    o = dict()
+    for m in cls.callers_of(store, method):
+      o[m] = cls.callstacks_of(store, m)
+    return o
 
 class DataFlows:
   _stash: Final[Dict[int, str]] = dict()

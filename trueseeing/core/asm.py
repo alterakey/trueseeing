@@ -28,7 +28,7 @@ class APKDisassembler:
     import sqlite3
     import glob
     import shutil
-    from trueseeing.core.literalquery import StorePrep, FileTablePrep, Query
+    from trueseeing.core.db import StorePrep, FileTablePrep, Query
     from trueseeing.core.tools import toolchains, invoke_streaming
     from trueseeing.core.ui import ui
 

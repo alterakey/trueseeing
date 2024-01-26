@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING
 import os
 import os.path
 
-from trueseeing.signature.base import Detector
+from trueseeing.core.model.sig import Detector
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_extension_dir, get_extension_dir_v0, get_extension_package_prefix
 
 if TYPE_CHECKING:
   from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type
   from typing_extensions import Final
-  from trueseeing.app.inspect import CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry
+  from trueseeing.core.model.cmd import Command
 
 class Extension:
   _ns: Any
@@ -114,13 +114,3 @@ class Extension:
   def _get_extensions_v0(self) -> Iterable[str]:
     for fn in 'ext.pyc', 'ext.py', 'ext':
       yield os.path.join(get_extension_dir_v0(), fn)
-
-class Command:
-  def get_commands(self) -> Dict[str, CommandEntry]:
-    return dict()
-  def get_command_patterns(self) -> Dict[str, CommandPatternEntry]:
-    return dict()
-  def get_modifiers(self) -> Dict[str, ModifierEntry]:
-    return dict()
-  def get_options(self) -> Dict[str, OptionEntry]:
-    return dict()

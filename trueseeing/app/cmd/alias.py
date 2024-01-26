@@ -5,12 +5,13 @@ import re
 from collections import deque
 from shlex import shlex
 
-from trueseeing.core.api import Command
+from trueseeing.core.model.cmd import Command
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Dict, Tuple
-  from trueseeing.app.inspect import Runner, CommandEntry, CommandPatternEntry
+  from trueseeing.app.inspect import Runner
+  from trueseeing.core.model.cmd import CommandEntry, CommandPatternEntry
 
 class AliasCommand(Command):
   _runner: Runner

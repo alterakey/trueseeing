@@ -1,9 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import asyncio
-from pubsub import pub
-
 from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator
 from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
@@ -11,8 +8,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import List, Type, Optional, TextIO
   from trueseeing.core.report import ReportGenerator, ReportFormat
-  from trueseeing.signature.base import Detector
-  from trueseeing.core.issue import Issue
+  from trueseeing.core.model.sig import Detector
 
 class ScanMode:
   _files: List[str]
