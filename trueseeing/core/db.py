@@ -16,32 +16,24 @@ class StorePrep:
     self.c = c
 
   def stage0(self) -> None:
-    from importlib.resources import as_file, files
-    with as_file(files('trueseeing')/'libs'/'store.s.sql') as path:
-      with open(path, 'r', encoding='utf-8') as f:
-        self.c.executescript(f.read())
+    from importlib.resources import files
+    self.c.executescript((files('trueseeing')/'libs'/'store.s.sql').read_text())
 
   def stage1(self) -> None:
-    from importlib.resources import as_file, files
-    with as_file(files('trueseeing')/'libs'/'store.0.sql') as path:
-      with open(path, 'r', encoding='utf-8') as f:
-        self.c.executescript(f.read())
+    from importlib.resources import files
+    self.c.executescript((files('trueseeing')/'libs'/'store.0.sql').read_text())
 
   def stage2(self) -> None:
-    from importlib.resources import as_file, files
-    with as_file(files('trueseeing')/'libs'/'store.1.sql') as path:
-      with open(path, 'r', encoding='utf-8') as f:
-        self.c.executescript(f.read())
+    from importlib.resources import files
+    self.c.executescript((files('trueseeing')/'libs'/'store.1.sql').read_text())
 
 class FileTablePrep:
   def __init__(self, c: Any) -> None:
     self.c = c
 
   def prepare(self) -> None:
-    from importlib.resources import as_file, files
-    with as_file(files('trueseeing')/'libs'/'files.0.sql') as path:
-      with open(path, 'r', encoding='utf-8') as f:
-        self.c.executescript(f.read())
+    from importlib.resources import files
+    self.c.executescript((files('trueseeing')/'libs'/'files.0.sql').read_text())
 
 class Query:
   def __init__(self, *, store: Optional[Store] = None, c: Any = None) -> None:

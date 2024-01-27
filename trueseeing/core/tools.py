@@ -81,9 +81,10 @@ async def try_invoke(as_: str) -> Optional[str]:
 def toolchains() -> Iterator[Toolchain]:
   from importlib.resources import files, as_file
   require_in_path('java', 'java -version')
-  with as_file(files('trueseeing')/'libs'/'apkeditor.jar') as apkeditorpath:
-    with as_file(files('trueseeing')/'libs'/'apksigner.jar') as apksignerpath:
-      with as_file(files('trueseeing')/'libs'/'abe.jar') as abepath:
+  libs = files('trueseeing')/'libs'
+  with as_file(libs/'apkeditor.jar') as apkeditorpath:
+    with as_file(libs/'apksigner.jar') as apksignerpath:
+      with as_file(libs/'abe.jar') as abepath:
         yield dict(
           apkeditor=apkeditorpath,
           apksigner=apksignerpath,
