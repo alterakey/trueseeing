@@ -26,7 +26,6 @@ class AssembleCommand(Command):
       'cd!':dict(e=self._disassemble),
       'cds':dict(e=self._disassemble),
       'cds!':dict(e=self._disassemble),
-      'cf':dict(e=self._use_framework, n='cf framework.apk', d='use framework'),
       'co':dict(e=self._export_context, n='co[!] /path [pat]', d='export codebase'),
       'co!':dict(e=self._export_context),
     }
@@ -150,24 +149,6 @@ class AssembleCommand(Command):
       ui.info('disassemble: writing... done.' + (' '*16), ow=True)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
-
-  async def _use_framework(self, args: deque[str]) -> None:
-    _ = args.popleft()
-
-    if not args:
-      ui.fatal('need framework apk')
-
-    from trueseeing.core.tools import invoke_passthru
-    from importlib.resources import as_file, files
-
-    apk = args.popleft()
-
-    with as_file(files('trueseeing')/'libs'/'apktool.jar') as path:
-      await invoke_passthru(
-        'java -jar {apktool} if {apk}'.format(
-          apk=apk,
-          apktool=path,
-        ))
 
   async def _export_context(self, args: deque[str]) -> None:
     self._runner._require_target()
