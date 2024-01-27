@@ -98,3 +98,48 @@ def move_apk(src: str, dest: str) -> None:
     shutil.move(src.replace('.apk', '.apk.idsig'), dest.replace('.apk', '.apk.idsig'))
   except OSError:
     pass
+
+def copytree(src: str, dst: str, divisor: Optional[int] = 256) -> Iterator[int]:
+  import os
+  from shutil import copy2, copystat
+
+  nr = 0
+  for sp, dns, fns in os.walk(src):
+    dp = os.path.realpath(os.path.join(dst, os.path.relpath(sp, src)))
+    for dn in dns:
+      os.makedirs(os.path.join(dp, dn), exist_ok=True)
+      copystat(os.path.join(sp, dn), os.path.join(dp, dn))
+    for fn in fns:
+      copy2(os.path.join(sp, fn), os.path.join(dp, fn))
+      if divisor is None or (nr % divisor == 0):
+        yield nr
+      nr += 1
+
+def move_as_output(src: str, dst: str, divisor: Optional[int] = 256, allow_orphans: bool = False) -> Iterator[int]:
+  import os
+  from trueseeing.core.env import is_in_container
+  if not is_in_container():
+    try:
+      os.rename(src, dst)
+      yield 0
+      return
+    except OSError:
+      pass
+
+  nr = 0
+
+  from shutil import copy2, copystat
+  for sp, dns, fns in os.walk(src, topdown=False):
+    dp = os.path.realpath(os.path.join(dst, os.path.relpath(sp, src)))
+    for dn in dns:
+      copystat(os.path.join(sp, dn), os.path.join(dp, dn))
+      if not allow_orphans:
+        os.rmdir(os.path.join(sp, dn))
+    for fn in fns:
+      os.makedirs(dp, exist_ok=True)
+      copy2(os.path.join(sp, fn), os.path.join(dp, fn))
+      if not allow_orphans:
+        os.remove(os.path.join(sp, fn))
+      if divisor is None or (nr % divisor == 0):
+        yield nr
+      nr += 1

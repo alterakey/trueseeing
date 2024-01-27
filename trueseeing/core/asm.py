@@ -92,37 +92,72 @@ class APKDisassembler:
         bar.finish(end='\r')   # type:ignore[no-untyped-call]
 
   @classmethod
-  async def disassemble_to_path(cls, wd: str, apk: str, path: str, nodex: bool = False) -> None:
-    import shutil
-    from trueseeing.core.tools import toolchains, invoke_passthru
+  async def disassemble_to_path(cls, apk: str, path: str, nodex: bool = False) -> None:
+    from trueseeing.core.tools import toolchains, invoke_streaming
+    from trueseeing.core.ui import ui
+
+    if ui.is_tty():
+      import progressbar
+      bar = progressbar.ProgressBar(widgets=[
+        ui.bullet('info'),
+        'disassemble: disassembling... ',
+        progressbar.RotatingMarker()   # type:ignore[no-untyped-call]
+      ])
+    else:
+      ui.info('disassemble: disassembling... ')
+      bar = None
+
     with toolchains() as tc:
-      await invoke_passthru(
-        '(java -jar {apkeditor} d -o {wd}/f -i {apk} {s})'.format(
-          wd=wd, apk=apk,
+      async for l in invoke_streaming(
+        '(java -jar {apkeditor} d -o {path} -i {apk} {s})'.format(
+          apk=apk,
           s='-dex' if nodex else '',
           apkeditor=tc['apkeditor'],
-        )
-      )
+          path=path,
+        ), redir_stderr=True
+      ):
+        if bar is not None:
+          bar.next()   # type:ignore[no-untyped-call]
 
-    if os.path.exists(path):
-      shutil.rmtree(path)
-    shutil.move(os.path.join(wd, 'f'), path)
+    if bar is not None:
+      ui.info('disassemble: disassembling... done.', ow=True)
+    else:
+      ui.info('disassemble: done')
 
 class APKAssembler:
   @classmethod
   async def assemble_from_path(cls, wd: str, path: str) -> Tuple[str, str]:
     import os
     from trueseeing.core.sign import SigningKey
-    from trueseeing.core.tools import invoke_passthru, toolchains
+    from trueseeing.core.tools import invoke_streaming, toolchains
+    from trueseeing.core.ui import ui
+
+    if ui.is_tty():
+      import progressbar
+      bar = progressbar.ProgressBar(widgets=[
+        ui.bullet('info'),
+        'assemble: assembling... ',
+        progressbar.RotatingMarker()   # type:ignore[no-untyped-call]
+      ])
+    else:
+      ui.info('assemble: assembling... ')
+      bar = None
 
     with toolchains() as tc:
-      await invoke_passthru(
+      async for l in invoke_streaming(
         '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
           wd=wd, path=path,
           apkeditor=tc['apkeditor'],
           apksigner=tc['apksigner'],
           keystore=await SigningKey().key(),
-        )
-      )
+        ), redir_stderr=True
+      ):
+        if bar is not None:
+          bar.next()  # type:ignore[no-untyped-call]
+
+    if bar is not None:
+      ui.info('assemble: assembling... done.', ow=True)
+    else:
+      ui.info('assemble: done')
 
     return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
