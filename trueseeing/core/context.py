@@ -1,11 +1,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import functools
 import lxml.etree as ET
 import os
 import re
 import shutil
+from functools import cache
 
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v1
@@ -136,15 +136,15 @@ class Context:
     e = manif.xpath('.//uses-sdk')[0]
     return int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
 
-  @functools.lru_cache(maxsize=1)
+  @cache
   def disassembled_classes(self) -> List[str]:
     return list(self.store().query().file_find('smali%.smali'))
 
-  @functools.lru_cache(maxsize=1)
+  @cache
   def disassembled_resources(self) -> List[str]:
     return list(self.store().query().file_find('%/res/%.xml'))
 
-  @functools.lru_cache(maxsize=1)
+  @cache
   def disassembled_assets(self) -> List[str]:
     return list(self.store().query().file_find('root/%/assets/%'))
 
@@ -163,7 +163,7 @@ class Context:
   def permissions_declared(self) -> Iterable[Any]:
     yield from self.parsed_manifest().xpath('//uses-permission/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android'))
 
-  @functools.lru_cache(maxsize=1)
+  @cache
   def _string_resource_files(self) -> List[str]:
     return list(self.store().query().file_find('%/res/values/%strings%'))
 
@@ -171,7 +171,7 @@ class Context:
     for _, o in self.store().query().file_enum('%/res/values/%strings%'):
       yield from ((c.attrib['name'], c.text) for c in ET.fromstring(o, parser=ET.XMLParser(recover=True)).xpath('//resources/string') if c.text)
 
-  @functools.lru_cache(maxsize=1)
+  @cache
   def _xml_resource_files(self) -> List[str]:
     return list(self.store().query().file_find('%/res/xml/%.xml'))
 
