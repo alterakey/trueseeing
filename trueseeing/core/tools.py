@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import asyncio
-import functools
+from functools import cache
 from contextlib import contextmanager
 from trueseeing.core.ui import ui
 
@@ -41,7 +41,7 @@ def _check_return_code(p: Any, args: Any, out: Any, err: Any) -> None:
     from subprocess import CalledProcessError
     raise CalledProcessError(code, args, out, err)
 
-@functools.lru_cache(maxsize=1)
+@cache
 def require_in_path(cmd: str, cmdline: str) -> None:
   from subprocess import run, CalledProcessError
   try:

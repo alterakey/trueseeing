@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import functools
+from functools import cache
 from trueseeing.core.env import get_adb_host
 from trueseeing.core.tools import invoke, invoke_passthru, invoke_streaming
 from trueseeing.core.ui import ui
@@ -41,7 +41,7 @@ class AndroidDevice:
     )
     return line
 
-  @functools.lru_cache(maxsize=1)
+  @cache
   def _require_adb(self) -> None:
     from trueseeing.core.tools import require_in_path
     require_in_path('adb', 'adb version')
