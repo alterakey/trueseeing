@@ -204,8 +204,9 @@ Scan mode (DEPRECATED):
       ui.stderr(self._version())
       return 0
     if args.help_signatures:
-      ui.stderr(self._help_signatures(sigs.content))
-      return 2
+      args.no_target = True
+      args.mode = 'batch'
+      cmdlines = ['?s?']
 
     ui.set_level(log_level)
 
