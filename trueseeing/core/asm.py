@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
 import os
 import os.path
+from trueseeing.core.env import get_home_dir
+from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Tuple
@@ -24,7 +27,6 @@ class APKDisassembler:
     import shutil
     from trueseeing.core.db import StorePrep, FileTablePrep, Query
     from trueseeing.core.tools import toolchains, invoke_streaming
-    from trueseeing.core.ui import ui
 
     apk, archive = 'target.apk', 'store.db'
 
@@ -88,7 +90,6 @@ class APKDisassembler:
   @classmethod
   async def disassemble_to_path(cls, apk: str, path: str, nodex: bool = False) -> None:
     from trueseeing.core.tools import toolchains, invoke_streaming
-    from trueseeing.core.ui import ui
 
     if ui.is_tty():
       import progressbar
@@ -122,9 +123,7 @@ class APKAssembler:
   @classmethod
   async def assemble_from_path(cls, wd: str, path: str) -> Tuple[str, str]:
     import os
-    from trueseeing.core.sign import SigningKey
     from trueseeing.core.tools import invoke_streaming, toolchains
-    from trueseeing.core.ui import ui
 
     if ui.is_tty():
       import progressbar
@@ -155,3 +154,20 @@ class APKAssembler:
       ui.info('assemble: done')
 
     return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
+
+class SigningKey:
+  _path: str
+
+  def __init__(self) -> None:
+    self._path = os.path.join(get_home_dir(), 'sign.keystore')
+
+  async def key(self) -> str:
+    os.makedirs(os.path.dirname(self._path), exist_ok=True)
+    if not os.path.exists(self._path):
+      await self._generate()
+    return self._path
+
+  async def _generate(self) -> None:
+    from trueseeing.core.tools import invoke_passthru
+    ui.info("generating key for repackaging")
+    await invoke_passthru(f'keytool -genkey -v -keystore {self._path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
