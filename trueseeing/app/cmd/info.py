@@ -84,9 +84,9 @@ class InfoCommand(Command):
           ui.info('api min      {}'.format(int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))))
           ui.info('api tgt      {}'.format(int(e.attrib.get('{http://schemas.android.com/apk/res/android}targetSdkVersion', '1'))))
       else:
-        dom = context._parsed_apktool_yml()
-        ui.info('api min      {} (apktool)'.format(int(dom['sdkInfo'].get('minSdkVersion', '1'))))
-        ui.info('api tgt      {} (apktool)'.format(int(dom['sdkInfo'].get('targetSdkVersion', '1'))))
+        ui.warn('cannot determine min/target sdk version')
+        ui.info('api min      ?')
+        ui.info('api tgt      ?')
       if analyzed > 2:
         with store.db as c:
           for nr, in c.execute('select count(1) from analysis_issues'):

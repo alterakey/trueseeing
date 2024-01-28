@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import asyncio
-import os
 import sys
 
 from trueseeing.core.ui import ui
@@ -77,53 +76,6 @@ class Shell:
        'Copyright (C) Takahiro Yoshimura <altakey@gmail.com> et al.\n' # noqa: E131
        'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
     )
-
-  @classmethod
-  def _help(cls) -> str:
-    return '\n'.join([
-      cls._version(),
-      '''\
-USAGE
-
-    {me} [options ...] [<target.apk>]
-'''.format(me=os.path.basename(sys.argv[0])),
-      #.........................................................................80
-      '''\
-OPTIONS
-
-General:
-  -c                        Run commands before prompt
-  -d/--debug                Debug mode
-  -i                        Run script file before prompt
-  -n                        Open empty file
-  -q                        Batch mode; quit instead of giving prompt
-  --version                 Version information
-  --help                    Show this text
-  --help-signature          Show signatures
-  --inspect                 Inspect mode (deprecated; now default)
-  --scan                    Scan mode (deprecated; use -qc "as;g*"; e.g. gh for HTML)
-
-Scan mode (DEPRECATED):
-  --scan-sigs=<sig>,..      Select signatures (use --help-signatures to list signatures)
-  --scan-exclude=<pattern>  Excluding packages matching pattern
-  --scan-output=<file>   Report filename ("-" for stdout)
-  --scan-report=html|json   Report format (html: HTML (default), json: JSON)
-  --scan-max-graph-size=<n> Set max graph size
-  --scan-no-cache           Do not keep codebase cache
-  --scan-update-cache       Analyze and rebuild codebase cache
-'''
-    ])
-
-  @classmethod
-  def _help_signatures(cls, signatures: Dict[str, Type[Detector]]) -> str:
-    return '\n'.join([
-      cls._version(),
-      '',
-      #.........................................................................80
-      'signatures:',
-    ] + [
-      f'  {name:<36s}{signatures[name].description}' for name in sorted(signatures.keys())
-    ])
 
   def _launch(self, coro: Coroutine[Any, Any, int]) -> int:
     return asyncio.run(coro)
