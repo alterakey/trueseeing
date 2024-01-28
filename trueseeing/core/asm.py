@@ -10,14 +10,8 @@ if TYPE_CHECKING:
 class APKDisassembler:
   _context: Context
 
-  def __init__(self, context: Context, skip_resources: bool = False):
+  def __init__(self, context: Context):
     self._context = context
-    self._skip_resources = skip_resources
-
-  @classmethod
-  def _get_version(cls) -> str:
-    from trueseeing import __version__
-    return __version__
 
   async def disassemble(self, level: int = 3) -> None:
     await self._do(level)

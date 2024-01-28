@@ -90,7 +90,7 @@ class Context:
         return level
     return 0
 
-  async def analyze(self, level: int = 3, skip_resources: bool = False) -> None:
+  async def analyze(self, level: int = 3) -> None:
     if self.get_analysis_level() >= level:
       ui.debug('analyzed once')
     else:
@@ -104,7 +104,7 @@ class Context:
       if level > 0:
         ui.info('analyze: disassembling... ', nl=False)
         self.create()
-        disasm = APKDisassembler(self, skip_resources)
+        disasm = APKDisassembler(self)
         await disasm.disassemble(level)
         ui.info('analyze: disassembling... done.', ow=True)
 
@@ -125,29 +125,16 @@ class Context:
     assert manifest is not None
     return ET.tostring(manifest) # type: ignore[no-any-return]
 
-  def _parsed_apktool_yml(self) -> Any:
-    # FIXME: using ruamel.yaml?
-    import yaml
-    o = self.store().query().file_get('apktool.yml')
-    if o is not None:
-      return yaml.safe_load(re.sub(r'!!brut\.androlib\..*', '', o.decode('utf-8')))
-
   def get_target_sdk_version(self) -> int:
     manif = self.parsed_manifest()
-    try:
-      e = manif.xpath('.//uses-sdk')[0]
-      return int(e.attrib.get('{http://schemas.android.com/apk/res/android}targetSdkVersion', '1'))
-    except IndexError:
-      return int(self._parsed_apktool_yml()['sdkInfo']['targetSdkVersion'])
+    e = manif.xpath('.//uses-sdk')[0]
+    return int(e.attrib.get('{http://schemas.android.com/apk/res/android}targetSdkVersion', '1'))
 
   # FIXME: Handle invalid values
   def get_min_sdk_version(self) -> int:
     manif = self.parsed_manifest()
-    try:
-      e = manif.xpath('.//uses-sdk')[0]
-      return int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
-    except IndexError:
-      return int(self._parsed_apktool_yml()['sdkInfo']['minSdkVersion'])
+    e = manif.xpath('.//uses-sdk')[0]
+    return int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1'))
 
   @functools.lru_cache(maxsize=1)
   def disassembled_classes(self) -> List[str]:

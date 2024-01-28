@@ -61,9 +61,6 @@ class HTMLReportGenerator:
   def note(self, issue: Issue) -> None:
     ConsoleNoter.note(issue)
 
-  def return_(self, found: bool) -> bool:
-    return found
-
   def generate(self, f: TextIO) -> None:
     with self._context.store().db as db:
       from datetime import datetime
