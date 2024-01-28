@@ -6,97 +6,64 @@ from trueseeing.core.context import Context
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Type, Optional, TextIO
+  from typing import List, Type, Optional
   from trueseeing.core.report import ReportGenerator, ReportFormat
   from trueseeing.core.model.sig import Detector
+  from trueseeing.core.scan import Scanner
 
 class ScanMode:
-  _files: List[str]
-  _ci_mode: ReportFormat
+  _target: str
   _outfile: Optional[str] = None
-  _sigs: List[Type[Detector]]
-  _exclude_packages: List[str] = []
-  _update_cache_mode: bool = False
-  _no_cache_mode: bool = False
-  _from_inspect_mode: bool = False
-  _keep_current_issues: bool = False
+  _context: Context
+  _reporter: ReportGenerator
+  _scanner: Scanner
 
-  def __init__(self, files: List[str], ci_mode: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], exclude_packages: List[str] = [], update_cache_mode: bool = False, no_cache_mode: bool = False, from_inspect_mode: bool = False, keep_current_issues: bool = False) -> None:
-    self._files = files
-    self._ci_mode = ci_mode
-    self._outfile = outfile
-    self._sigs = signatures
-    self._exclude_packages = exclude_packages
-    self._update_cache_mode = update_cache_mode
-    self._no_cache_mode = no_cache_mode
-    self._from_inspect_mode = from_inspect_mode
-    self._keep_current_issues = keep_current_issues
-
-  async def invoke(self) -> int:
-    if self._update_cache_mode:
-      for f in self._files:
-        await self._do_update_cache(f)
-      return 0
-    else:
-      import time
-      error_found = False
-      for f in self._files:
-        at = time.time()
-        try:
-          nr = await self._do_scan(f)
-          if nr:
-            error_found = True
-          if not self._from_inspect_mode:
-            ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=f, nr=nr, t=(time.time() - at)))
-        finally:
-          if self._no_cache_mode:
-            Context(f, []).remove()
-
-      if not error_found:
-        return 0
-      else:
-        return 1
-
-  async def _do_update_cache(self, path: str) -> None:
-    ctx = Context(path, [])
-    ctx.remove()
-    await ctx.analyze()
-
-  async def _do_scan(self, path: str) -> int:
+  def __init__(self, target: str, outform: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], excludes: List[str] = []) -> None:
     from trueseeing.core.scan import Scanner
+    self._target = target
+    self._outfile = outfile
+    self._context = Context(self._target, excludes)
+    self._reporter = self._get_reporter(self._context, outform, outfile)
+    self._scanner = Scanner(self._context, self._reporter, signatures, excludes)
 
-    context = Context(path, self._exclude_packages)
-    reporter = self._get_reporter(context)
-    scanner = Scanner(context, reporter=reporter, sigs=self._sigs, excludes=self._exclude_packages)
+  async def reanalyze(self) -> int:
+    self._context.remove()
+    await self._context.analyze()
+    return 0
 
-    await context.analyze()
-    ui.info(f"{path} -> {context.wd}")
+  async def scan(self, incremental: bool = False, oneshot: bool = False) -> int:
+    import time
+    at = time.time()
+    try:
+      await self._context.analyze()
+      ui.info(f"{self._target} -> {self._context.wd}")
 
-    with context.store().query().scoped() as q:
-      if not self._keep_current_issues:
-        await scanner.clear(q)
-      nr = await scanner.scan(q)
+      with self._context.store().query().scoped() as q:
+        if not incremental:
+          await self._scanner.clear(q)
+        nr = await self._scanner.scan(q)
 
-    if self._outfile is not None:
-      with self._open_outfile() as f:
-        reporter.generate(f)
+      if self._outfile is not None:
+        if self._outfile == '-':
+          from sys import stdout
+          self._reporter.generate(stdout)
+        else:
+          with open(self._outfile, 'w') as f:
+            self._reporter.generate(f)
 
-    reporter.return_(True if nr else False)
-    return nr
+      ui.success('{fn}: analysis done, {nr} issues ({t:.02f} sec.)'.format(fn=self._target, nr=nr, t=(time.time() - at)))
 
-  def _open_outfile(self) -> TextIO:
-    assert self._outfile is not None
-    if self._outfile == '-':
-      import sys
-      return sys.stdout
-    else:
-      return open(self._outfile, 'w')
+      return 1 if nr else 0
+    finally:
+      if oneshot:
+        self._context.remove()
 
-  def _get_reporter(self, context: Context) -> ReportGenerator:
-    if self._outfile is None:
+  @classmethod
+  def _get_reporter(cls, context: Context, format: ReportFormat, fn: Optional[str]) -> ReportGenerator:
+    if fn is None:
       return CIReportGenerator(context)
     else:
-      if self._ci_mode == 'json':
+      if format == 'json':
         return JSONReportGenerator(context)
       else:
         return HTMLReportGenerator(context)

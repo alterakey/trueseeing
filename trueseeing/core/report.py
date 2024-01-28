@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     def __init__(self, context: Context) -> None: ...
     def note(self, issue: Issue) -> None: ...
     def generate(self, f: TextIO) -> None: ...
-    def return_(self, found: bool) -> bool: ...
 
 class ConsoleNoter:
   @classmethod
@@ -44,9 +43,6 @@ class CIReportGenerator:
 
   def note(self, issue: Issue) -> None:
     ConsoleNoter.note(issue)
-
-  def return_(self, found: bool) -> bool:
-    return found
 
   def generate(self, f: TextIO) -> None:
     for issue in self._context.store().query().issues():
@@ -107,9 +103,6 @@ class JSONReportGenerator:
 
   def note(self, issue: Issue) -> None:
     ConsoleNoter.note(issue)
-
-  def return_(self, found: bool) -> bool:
-    return found
 
   def generate(self, f: TextIO) -> None:
     from json import dumps
