@@ -8,10 +8,12 @@ from trueseeing.core.ui import ui
 from trueseeing.core.env import get_extension_dir, get_extension_dir_v0, get_extension_package_prefix
 
 if TYPE_CHECKING:
-  from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type
+  from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type, TypeVar
   from typing_extensions import Final
   from trueseeing.core.model.cmd import Command
   from trueseeing.core.model.sig import Detector
+
+  T = TypeVar('T')
 
 class Extension:
   _ns: Any
@@ -66,18 +68,19 @@ class Extension:
       return {}
 
   def get_signatures(self) -> Iterator[Type[Detector]]:
-    from inspect import getmembers, isclass
     from trueseeing.core.model.sig import Detector
-    for _,m in self._ns.items():
-      for n, clazz in getmembers(m, lambda x: isclass(x) and x != Detector and issubclass(x, Detector)):
-        if not n.startswith('_'):
-          yield clazz
+    for clazz in self._get_public_subclasses(Detector):  # type: ignore[type-abstract]
+      yield clazz
 
   def get_commands(self) -> Iterator[Type[Command]]:
-    from inspect import getmembers, isclass
     from trueseeing.core.model.cmd import Command
+    for clazz in self._get_public_subclasses(Command):
+      yield clazz
+
+  def _get_public_subclasses(self, typ: Type[T]) -> Iterable[Type[T]]:
+    from inspect import getmembers, isclass
     for _,m in self._ns.items():
-      for n, clazz in getmembers(m, lambda x: isclass(x) and x != Command and issubclass(x, Command)):
+      for n, clazz in getmembers(m, lambda x: isclass(x) and x != typ and issubclass(x, typ)):
         if not n.startswith('_'):
           yield clazz
 
