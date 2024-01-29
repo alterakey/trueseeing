@@ -8,7 +8,7 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from pathlib import Path
-  from typing import Any, Optional, AsyncIterable, TypeVar, List, Iterator, TypedDict, AsyncIterator
+  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator
   T = TypeVar('T')
 
   class Toolchain(TypedDict):
@@ -24,12 +24,6 @@ def noneif(x: Any, defaulter: Any) -> Any:
       return defaulter()
     else:
       return defaulter
-
-async def list_async(iter: AsyncIterable[T]) -> List[T]:
-  o = []
-  async for t in iter:
-    o.append(t)
-  return o
 
 def _check_return_code(p: Any, args: Any, out: Any, err: Any) -> None:
   code: int

@@ -47,9 +47,10 @@ Alternatively, you can install it with pip as follows. This might be useful for 
 
 ### Interactive mode
 
-With trueseeing you can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
+You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
-	$ docker run -it --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --inspect target.apk
+	$ trueseeing --inspect target.apk
+	warning: --inspect is deprecated; ignored as default
 	[+] trueseeing 2.1.9
 	ts[target.apk]> ?
 	...
@@ -72,70 +73,75 @@ We accept an inline command (`-c`) or script file (`-i`) to run before giving yo
 
 You can use the features to conduct a batch scan, as follows e.g. to dump findings right onto the stderr:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as' target.apk
+	$ trueseeing -qc 'as' target.apk
 
 To generate a report file in HTML format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gh report.html' target.apk
+	$ trueseeing -qc 'as;gh report.html' target.apk
 
 To generate a report file in JSON format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gj report.json' target.apk
+	$ trueseeing -qc 'as;gj report.json' target.apk
 
 To get report generated in stdout, omit filename from final `g*` command:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gh' target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing -qc 'as;gj' target.apk > report.json
+	$ trueseeing -qc 'as;gh' target.apk > report.html
+	$ trueseeing -qc 'as;gj' target.apk > report.json
 
 ### Non-interactive scan mode (deprecated)
 
 Traditionally, you can scan apps with the following command line to get findings listed in stderr:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan target.apk
+	$ trueseeing --scan target.apk
 
 To generate a report in HTML format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-output report.html target.apk
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=html --scan-output report.html target.apk
+	$ trueseeing --scan --scan-output report.html target.apk
+	$ trueseeing --scan --scan-report=html --scan-output report.html target.apk
 
 To generate a report in JSON format:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=json --scan-output report.json target.apk
+	$ trueseeing --scan --scan-report=json --scan-output report.json target.apk
 
 To get report generated in stdout, specify '-' as filename:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-output - target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=html --scan-output - target.apk > report.html
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing --scan --scan-report=json --scan-output - target.apk > report.json
+	$ trueseeing --scan --scan-output - target.apk > report.html
+	$ trueseeing --scan --scan-report=html --scan-output - target.apk > report.html
+	$ trueseeing --scan --scan-report=json --scan-output - target.apk > report.json
 
 ## Advanced Usages
 
 ### Extensions
 
-You can write your own signatures etc. as extensions.  Extensions are placed under `/ext` (containers) or `~/.trueseeing2/extensions/` (pip) . We provide type information so you can not only type-check your extensions with `mypy` but also get a decent assist from IDEs.
+You can write your own commands and signatures as extensions.  Extensions are placed under `/ext` (containers) or `~/.trueseeing2/extensions/` (pip) . Alternatively you can distribute your extensions as wheels. We provide type information so you can not only type-check your extensions with [mypy](https://github.com/python/mypy) but also get a decent assist from IDEs.
 
 _TBD: Document extension APIs_
 
 
 ## Build
 
-To build:
+You can build it as follows:
+
+	$ docker build -t trueseeing https://github.com/alterakey/trueseeing.git#main
+
+To build wheels you can do with [flit](https://flit.pypa.io/en/stable/), as follows:
+
+	$ flit build
+
+To hack it, you need to create a proper build environment. To create one, set up a venv, install [flit](https://flit.pypa.io/en/stable/) in there, and have it pull dependencies and validating toolchains; esp. [mypy](https://github.com/python/mypy) and [pflake8](https://github.com/csachs/pyproject-flake8).  In short, do something like this:
 
 	$ git clone https://github.com/alterakey/trueseeing.git wc
-	$ docker build -t trueseeing wc
-
-If you are to hack it, please do something like this instead; in essence, install [flit](https://flit.pypa.io/en/stable/) , and have it pull dependencies and toolchains need to validate the code; namely [mypy](https://github.com/python/mypy) and [pflake8](https://github.com/csachs/pyproject-flake8):
-
-	$ git clone https://github.com/alterakey/trueseeing.git wc
-	$ cd wc
-	$ python3 -m venv .venv
-	$ source .venv/bin/activate
+	$ python3 -m venv wc/.venv
+	$ source wc/.venv/bin/activate
 	(.venv) $ pip install flit
-	(.venv) $ flit install --deps=develop --only-deps
+	(.venv) $ flit install --deps=develop -s
 	(.venv) $ (... hack ...)
+	(.venv) $ trueseeing ...                         # to run
 	(.venv) $ mypy trueseeing && pflake8 trueseeing  # to validate
 	Success: no issues found in XX source files
-	(.venv) $ docker build -t trueseeing .           # to build
+	(.venv) $ flit build                             # to build (wheel)
+	(.venv) $ docker build -t trueseeing .           # to build (container)
+
 
 ## Details
 

@@ -8,8 +8,7 @@ from trueseeing.core.model.code import Op, Annotation, Param
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Iterable, Optional, Type, List, Tuple, TypeVar, Set
-  from types import TracebackType
+  from typing import Iterable, Optional, List, Tuple, TypeVar, Set
   from trueseeing.core.store import Store
 
   T = TypeVar('T')
@@ -18,12 +17,6 @@ class SmaliAnalyzer:
   _store: Store
   def __init__(self, store: Store) -> None:
     self._store = store
-
-  def __enter__(self) -> SmaliAnalyzer:
-    return self
-
-  def __exit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
-    pass
 
   def analyze(self) -> None:
     import time
