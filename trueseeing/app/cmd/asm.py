@@ -5,7 +5,7 @@ from collections import deque
 
 from trueseeing.core.model.cmd import Command
 from trueseeing.core.env import is_in_container
-from trueseeing.core.ui import ui
+from trueseeing.core.ui import ui, FileTransferProgressReporter
 
 if TYPE_CHECKING:
   from typing import Dict
@@ -67,27 +67,11 @@ class AssembleCommand(Command):
       if opts.get('nocache', 0 if is_in_container() else 1):
         path = root
       else:
-        if ui.is_tty():
-          import progressbar
-          bar = progressbar.ProgressBar(widgets=[
-            ui.bullet('info'),
-            'caching content... ',
-            progressbar.Counter(), ' ',   # type:ignore[no-untyped-call]
-            progressbar.RotatingMarker()   # type:ignore[no-untyped-call]
-          ])
-          bar.start() # type:ignore[no-untyped-call]
-        else:
-          ui.info('caching content')
-          bar = None
-
-        path = os.path.join(td, 'f')
-        for nr in copytree(os.path.join(root, '.'), path, divisor=(256 if bar else 1024)):
-          if bar is not None:
-            bar.update(nr) # type: ignore[no-untyped-call]
-          else:
-            ui.info(f' .. {nr} files')
-        if bar is not None:
-          bar.finish()  # type: ignore[no-untyped-call]
+        with FileTransferProgressReporter('caching content').scoped() as progress:
+          path = os.path.join(td, 'f')
+          for nr in copytree(os.path.join(root, '.'), path, divisor=(256 if progress.using_bar() else 1024)):
+            progress.update(nr)
+          progress.done()
 
       outapk, outsig = await APKAssembler.assemble_from_path(td, path)
 
@@ -130,23 +114,10 @@ class AssembleCommand(Command):
     with TemporaryDirectory() as td:
       await APKDisassembler.disassemble_to_path(apk, td)
 
-      if ui.is_tty():
-        import progressbar
-        bar = progressbar.ProgressBar(widgets=[
-          ui.bullet('info'),
-          'disassemble: writing... ',
-          progressbar.Counter(), ' ',   # type:ignore[no-untyped-call]
-          progressbar.RotatingMarker()   # type:ignore[no-untyped-call]
-        ])
-        bar.start() # type:ignore[no-untyped-call]
-      else:
-        bar = None
-
-      for nr in move_as_output(td, path, allow_orphans=True):
-        if bar is not None:
-          bar.update(nr) # type:ignore[no-untyped-call]
-
-      ui.info('disassemble: writing... done.' + (' '*16), ow=True)
+      with FileTransferProgressReporter('disassemble: writing').scoped() as progress:
+        for nr in move_as_output(td, path, allow_orphans=True):
+          progress.update(nr)
+        progress.done()
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 

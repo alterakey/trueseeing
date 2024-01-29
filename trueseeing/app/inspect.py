@@ -6,7 +6,7 @@ import asyncio
 from shlex import shlex
 import sys
 import re
-from trueseeing.core.ui import ui
+from trueseeing.core.ui import ui, CoreProgressReporter
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
@@ -26,7 +26,8 @@ class InspectMode:
     try:
       if ui.is_tty():
         ui.enter_inspect()
-      self._do(target, signatures, batch, cmdlines)
+      with CoreProgressReporter().scoped():
+        self._do(target, signatures, batch, cmdlines)
     finally:
       if ui.is_tty():
         ui.exit_inspect()

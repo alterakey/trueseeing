@@ -7,6 +7,8 @@ import re
 import shutil
 from functools import cache
 
+from pubsub import pub
+
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v1
 
@@ -102,11 +104,11 @@ class Context:
         self.remove()
 
       if level > 0:
-        ui.info('analyze: disassembling... ', nl=False)
+        pub.sendMessage('progress.core.context.disasm.begin')
         self.create()
         disasm = APKDisassembler(self)
         await disasm.disassemble(level)
-        ui.info('analyze: disassembling... done.', ow=True)
+        pub.sendMessage('progress.core.context.disasm.done')
 
         if level > 2:
           SmaliAnalyzer(self.store()).analyze()

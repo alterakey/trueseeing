@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 import re
 from collections import deque
 
+from pubsub import pub
+
 from trueseeing.core.model.code import Op, Annotation, Param
 from trueseeing.core.ui import ui
 
@@ -20,7 +22,6 @@ class SmaliAnalyzer:
 
   def analyze(self) -> None:
     import time
-    import progressbar
     from trueseeing.core.db import Query
     analyzed_ops = 0
     analyzed_methods = 0
@@ -38,21 +39,7 @@ class SmaliAnalyzer:
       pat = 'smali/%.smali'
       total = q.file_count(pat)
 
-      if ui.is_tty():
-        bar = progressbar.ProgressBar(
-          max_value=total,
-          widgets=[
-            ui.bullet('info'),
-            'analyze: analyzing... ',
-            progressbar.Percentage(), ' ',  # type:ignore[no-untyped-call]
-            progressbar.GranularBar(), ' ',  # type:ignore[no-untyped-call]
-            progressbar.SimpleProgress(format='%(value_s)s/%(max_value_s)s'), ' ',   # type:ignore[no-untyped-call]
-            '(', progressbar.ETA(), ')'   # type:ignore[no-untyped-call]
-          ]
-        )
-      else:
-        bar = None
-
+      pub.sendMessage('progress.core.analysis.smali.begin', total=total)
       nr = 0
       for _, f in q.file_enum(pat):
         ops = []
@@ -78,39 +65,23 @@ class SmaliAnalyzer:
         if start:
           classmap.add(tuple([start, ops[-1]._id])) # type: ignore[arg-type]
 
-        if bar is not None:
-          bar.update(nr)   # type:ignore[no-untyped-call]
-        else:
-          if (nr % 128) == 0:
-            ui.info(f"analyze: analyzing ... {nr} classes")
-
+        pub.sendMessage('progress.core.analysis.smali.analyzing', nr=nr)
         nr += 1
 
-      if bar is not None:
-        bar.finish()   # type:ignore[no-untyped-call]
+      pub.sendMessage('progress.core.analysis.smali.analyzed')
 
       analyzed_ops = self._store.op_count_ops(c=c)
-
-      if bar:
-        ui.info(f"analyze: got {analyzed_ops} ops, classes... {' '*20}", nl=False, ow=True)
-      else:
-        ui.info(f"analyze: ops: {analyzed_ops}")
+      pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops)
 
       analyzed_classes = self._store.op_store_classmap(classmap, c=c)
+      pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops, classes=analyzed_classes)
 
-      if bar:
-        ui.info(f"analyze: got {analyzed_ops} ops, {analyzed_classes} classes, methods...{' '*20}", nl=False, ow=True)
-      else:
-        ui.info(f"analyze: classes: {analyzed_classes}")
       analyzed_methods = self._store.op_generate_methodmap(c=c)
+      pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops, classes=analyzed_classes, methods=analyzed_methods)
 
-    if bar:
-      ui.info(f"analyze: got {analyzed_ops} ops, {analyzed_classes} classes, {analyzed_methods} methods.{' '*20}", ow=True)
-    else:
-      ui.info(f"analyze: methods: {analyzed_methods}")
-    ui.info("analyze: finalizing")
+    pub.sendMessage('progress.core.analysis.smali.finalizing')
     self._store.op_finalize()
-    ui.info(f"analyze: done ({time.time() - started:.02f} sec)")
+    pub.sendMessage('progress.core.analysis.smali.done', t=time.time() - started)
 
 class P:
   @classmethod
