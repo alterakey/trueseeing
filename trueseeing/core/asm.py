@@ -3,6 +3,9 @@ from typing import TYPE_CHECKING
 
 import os
 import os.path
+
+from pubsub import pub
+
 from trueseeing.core.env import get_home_dir
 from trueseeing.core.ui import ui
 
@@ -32,15 +35,7 @@ class APKDisassembler:
 
     cwd = os.getcwd()
 
-    if ui.is_tty():
-      import progressbar
-      bar = progressbar.ProgressBar(widgets=[
-        ui.bullet('info'),
-        'analyze: disassembling... ',
-        progressbar.RotatingMarker()   # type:ignore[no-untyped-call]
-      ])
-    else:
-      bar = None
+    pub.sendMessage('progress.core.asm.lift.begin')
 
     try:
       os.chdir(self._context.wd)
@@ -56,14 +51,12 @@ class APKDisassembler:
               apk=apk,
               suppressor='-dex' if level < 3 else '',
           ), redir_stderr=True):
-            if bar is not None:
-              bar.next()   # type:ignore[no-untyped-call]
+            pub.sendMessage('progress.core.asm.lift.update')
 
           os.chdir('files')
 
         def read_as_row(fn: str) -> Tuple[str, bytes]:
-          if bar is not None:
-            bar.next()   # type:ignore[no-untyped-call]
+          pub.sendMessage('progress.core.asm.lift.update')
           with open(fn, 'rb') as f:
             return fn, f.read()
 
@@ -76,31 +69,19 @@ class APKDisassembler:
             return True
 
         query.file_put_batch(read_as_row(fn) for fn in glob.glob('**', recursive=True) if should_cache(fn))
-        if bar is not None:
-          bar.next()   # type:ignore[no-untyped-call]
+        pub.sendMessage('progress.core.asm.lift.update')
         c.commit()
     finally:
       os.chdir(cwd)
-      if bar:
-        bar.next()   # type:ignore[no-untyped-call]
+      pub.sendMessage('progress.core.asm.lift.update')
       shutil.rmtree(os.path.join(self._context.wd, 'files'), ignore_errors=True)
-      if bar:
-        bar.finish(end='\r')   # type:ignore[no-untyped-call]
+      pub.sendMessage('progress.core.asm.lift.done')
 
   @classmethod
   async def disassemble_to_path(cls, apk: str, path: str, nodex: bool = False) -> None:
     from trueseeing.core.tools import toolchains, invoke_streaming
 
-    if ui.is_tty():
-      import progressbar
-      bar = progressbar.ProgressBar(widgets=[
-        ui.bullet('info'),
-        'disassemble: disassembling... ',
-        progressbar.RotatingMarker()   # type:ignore[no-untyped-call]
-      ])
-    else:
-      ui.info('disassemble: disassembling... ')
-      bar = None
+    pub.sendMessage('progress.core.asm.disasm.begin')
 
     with toolchains() as tc:
       async for l in invoke_streaming(
@@ -111,13 +92,9 @@ class APKDisassembler:
           path=path,
         ), redir_stderr=True
       ):
-        if bar is not None:
-          bar.next()   # type:ignore[no-untyped-call]
+        pub.sendMessage('progress.core.asm.disasm.update')
 
-    if bar is not None:
-      ui.info('disassemble: disassembling... done.', ow=True)
-    else:
-      ui.info('disassemble: done')
+    pub.sendMessage('progress.core.asm.disasm.done')
 
 class APKAssembler:
   @classmethod
@@ -125,16 +102,7 @@ class APKAssembler:
     import os
     from trueseeing.core.tools import invoke_streaming, toolchains
 
-    if ui.is_tty():
-      import progressbar
-      bar = progressbar.ProgressBar(widgets=[
-        ui.bullet('info'),
-        'assemble: assembling... ',
-        progressbar.RotatingMarker()   # type:ignore[no-untyped-call]
-      ])
-    else:
-      ui.info('assemble: assembling... ')
-      bar = None
+    pub.sendMessage('progress.core.asm.asm.begin')
 
     with toolchains() as tc:
       async for l in invoke_streaming(
@@ -145,13 +113,9 @@ class APKAssembler:
           keystore=await SigningKey().key(),
         ), redir_stderr=True
       ):
-        if bar is not None:
-          bar.next()  # type:ignore[no-untyped-call]
+        pub.sendMessage('progress.core.asm.asm.update')
 
-    if bar is not None:
-      ui.info('assemble: assembling... done.', ow=True)
-    else:
-      ui.info('assemble: done')
+    pub.sendMessage('progress.core.asm.asm.done')
 
     return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
 
