@@ -2,12 +2,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import re
-from trueseeing.core.db import StorePrep, Query
+from trueseeing.core.android.db import StorePrep, Query
 
 if TYPE_CHECKING:
   import sqlite3
   from typing import Optional, Any, Iterable, Set, Tuple, List, AnyStr
-  from trueseeing.core.model.code import Op
+  from trueseeing.core.android.model.code import Op
 
 class Store:
   db: sqlite3.Connection

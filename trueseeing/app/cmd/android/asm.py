@@ -47,8 +47,9 @@ class AssembleCommand(Command):
     import os
     import time
     from tempfile import TemporaryDirectory
-    from trueseeing.core.asm import APKAssembler
-    from trueseeing.core.tools import move_apk, copytree
+    from trueseeing.core.android.asm import APKAssembler
+    from trueseeing.core.android.tools import move_apk
+    from trueseeing.core.tools import copytree
 
     root = args.popleft()
     apk = self._runner._target
@@ -95,7 +96,7 @@ class AssembleCommand(Command):
     import time
     from shutil import rmtree
     from tempfile import TemporaryDirectory
-    from trueseeing.core.asm import APKDisassembler
+    from trueseeing.core.android.asm import APKDisassembler
     from trueseeing.core.tools import move_as_output
 
     path = args.popleft()

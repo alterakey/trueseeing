@@ -5,12 +5,12 @@ import itertools
 from contextlib import contextmanager
 
 from trueseeing.core.ui import ui
-from trueseeing.core.model.code import Op
+from trueseeing.core.android.model.code import Op
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict, Iterator
   from typing_extensions import Final
-  from trueseeing.core.store import Store
+  from trueseeing.core.android.store import Store
 
   DataGraph = Union[Op, Mapping[Op, Any]]
 

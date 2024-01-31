@@ -6,12 +6,11 @@ from collections import deque
 
 from pubsub import pub
 
-from trueseeing.core.model.code import Op, Annotation, Param
-from trueseeing.core.ui import ui
+from trueseeing.core.android.model.code import Op, Annotation, Param
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Tuple, TypeVar, Set
-  from trueseeing.core.store import Store
+  from trueseeing.core.android.store import Store
 
   T = TypeVar('T')
 
@@ -22,7 +21,7 @@ class SmaliAnalyzer:
 
   def analyze(self) -> None:
     import time
-    from trueseeing.core.db import Query
+    from trueseeing.core.android.db import Query
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0

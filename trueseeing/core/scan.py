@@ -5,8 +5,8 @@ from contextlib import contextmanager
 
 if TYPE_CHECKING:
   from typing import List, Type, Optional, Iterator
-  from trueseeing.core.context import Context
-  from trueseeing.core.db import Query
+  from trueseeing.core.android.context import Context
+  from trueseeing.core.android.db import Query
   from trueseeing.core.report import ReportGenerator
   from trueseeing.core.model.sig import Detector
   from trueseeing.core.model.issue import Issue
@@ -22,7 +22,7 @@ class Scanner:
   async def scan(self, q: Query) -> int:
     import asyncio
     from pubsub import pub
-    from trueseeing.core.analysis.flow import DataFlows
+    from trueseeing.core.android.analysis.flow import DataFlows
     with DataFlows.apply_max_graph_size(self._max_graph_size):
       with self._apply_excludes_on_context():
         # XXX

@@ -11,7 +11,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import List, Protocol, Any, Dict, TextIO
   from typing_extensions import Literal
-  from trueseeing.core.context import Context
+  from trueseeing.core.android.context import Context
 
   ReportFormat = Literal['html', 'json']
 
@@ -62,7 +62,7 @@ class HTMLReportGenerator:
       from datetime import datetime
       from zoneinfo import ZoneInfo
 
-      from trueseeing.core.db import Query
+      from trueseeing.core.android.db import Query
       query = Query(c=db)
       issues = []
 
@@ -107,7 +107,7 @@ class JSONReportGenerator:
   def generate(self, f: TextIO) -> None:
     from json import dumps
     with self._context.store().db as db:
-      from trueseeing.core.db import Query
+      from trueseeing.core.android.db import Query
       query = Query(c=db)
       issues = []
 

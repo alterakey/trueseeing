@@ -5,15 +5,15 @@ import asyncio
 import re
 import math
 
-from trueseeing.core.model.code import InvocationPattern
-from trueseeing.core.analysis.flow import DataFlows
+from trueseeing.core.android.model.code import InvocationPattern
+from trueseeing.core.android.analysis.flow import DataFlows
 from trueseeing.core.model.sig import Detector
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Dict, Iterable
-  from trueseeing.core.model.code import Op
-  from trueseeing.core.store import Store
+  from trueseeing.core.android.model.code import Op
+  from trueseeing.core.android.store import Store
 
 class CryptoStaticKeyDetector(Detector):
   option = 'crypto-static-keys'

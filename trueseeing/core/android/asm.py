@@ -11,7 +11,7 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Tuple
-  from trueseeing.core.context import Context
+  from trueseeing.core.android.context import Context
 
 class APKDisassembler:
   _context: Context
@@ -28,8 +28,9 @@ class APKDisassembler:
     import sqlite3
     import glob
     import shutil
-    from trueseeing.core.db import StorePrep, FileTablePrep, Query
-    from trueseeing.core.tools import toolchains, invoke_streaming
+    from trueseeing.core.tools import invoke_streaming
+    from trueseeing.core.android.db import StorePrep, FileTablePrep, Query
+    from trueseeing.core.android.tools import toolchains
 
     apk, archive = 'target.apk', 'store.db'
 
@@ -79,7 +80,8 @@ class APKDisassembler:
 
   @classmethod
   async def disassemble_to_path(cls, apk: str, path: str, nodex: bool = False) -> None:
-    from trueseeing.core.tools import toolchains, invoke_streaming
+    from trueseeing.core.tools import invoke_streaming
+    from trueseeing.core.android.tools import toolchains
 
     pub.sendMessage('progress.core.asm.disasm.begin')
 
@@ -100,7 +102,8 @@ class APKAssembler:
   @classmethod
   async def assemble_from_path(cls, wd: str, path: str) -> Tuple[str, str]:
     import os
-    from trueseeing.core.tools import invoke_streaming, toolchains
+    from trueseeing.core.tools import invoke_streaming
+    from trueseeing.core.android.tools import toolchains
 
     pub.sendMessage('progress.core.asm.asm.begin')
 

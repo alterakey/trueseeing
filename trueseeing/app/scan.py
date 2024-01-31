@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator
-from trueseeing.core.context import Context
+from trueseeing.core.android.context import Context
 from trueseeing.core.ui import CoreProgressReporter, ui
 
 if TYPE_CHECKING:

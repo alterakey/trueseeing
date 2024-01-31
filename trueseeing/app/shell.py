@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class Signatures:
   content: Dict[str, Type[Detector]]
   def __init__(self) -> None:
-    from trueseeing.sig import crypto, fingerprint, manifest, privacy, security
+    from trueseeing.sig.android import crypto, fingerprint, manifest, privacy, security
 
     sigs: List[Type[Detector]] = [
       crypto.CryptoStaticKeyDetector,
@@ -150,7 +150,7 @@ class Shell:
         else:
           signature_selected.update(sigs.selected_on(s))
     if args.scan_max_graph_size:
-      from trueseeing.core.analysis.flow import DataFlows
+      from trueseeing.core.android.analysis.flow import DataFlows
       DataFlows.set_max_graph_size(args.scan_max_graph_size)
     if args.version:
       ui.stderr(self._version())

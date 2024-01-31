@@ -108,7 +108,7 @@ class ShowCommand(Command):
 
     limit = self._runner._get_graph_size_limit(self._runner._get_modifiers(args))
 
-    from trueseeing.core.analysis.flow import DataFlows
+    from trueseeing.core.android.analysis.flow import DataFlows
     with DataFlows.apply_max_graph_size(limit):
       context = await self._runner._get_context_analyzed(apk)
       store = context.store()
@@ -141,7 +141,7 @@ class ShowCommand(Command):
 
     limit = self._runner._get_graph_size_limit(self._runner._get_modifiers(args))
 
-    from trueseeing.core.analysis.flow import DataFlows
+    from trueseeing.core.android.analysis.flow import DataFlows
     with DataFlows.apply_max_graph_size(limit):
       context = await self._runner._get_context_analyzed(apk)
       store = context.store()
