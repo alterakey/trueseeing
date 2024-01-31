@@ -11,15 +11,13 @@ from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
-  from trueseeing.app.shell import Signatures
   from trueseeing.core.android.context import Context
-  from trueseeing.core.model.cmd import Entry, CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry, Command
+  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry
 
 class InspectMode:
   def do(
       self,
       target: Optional[str],
-      signatures: Signatures,
       batch: bool = False,
       cmdlines: List[str] = [],
   ) -> NoReturn:
@@ -27,7 +25,7 @@ class InspectMode:
       if ui.is_tty():
         ui.enter_inspect()
       with CoreProgressReporter().scoped():
-        self._do(target, signatures, batch, cmdlines)
+        self._do(target, batch, cmdlines)
     finally:
       if ui.is_tty():
         ui.exit_inspect()
@@ -35,14 +33,13 @@ class InspectMode:
   def _do(
       self,
       target: Optional[str],
-      signatures: Signatures,
       batch: bool,
       cmdlines: List[str],
   ) -> NoReturn:
     from code import InteractiveConsole
 
     sein = self
-    runner = Runner(signatures, target)
+    runner = Runner(target)
 
     for line in cmdlines:
       asyncio.run(sein._worker(runner.run(line)))
@@ -106,10 +103,10 @@ class Runner:
   _quiet: bool = False
   _verbose: bool = False
   _target: Optional[str]
-  _sigs: Signatures
+  _helper: CommandHelper
 
-  def __init__(self, signatures: Signatures, target: Optional[str]) -> None:
-    self._sigs = signatures
+  def __init__(self, target: Optional[str]) -> None:
+    self._helper = CommandHelperImpl(self)
     self._target = target
     self._cmds = {
       '?':dict(e=self._help, n='?', d='help'),
@@ -139,41 +136,11 @@ class Runner:
       self._register_cmd(clazz)
 
   def _register_cmd(self, clazz: Type[Command]) -> None:
-    t = clazz(self)
+    t = clazz.create(self._helper)
     self._cmds.update(t.get_commands())
     self._cmdpats.update(t.get_command_patterns())
     self._mods.update(t.get_modifiers())
     self._opts.update(t.get_options())
-
-  def _get_modifiers(self, args: deque[str]) -> List[str]:
-    o = []
-    for m in args:
-      if m.startswith('@'):
-        o.append(m)
-    return o
-
-  def _get_effective_options(self, mods: List[str]) -> Mapping[str, str]:
-    o = {}
-    for m in mods:
-      if m.startswith('@o:'):
-        for a in m[3:].split(','):
-          c: List[str] = a.split('=', maxsplit=1)
-          if len(c) == 1:
-            o[c[0]] = c[0]
-          else:
-            o[c[0]] = c[1]
-    return o
-
-  def _get_graph_size_limit(self, mods: List[str]) -> Optional[int]:
-    for m in mods:
-      if m.startswith('@gs:'):
-        c = m[4:]
-        s = re.search(r'[km]$', c.lower())
-        if s:
-          return int(m[4:-1]) * dict(k=1024, m=1024*1024)[s.group(0)]
-        else:
-          return int(m[4:])
-    return None
 
   def get_target(self) -> Optional[str]:
     return self._target
@@ -260,9 +227,9 @@ class Runner:
       sys.ps1, sys.ps2 = ui.colored('ts> ', color='yellow'), ui.colored('... ', color='yellow')
 
   async def _help(self, args: deque[str]) -> None:
-    ents: Dict[str, CommandEntry] = dict()
+    ents: Dict[str, Entry] = dict()
     ents.update(self._cmds)
-    ents.update(self._cmdpats)
+    ents.update(self._cmdpats)  # type: ignore[arg-type]
     await self._help_on('Commands:', ents)
 
   async def _help_mod(self, args: deque[str]) -> None:
@@ -281,27 +248,10 @@ class Runner:
           f'{{n:<{width}s}}{{d}}'.format(n=e['n'], d=e['d'])
         )
 
-  def _require_target(self, msg: Optional[str] = None) -> None:
-    if self._target is None:
-      ui.fatal(msg if msg else 'need target')
-
-  def _get_context(self, path: str) -> Context:
-    from trueseeing.core.android.context import Context
-    return Context(path, [])
-
-  async def _get_context_analyzed(self, path: str, level: int = 3) -> Context:
-    c = self._get_context(path)
-    await c.analyze(level=level)
-    return c
-
   async def _shell(self, args: deque[str]) -> None:
     from trueseeing.core.env import get_shell
     from asyncio import create_subprocess_exec
     await (await create_subprocess_exec(get_shell())).wait()
-
-  def _decode_analysis_level(self, level: int) -> str:
-    analysislevelmap = {0:'no', 1: 'minimally', 2: 'lightly', 3:'fully'}
-    return analysislevelmap.get(level, '?')
 
   async def _quit(self, args: deque[str]) -> None:
     raise QuitSession()
@@ -313,3 +263,65 @@ class Runner:
       ui.fatal('need path')
 
     self._target = args.popleft()
+
+class CommandHelperImpl:
+  def __init__(self, runner: Runner) -> None:
+    self._r = runner
+
+  def get_target(self) -> Optional[str]:
+    return self._r.get_target()
+
+  def require_target(self, msg: Optional[str] = None) -> str:
+    t = self.get_target()
+    if t is None:
+      ui.fatal(msg if msg else 'need target')
+    return t
+
+  def get_context(self) -> Context:
+    from trueseeing.core.android.context import Context
+    return Context(self.require_target(), [])
+
+  async def get_context_analyzed(self, level: int = 3) -> Context:
+    c = self.get_context()
+    await c.analyze(level=level)
+    return c
+
+  def decode_analysis_level(self, level: int) -> str:
+    analysislevelmap = {0:'no', 1: 'minimally', 2: 'lightly', 3:'fully'}
+    return analysislevelmap.get(level, '?')
+
+  async def run(self, s: str) -> None:
+    await self._r._run(s)
+
+  async def run_cmd(self, tokens: deque[str], line: Optional[str]) -> bool:
+    return await self._r._run_cmd(tokens, line)
+
+  def get_modifiers(self, args: deque[str]) -> List[str]:
+    o = []
+    for m in args:
+      if m.startswith('@'):
+        o.append(m)
+    return o
+
+  def get_effective_options(self, mods: List[str]) -> Mapping[str, str]:
+    o = {}
+    for m in mods:
+      if m.startswith('@o:'):
+        for a in m[3:].split(','):
+          c: List[str] = a.split('=', maxsplit=1)
+          if len(c) == 1:
+            o[c[0]] = c[0]
+          else:
+            o[c[0]] = c[1]
+    return o
+
+  def get_graph_size_limit(self, mods: List[str]) -> Optional[int]:
+    for m in mods:
+      if m.startswith('@gs:'):
+        c = m[4:]
+        s = re.search(r'[km]$', c.lower())
+        if s:
+          return int(m[4:-1]) * dict(k=1024, m=1024*1024)[s.group(0)]
+        else:
+          return int(m[4:])
+    return None

@@ -5,30 +5,32 @@ import re
 from collections import deque
 from shlex import shlex
 
-from trueseeing.core.model.cmd import Command
+from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Dict, Tuple
-  from trueseeing.app.inspect import Runner
-  from trueseeing.core.model.cmd import CommandEntry, CommandPatternEntry
+  from trueseeing.api import CommandHelper, Command, CommandMap, CommandPatternMap
 
-class AliasCommand(Command):
-  _runner: Runner
+class AliasCommand(CommandMixin):
   _aliases: Dict[str, str]
   _macros: Dict[str, Tuple[int, str, deque[str]]]
 
-  def __init__(self, runner: Runner) -> None:
-    self._runner = runner
+  def __init__(self, helper: CommandHelper) -> None:
+    self._helper = helper
     self._aliases = dict()
     self._macros = dict()
 
-  def get_commands(self) -> Dict[str, CommandEntry]:
+  @staticmethod
+  def create(helper: CommandHelper) -> Command:
+    return AliasCommand(helper)
+
+  def get_commands(self) -> CommandMap:
     return {
       '?$?':dict(e=self._help_alias, n='?$?', d='alias help'),
     }
 
-  def get_command_patterns(self) -> Dict[str, CommandPatternEntry]:
+  def get_command_patterns(self) -> CommandPatternMap:
     return {
       r'\$[a-zA-Z0-9=]+':dict(e=self._alias, n='$alias=value', d='alias command'),
       r'\(.+\)':dict(e=self._alias2, raw=True, n='(macro x y; cmd; cmd; ..)', d='define macro'),
@@ -80,7 +82,7 @@ class AliasCommand(Command):
       except KeyError:
         ui.error('invalid command, type ? for help')
       else:
-        await self._runner._run(v)
+        await self._helper.run(v)
     elif op == '=':
       if val is not None:
         self._aliases[n] = val
@@ -164,4 +166,4 @@ class AliasCommand(Command):
     asl: deque[str] = deque()
     for t in body:
       asl.append(re.sub(r'\$([0-9]+)', lambda m: args[int(m.group(1))], t))
-    await self._runner._run_cmd(asl, None)
+    await self._helper.run_cmd(asl, None)

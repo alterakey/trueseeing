@@ -3,16 +3,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
   from typing import Type, Iterator
-  from trueseeing.core.model.cmd import Command
+  from trueseeing.api import Command
 
 def discover() -> Iterator[Type[Command]]:
-  from trueseeing.core.model.cmd import Command
+  from trueseeing.api import Command
   from importlib import import_module
-  from trueseeing.core.tools import get_public_subclasses
+  from trueseeing.core.model.cmd import CommandMixin
+  from trueseeing.core.tools import get_public_subclasses, has_mandatory_ctor
 
   for mod in _discover_modules():
     m = import_module(mod)
-    for c in get_public_subclasses(m, Command):
+    for c in get_public_subclasses(m, Command, [CommandMixin]):  # type:ignore[type-abstract]
+      assert has_mandatory_ctor(c), f'missing the static ctor: {c!r}'
       yield c
 
 def _discover_modules() -> Iterator[str]:

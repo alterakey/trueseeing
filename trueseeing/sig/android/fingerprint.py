@@ -5,13 +5,14 @@ import io
 import os
 import re
 
+from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlows
-from trueseeing.core.model.sig import Detector
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any, Set
+  from trueseeing.api import Detector, DetectorHelper, DetectorMap
 
 # XXX huge duplication
 class TopLevelSuffixes:
@@ -39,13 +40,19 @@ class PublicSuffixes:
     suf = '.'.join(reversed(names))
     return suf in self._suffixes
 
-class LibraryDetector(Detector):
-  option = 'detect-library'
-  description = 'Detects libraries'
+class LibraryDetector(DetectorMixin):
+  _id = 'detect-library'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   _suffixes_top: TopLevelSuffixes = TopLevelSuffixes()
   _suffixes_public: PublicSuffixes = PublicSuffixes()
+
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return LibraryDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id: dict(e=self.detect, d='Detects libraries')}
 
   @classmethod
   def _package_name_of(cls, path: str) -> str:
@@ -97,11 +104,12 @@ class LibraryDetector(Detector):
       return not cls._suffixes_public.looks_public(shared)
 
   async def detect(self) -> None:
-    q = self._context.store().query()
-    package = self._context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
+    context = self._helper.get_context()
+    q = context.store().query()
+    package = context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
     packages: Dict[str, List[str]] = dict()
-    for fn in (self._context.source_name_of_disassembled_class(r) for r in self._context.disassembled_classes()):
+    for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
       # XXX exclude packages
       family = self._package_family_of(self._package_name_of(fn))
       if family is not None:
@@ -114,8 +122,8 @@ class LibraryDetector(Detector):
     packages = {k:v for k,v in packages.items() if not self._is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
     for p in sorted(packages.keys()):
-      self._raise_issue(Issue(
-        detector_id=self.option,
+      self._helper.raise_issue(Issue(
+        detector_id=self._id,
         confidence='firm',
         cvss3_vector=self._cvss,
         summary='detected library',
@@ -131,24 +139,24 @@ class LibraryDetector(Detector):
             continue
           if ' and ' not in ver and re.match('^[0-9]|^v[0-9]', ver):
             if len(comps) < 4 or self._comp4_looks_like_version(comps):
-              self._raise_issue(Issue(
-                detector_id=self.option,
+              self._helper.raise_issue(Issue(
+                detector_id=self._id,
                 confidence='firm',
                 cvss3_vector=self._cvss,
                 summary='detected library version',
                 info1=f'{ver} ({p})',
               ))
             else:
-              self._raise_issue(Issue(
-                detector_id=self.option,
+              self._helper.raise_issue(Issue(
+                detector_id=self._id,
                 confidence='tentative',
                 cvss3_vector=self._cvss,
                 summary='potential library version',
                 info1=f'{ver} ({p})',
               ))
           else:
-            self._raise_issue(Issue(
-              detector_id=self.option,
+            self._helper.raise_issue(Issue(
+              detector_id=self._id,
               confidence='tentative',
               cvss3_vector=self._cvss,
               summary='potential version/dated reference in library',
@@ -161,8 +169,8 @@ class LibraryDetector(Detector):
         for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
           ver = l
           if not re.search(r'^/|:[0-9]+|\\|://|[\x00-\x1f]', ver):
-            self._raise_issue(Issue(
-              detector_id=self.option,
+            self._helper.raise_issue(Issue(
+              detector_id=self._id,
               confidence='tentative',
               cvss3_vector=self._cvss,
               summary='potential version/dated reference in library',
@@ -185,33 +193,46 @@ class LibraryDetector(Detector):
     else:
       return False
 
-class ProGuardDetector(Detector):
-  option = 'detect-obfuscator'
-  description = 'Detects obfuscators'
+class ProGuardDetector(DetectorMixin):
+  _id = 'detect-obfuscator'
   _cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
   _whitelist = ['R']
+
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ProGuardDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects obfuscators')}
 
   @classmethod
   def _class_name_of(self, path: str) -> str:
     return path.replace('.smali', '').replace('/', '.')
 
   async def detect(self) -> None:
-    for c in (self._class_name_of(self._context.source_name_of_disassembled_class(r)) for r in self._context.disassembled_classes()):
+    context = self._helper.get_context()
+    for c in (self._class_name_of(context.source_name_of_disassembled_class(r)) for r in context.disassembled_classes()):
       m = re.search(r'(?:^|\.)(.)$', c)
       if m and m.group(1) not in self._whitelist:
-        self._raise_issue(Issue(detector_id=self.option, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
+        self._helper.raise_issue(Issue(detector_id=self._id, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
         break
     else:
-      self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation'))
+      self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation'))
 
-class UrlLikeDetector(Detector):
-  option = 'detect-url'
-  description = 'Detects URL-like strings'
+class UrlLikeDetector(DetectorMixin):
+  _id = 'detect-url'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   _re_tlds: Optional[re.Pattern[str]] = None
+
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return UrlLikeDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {'detect-url':dict(e=self.detect, d='Detects URL-like strings')}
 
   def _analyzed(self, x: str, qn: Optional[str] = None) -> Iterable[Dict[str, Any]]:
     assert self._re_tlds is not None
@@ -238,33 +259,41 @@ class UrlLikeDetector(Detector):
     with (files('trueseeing')/'libs'/'tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
-    q = self._context.store().query()
+    context = self._helper.get_context()
+    q = context.store().query()
     for cl in q.consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
       qn = q.qualname_of(cl)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       for match in self._analyzed(cl.p[1].v, qn):
         for v in match['value']:
-          self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
-    for name, val in self._context.string_resources():
+          self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
+    for name, val in context.string_resources():
       for match in self._analyzed(val):
         for v in match['value']:
-          self._raise_issue(Issue(detector_id=self.option, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
+          self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
 
-class NativeMethodDetector(Detector):
-  option = 'detect-native-method'
-  description = 'Detects natively defined methods'
+class NativeMethodDetector(DetectorMixin):
+  _id = 'detect-native-method'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'Natively defined methods'
   _synopsis = "The application uses JNI."
   _detailed_description = None
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return NativeMethodDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects natively defined methods')}
+
   async def detect(self) -> None:
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for op in q.methods_with_modifier('native'):
-      self._raise_issue(Issue(
-        detector_id=self.option,
+      self._helper.raise_issue(Issue(
+        detector_id=self._id,
         confidence='firm',
         cvss3_vector=self._cvss,
         summary=self._summary,
@@ -272,19 +301,25 @@ class NativeMethodDetector(Detector):
         source=q.qualname_of(op)
       ))
 
-class NativeArchDetector(Detector):
-  option = 'detect-native-arch'
-  description = 'Detects supported architectures'
+class NativeArchDetector(DetectorMixin):
+  _id = 'detect-native-arch'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'Supported architectures'
   _synopsis = "The application has native codes for some architectures."
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return NativeArchDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects supported architectures')}
+
   async def detect(self) -> None:
-    for d in self._context.store().query().file_find('root/lib/%'):
+    for d in self._helper.get_context().store().query().file_find('root/lib/%'):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[2]
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='firm',
           cvss3_vector=self._cvss,
           summary=self._summary,
@@ -293,9 +328,8 @@ class NativeArchDetector(Detector):
           synopsis=self._synopsis,
         ))
 
-class ReflectionDetector(Detector):
-  option = 'detect-reflection'
-  description = 'Detects reflections'
+class ReflectionDetector(DetectorMixin):
+  _id = 'detect-reflection'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary0 = 'Use of reflection'
   _synopsis0 = "The application makes use of Java reflection APIs."
@@ -309,12 +343,20 @@ class ReflectionDetector(Detector):
     r'Ljava/lang/Class;->is(Instance|Array|Primitive)',
   ]
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ReflectionDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects reflections')}
+
   async def detect(self) -> None:
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(Class|Method|Field);->|^Ljava/lang/[A-Za-z]*?ClassLoader;->')):
       qn = q.qualname_of(cl)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       ct = q.method_call_target_of(cl)
       if ct is None:
@@ -324,8 +366,8 @@ class ReflectionDetector(Detector):
       if 'ClassLoader;->' in ct:
         try:
           for x in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0):
-            self._raise_issue(Issue(
-              detector_id=self.option,
+            self._helper.raise_issue(Issue(
+              detector_id=self._id,
               cvss3_vector=self._cvss,
               confidence='firm',
               summary=self._summary1,
@@ -336,8 +378,8 @@ class ReflectionDetector(Detector):
               description=self._synopsis1,
             ))
         except IndexError:
-          self._raise_issue(Issue(
-            detector_id=self.option,
+          self._helper.raise_issue(Issue(
+            detector_id=self._id,
             cvss3_vector=self._cvss,
             confidence='firm',
             summary=self._summary1,
@@ -349,8 +391,8 @@ class ReflectionDetector(Detector):
       else:
         try:
           for x in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0):
-            self._raise_issue(Issue(
-              detector_id=self.option,
+            self._helper.raise_issue(Issue(
+              detector_id=self._id,
               cvss3_vector=self._cvss,
               confidence='firm',
               summary=self._summary0,
@@ -361,8 +403,8 @@ class ReflectionDetector(Detector):
               description=self._synopsis0,
             ))
         except IndexError:
-          self._raise_issue(Issue(
-            detector_id=self.option,
+          self._helper.raise_issue(Issue(
+            detector_id=self._id,
             cvss3_vector=self._cvss,
             confidence='firm',
             summary=self._summary0,

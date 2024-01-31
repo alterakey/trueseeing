@@ -3,21 +3,21 @@ from typing import TYPE_CHECKING
 
 from collections import deque
 
-from trueseeing.core.model.cmd import Command
+from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Dict
-  from trueseeing.app.inspect import Runner
-  from trueseeing.core.model.cmd import CommandEntry
+  from trueseeing.api import Command, CommandHelper, CommandMap
 
-class AnalyzeCommand(Command):
-  _runner: Runner
+class AnalyzeCommand(CommandMixin):
+  def __init__(self, helper: CommandHelper) -> None:
+    self._helper = helper
 
-  def __init__(self, runner: Runner) -> None:
-    self._runner = runner
+  @staticmethod
+  def create(helper: CommandHelper) -> Command:
+    return AnalyzeCommand(helper)
 
-  def get_commands(self) -> Dict[str, CommandEntry]:
+  def get_commands(self) -> CommandMap:
     return {
       'a':dict(e=self._analyze, n='a[a][!]', d='analyze target (aa: full analysis)'),
       'a!':dict(e=self._analyze),
@@ -26,15 +26,13 @@ class AnalyzeCommand(Command):
     }
 
   async def _analyze(self, args: deque[str], level: int = 2) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    apk = self._helper.require_target()
 
     cmd = args.popleft()
-    apk = self._runner._target
 
     ui.info(f"analyzing {apk}")
 
-    context = self._runner._get_context(apk)
+    context = self._helper.get_context()
     if cmd.endswith('!'):
       context.remove()
     await context.analyze(level=level)

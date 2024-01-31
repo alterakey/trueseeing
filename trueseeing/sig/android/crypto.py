@@ -5,21 +5,28 @@ import asyncio
 import re
 import math
 
+from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlows
-from trueseeing.core.model.sig import Detector
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Dict, Iterable
   from trueseeing.core.android.model.code import Op
   from trueseeing.core.android.store import Store
+  from trueseeing.api import Detector, DetectorHelper, DetectorMap
 
-class CryptoStaticKeyDetector(Detector):
-  option = 'crypto-static-keys'
-  description = 'Detects cryptographic function usage with static keys'
+class CryptoStaticKeyDetector(DetectorMixin):
+  _id = 'crypto-static-keys'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N/'
   _cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return CryptoStaticKeyDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id: dict(e=self.detect, d='Detects cryptographic function usage with static keys')}
 
   @classmethod
   def _entropy_of(cls, string: str) -> float:
@@ -58,11 +65,12 @@ class CryptoStaticKeyDetector(Detector):
       # XXX: silly
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|^Ljavax?.*/MessageDigest;->(update|digest)')):
       qn = q.qualname_of(cl)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       try:
         for nr in self._important_args_on_invocation(cl):
@@ -74,8 +82,8 @@ class CryptoStaticKeyDetector(Detector):
               info1 = f'"{found}" [{len(found)}]'
 
             if looks_like_real_key(found):
-              self._raise_issue(Issue(
-                detector_id=self.option,
+              self._helper.raise_issue(Issue(
+                detector_id=self._id,
                 cvss3_vector=self._cvss,
                 confidence='firm',
                 summary='insecure cryptography: static keys',
@@ -91,8 +99,8 @@ Use a device or installation specific information, or obfuscate them.
 '''
               ))
             else:
-              self._raise_issue(Issue(
-                detector_id=self.option,
+              self._helper.raise_issue(Issue(
+                detector_id=self._id,
                 cvss3_vector=self._cvss_nonkey,
                 confidence='tentative',
                 summary='Cryptographic constants detected',
@@ -117,15 +125,16 @@ Possible cryptographic constants has been found in the application binary.
         return False
 
     pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for cl in q.consts(InvocationPattern('const-string', pat)):
       qn = q.qualname_of(cl)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       val = cl.p[1].v
-      self._raise_issue(Issue(
-        detector_id=self.option,
+      self._helper.raise_issue(Issue(
+        detector_id=self._id,
         cvss3_vector=self._cvss,
         confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
         summary='insecure cryptography: static keys (2)',
@@ -139,10 +148,10 @@ Traces of X.509 certificates has been found in the application binary.  X.509 ce
 Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
 '''
       ))
-    for name, val in self._context.string_resources():
+    for name, val in context.string_resources():
       if re.match(pat, val):
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           cvss3_vector=self._cvss,
           confidence='tentative',
           summary='insecure cryptography: static keys (2)',
@@ -158,23 +167,30 @@ Use a device or installation specific information, or obfuscate them.  Especiall
         ))
 
 
-class CryptoEcbDetector(Detector):
-  option = 'crypto-ecb'
-  description = 'Detects ECB mode ciphers'
+class CryptoEcbDetector(DetectorMixin):
+  _id = 'crypto-ecb'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return CryptoEcbDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id: dict(e=self.detect, d='Detects ECB mode ciphers')}
+
   async def detect(self) -> None:
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
       qn = q.qualname_of(cl)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       try:
         target_val = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
         if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
-          self._raise_issue(Issue(
-            detector_id=self.option,
+          self._helper.raise_issue(Issue(
+            detector_id=self._id,
             cvss3_vector=self._cvss,
             confidence='certain',
             summary='insecure cryptography: cipher might be operating in ECB mode',
@@ -191,22 +207,29 @@ Use CBC or CTR mode.
       except (DataFlows.NoSuchValueError):
         pass
 
-class CryptoNonRandomXorDetector(Detector):
-  option = 'crypto-xor'
-  description = 'Detects Vernum cipher usage with static keys'
+class CryptoNonRandomXorDetector(DetectorMixin):
+  _id = 'crypto-xor'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return CryptoNonRandomXorDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id: dict(e=self.detect, d='Detects Vernum cipher usage with static keys')}
+
   async def detect(self) -> None:
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for cl in q.ops_of('xor-int/lit8'):
       qn = q.qualname_of(cl)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       target_val = int(cl.p[2].v, 16)
       if (cl.p[0].v == cl.p[1].v) and target_val > 1:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           cvss3_vector=self._cvss,
           confidence='firm',
           summary='insecure cryptography: non-random XOR cipher',

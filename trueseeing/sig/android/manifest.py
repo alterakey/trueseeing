@@ -4,22 +4,28 @@ from typing import TYPE_CHECKING
 import itertools
 import re
 
-from trueseeing.core.model.sig import Detector
+from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
-  pass
+  from trueseeing.api import Detector, DetectorHelper, DetectorMap
 
-class ManifestOpenPermissionDetector(Detector):
-  option = 'manifest-open-permission'
-  description = 'Detects declarated permissions'
+class ManifestOpenPermissionDetector(DetectorMixin):
+  _id = 'manifest-open-permission'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
+
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ManifestOpenPermissionDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects declarated permissions')}
 
   async def detect(self) -> None:
     # TBD: compare with actual permission needs
-    for p in self._context.permissions_declared():
-      self._raise_issue(Issue(
-        detector_id=self.option,
+    for p in self._helper.get_context().permissions_declared():
+      self._helper.raise_issue(Issue(
+        detector_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary='open permissions',
@@ -42,24 +48,32 @@ class ComponentNamePolicy:
     else:
       return False
 
-class ManifestManipActivity(Detector):
-  option = 'manifest-manip-activity'
+class ManifestManipActivity(DetectorMixin):
+  _id = 'manifest-manip-activity'
   description = 'Detects exported Activity'
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ManifestManipActivity(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects exported Activity')}
+
   async def detect(self) -> None:
+    context = self._helper.get_context()
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
     for name in set(itertools.chain(
-        self._context.parsed_manifest().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
-        self._context.parsed_manifest().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
+        context.parsed_manifest().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
+        context.parsed_manifest().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
     )):
-      filter_ = [name for name in self._context.parsed_manifest().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in context.parsed_manifest().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss1,
           summary='manipulatable Activity',
@@ -70,8 +84,8 @@ class ManifestManipActivity(Detector):
           solution="Review them, and restrict access with application-specific permissions if necessary."
         ))
       else:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss2,
           summary='manipulatable Activity with private action names',
@@ -83,25 +97,32 @@ class ManifestManipActivity(Detector):
           solution="Review them, and restrict access with application-specific permissions if necessary."
         ))
 
-class ManifestManipBroadcastReceiver(Detector):
-  option = 'manifest-manip-broadcastreceiver'
-  description = 'Detects exported BroadcastReceiver'
+class ManifestManipBroadcastReceiver(DetectorMixin):
+  _id = 'manifest-manip-broadcastreceiver'
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ManifestManipBroadcastReceiver(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects exported BroadcastReceiver')}
+
   async def detect(self) -> None:
+    context = self._helper.get_context()
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
     # FIXME: catch API < 9
     for name in set(itertools.chain(
-        self._context.parsed_manifest().xpath('//receiver[not(@android:permission) and not(@android:exported="false")]/intent-filter/../@android:name', namespaces=ns),
-        self._context.parsed_manifest().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
+        context.parsed_manifest().xpath('//receiver[not(@android:permission) and not(@android:exported="false")]/intent-filter/../@android:name', namespaces=ns),
+        context.parsed_manifest().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
     )):
-      filter_ = [name for name in self._context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss1,
           summary='manipulatable BroadcastReceiver',
@@ -112,8 +133,8 @@ class ManifestManipBroadcastReceiver(Detector):
           solution="Review them and restrict access with application-specific permissions if necessary.  Consider the use of LocalBroadcastReceiver for ones that system-wide reachability is not needed."
         ))
       else:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss2,
           summary='manipulatable BroadcastReceiver with private action names',
@@ -125,24 +146,31 @@ class ManifestManipBroadcastReceiver(Detector):
           solution="Review them, and restrict access with application-specific permissions if necessary."
         ))
 
-class ManifestManipContentProvider(Detector):
-  option = 'manifest-manip-contentprovider'
-  description = 'Detects exported ContentProvider'
+class ManifestManipContentProvider(DetectorMixin):
+  _id = 'manifest-manip-contentprovider'
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ManifestManipContentProvider(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects exported ContentProvider')}
+
   async def detect(self) -> None:
+    context = self._helper.get_context()
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
     for name in set(itertools.chain(
-        self._context.parsed_manifest().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-        self._context.parsed_manifest().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+        context.parsed_manifest().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+        context.parsed_manifest().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
     )):
-      filter_ = [name for name in self._context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
+      filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss1,
           summary='manipulatable ContentProvider',
@@ -157,8 +185,8 @@ class ManifestManipContentProvider(Detector):
   '''
         ))
       else:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss2,
           summary='manipulatable ContentProvider with private action names',
@@ -174,18 +202,25 @@ class ManifestManipContentProvider(Detector):
   '''
         ))
 
-class ManifestManipBackup(Detector):
-  option = 'manifest-manip-backup'
-  description = 'Detects enabled backup bit'
+class ManifestManipBackup(DetectorMixin):
+  _id = 'manifest-manip-backup'
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ManifestManipBackup(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects enabled backup bit')}
+
   async def detect(self) -> None:
-    manif = self._context.parsed_manifest()
+    context = self._helper.get_context()
+    manif = context.parsed_manifest()
     for e in manif.xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      if min(self._context.get_target_sdk_version(), self._context.get_min_sdk_version()) < 31:
+      if min(context.get_target_sdk_version(), context.get_min_sdk_version()) < 31:
         fbc_exists = (e.attrib.get('{{{ns}}}fullBackupContent'.format(ns='http://schemas.android.com/apk/res/android')) is not None)
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain' if not fbc_exists else 'tentative',
           cvss3_vector=self._cvss,
           summary='manipulatable backups',
@@ -205,15 +240,22 @@ android:allowBackup="false"
 '''
         ))
 
-class ManifestDebuggable(Detector):
-  option = 'manifest-debuggable'
-  description = 'Detects enabled debug bits'
+class ManifestDebuggable(DetectorMixin):
+  _id = 'manifest-debuggable'
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ManifestDebuggable(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects enabled debug bits')}
+
   async def detect(self) -> None:
-    if self._context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      self._raise_issue(Issue(
-        detector_id=self.option,
+    context = self._helper.get_context()
+    if context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
+      self._helper.raise_issue(Issue(
+        detector_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary='app is debuggable',
@@ -227,14 +269,21 @@ android:debuggable="false"
 '''
       ))
 
-class ManifestCleartextPermitted(Detector):
-  option = 'manifest-cleartext-permitted'
-  description = 'Detects usesCleartextTraffic flag'
+class ManifestCleartextPermitted(DetectorMixin):
+  _id = 'manifest-cleartext-permitted'
   _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N/'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return ManifestCleartextPermitted(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects usesCleartextTraffic flag')}
+
   async def detect(self) -> None:
-    manif = self._context.parsed_manifest()
-    api_level = self._context.get_min_sdk_version()
+    context = self._helper.get_context()
+    manif = context.parsed_manifest()
+    api_level = context.get_min_sdk_version()
     if api_level < 24:
       if not manif.xpath('//application[@android:usesCleartextTraffic="false"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
         self._raise('AndroidManifest.xml')
@@ -244,18 +293,18 @@ class ManifestCleartextPermitted(Detector):
           if e.attrib.get('{{{ns}}}usesCleartextTraffic'.format(ns='http://schemas.android.com/apk/res/android'), 'true' if api_level < 28 else 'false').lower == 'true':
             self._raise('AndroidManifest.xml')
             break
-      for fn, xp in self._context.xml_resources():
+      for fn, xp in context.xml_resources():
         if 'network-security-config' in xp.tag.lower():
           if api_level < 28:
             if not xp.xpath('.//*[@cleartextTrafficPermitted="false"]'):
-              self._raise(self._context.source_name_of_disassembled_resource(fn))
+              self._raise(context.source_name_of_disassembled_resource(fn))
           else:
             if xp.xpath('.//*[@cleartextTrafficPermitted="true"]'):
-              self._raise(self._context.source_name_of_disassembled_resource(fn))
+              self._raise(context.source_name_of_disassembled_resource(fn))
 
   def _raise(self, path: str) -> None:
-    self._raise_issue(Issue(
-      detector_id=self.option,
+    self._helper.raise_issue(Issue(
+      detector_id=self._id,
       confidence='certain',
       cvss3_vector=self._cvss,
       summary='cleartext traffic is permitted',

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
   from typing import NoReturn, Optional, TextIO, Set, Any, Iterator
   from typing_extensions import Final
   from progressbar import ProgressBar
+  from trueseeing.core.model.issue import Issue
 
 class UI:
   DEBUG: Final = 0
@@ -374,6 +375,28 @@ class FileTransferProgressReporter:
     else:
       ui.info(f'{self._desc}... done.')
     self._done = True
+
+class ScanProgressReporter:
+  def __init__(self) -> None:
+    from trueseeing.core.report import ConsoleNoter
+    self._CN = ConsoleNoter
+
+  @contextmanager
+  def scoped(self) -> Iterator[None]:
+    submap = {
+      'issue':self._issue,
+    }
+    try:
+      for k, v in submap.items():
+        pub.subscribe(v, k)
+      yield None
+    finally:
+      for k, v in submap.items():
+        pub.unsubscribe(v, k)
+      pass
+
+  def _issue(self, issue: Issue) -> None:
+    self._CN.note(issue)
 
 
 ui = UI()

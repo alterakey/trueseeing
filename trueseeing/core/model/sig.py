@@ -1,26 +1,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from abc import ABC, abstractmethod
-
-from pubsub import pub
+from trueseeing.api import Detector
 
 if TYPE_CHECKING:
-  from typing import ClassVar
-  from trueseeing.core.android.context import Context
-  from trueseeing.core.model.issue import Issue
+  from trueseeing.api import DetectorHelper
 
-class Detector(ABC):
-  option: ClassVar[str]
-  description: ClassVar[str]
-
-  _context: Context
-
-  def __init__(self, context: Context) -> None:
-    self._context = context
-
-  def _raise_issue(self, issue: Issue) -> None:
-    pub.sendMessage('issue', issue=issue)
-
-  @abstractmethod
-  async def detect(self) -> None: ...
+class DetectorMixin(Detector):
+  def __init__(self, helper: DetectorHelper) -> None:
+    self._helper = helper

@@ -1,14 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator
 from trueseeing.core.android.context import Context
-from trueseeing.core.ui import CoreProgressReporter, ui
+from trueseeing.core.ui import CoreProgressReporter, ScanProgressReporter, ui
 
 if TYPE_CHECKING:
-  from typing import List, Type, Optional
+  from typing import List, Optional
   from trueseeing.core.report import ReportGenerator, ReportFormat
-  from trueseeing.core.model.sig import Detector
   from trueseeing.core.scan import Scanner
 
 class ScanMode:
@@ -18,13 +16,13 @@ class ScanMode:
   _reporter: ReportGenerator
   _scanner: Scanner
 
-  def __init__(self, target: str, outform: ReportFormat, outfile: Optional[str], signatures: List[Type[Detector]], excludes: List[str] = []) -> None:
+  def __init__(self, target: str, outform: ReportFormat, outfile: Optional[str], sigsels: List[str] = [], excludes: List[str] = []) -> None:
     from trueseeing.core.scan import Scanner
     self._target = target
     self._outfile = outfile
     self._context = Context(self._target, excludes)
     self._reporter = self._get_reporter(self._context, outform, outfile)
-    self._scanner = Scanner(self._context, self._reporter, signatures, excludes)
+    self._scanner = Scanner(self._context, sigsels, excludes)
 
   async def reanalyze(self) -> int:
     with CoreProgressReporter().scoped():
@@ -43,7 +41,9 @@ class ScanMode:
         with self._context.store().query().scoped() as q:
           if not incremental:
             await self._scanner.clear(q)
-          nr = await self._scanner.scan(q)
+
+          with ScanProgressReporter().scoped():
+            nr = await self._scanner.scan(q)
 
         if self._outfile is not None:
           if self._outfile == '-':
@@ -62,6 +62,7 @@ class ScanMode:
 
   @classmethod
   def _get_reporter(cls, context: Context, format: ReportFormat, fn: Optional[str]) -> ReportGenerator:
+    from trueseeing.core.report import CIReportGenerator, JSONReportGenerator, HTMLReportGenerator
     if fn is None:
       return CIReportGenerator(context)
     else:
