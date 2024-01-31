@@ -10,10 +10,10 @@ from trueseeing.core.ui import ui, CoreProgressReporter
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable
+  from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
   from trueseeing.app.shell import Signatures
   from trueseeing.core.context import Context
-  from trueseeing.core.model.cmd import Entry, CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry
+  from trueseeing.core.model.cmd import Entry, CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry, Command
 
 class InspectMode:
   def do(
@@ -130,24 +130,20 @@ class Runner:
 
   def _init_cmds(self) -> None:
     from trueseeing.core.ext import Extension
-    from trueseeing.core.model.cmd import Command
-    from inspect import getmembers, isclass
-    from importlib import import_module
-    for n in 'alias', 'analyze', 'asm', 'exploit', 'info', 'report', 'search', 'scan', 'show':
-      m = import_module(f'trueseeing.app.cmd.{n}')
-      for _, clazz in getmembers(m, lambda x: isclass(x) and x != Command and issubclass(x, Command)):
-        t = clazz(self)
-        self._cmds.update(t.get_commands())
-        self._cmdpats.update(t.get_command_patterns())
-        self._mods.update(t.get_modifiers())
-        self._opts.update(t.get_options())
+    from trueseeing.app.cmd import discover
+
+    for clazz in discover():
+      self._register_cmd(clazz)
 
     for clazz in Extension.get().get_commands():
-      t = clazz(self)
-      self._cmds.update(t.get_commands())
-      self._cmdpats.update(t.get_command_patterns())
-      self._mods.update(t.get_modifiers())
-      self._opts.update(t.get_options())
+      self._register_cmd(clazz)
+
+  def _register_cmd(self, clazz: Type[Command]) -> None:
+    t = clazz(self)
+    self._cmds.update(t.get_commands())
+    self._cmdpats.update(t.get_command_patterns())
+    self._mods.update(t.get_modifiers())
+    self._opts.update(t.get_options())
 
   def _get_modifiers(self, args: deque[str]) -> List[str]:
     o = []
