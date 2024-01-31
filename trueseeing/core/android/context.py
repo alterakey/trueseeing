@@ -14,7 +14,7 @@ from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional
-  from trueseeing.core.store import Store
+  from trueseeing.core.android.store import Store
 
 class Context:
   wd: str
@@ -56,7 +56,7 @@ class Context:
   def store(self) -> Store:
     if self._store is None:
       assert self.wd is not None
-      from trueseeing.core.store import Store
+      from trueseeing.core.android.store import Store
       self._store = Store(self.wd)
     return self._store
 
@@ -97,8 +97,8 @@ class Context:
       ui.debug('analyzed once')
     else:
       flagfn = self._get_analysis_flag_name(level)
-      from trueseeing.core.asm import APKDisassembler
-      from trueseeing.core.analysis.smali import SmaliAnalyzer
+      from trueseeing.core.android.asm import APKDisassembler
+      from trueseeing.core.android.analysis.smali import SmaliAnalyzer
       if os.path.exists(self.wd):
         ui.info('analyze: removing leftover')
         self.remove()

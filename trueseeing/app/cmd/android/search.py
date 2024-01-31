@@ -84,7 +84,7 @@ class SearchCommand(Command):
 
     pat = args.popleft()
 
-    from trueseeing.core.model.code import InvocationPattern
+    from trueseeing.core.android.model.code import InvocationPattern
     context = await self._runner._get_context_analyzed(apk)
     q = context.store().query()
     for op in q.invocations(InvocationPattern('invoke-', pat)):
@@ -107,7 +107,7 @@ class SearchCommand(Command):
     else:
       pat = '.'
 
-    from trueseeing.core.model.code import InvocationPattern
+    from trueseeing.core.android.model.code import InvocationPattern
     context = await self._runner._get_context_analyzed(apk)
     q = context.store().query()
     for op in q.consts(InvocationPattern(insn, pat)):

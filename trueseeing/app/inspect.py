@@ -12,7 +12,7 @@ from trueseeing.core.exc import FatalError
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
   from trueseeing.app.shell import Signatures
-  from trueseeing.core.context import Context
+  from trueseeing.core.android.context import Context
   from trueseeing.core.model.cmd import Entry, CommandEntry, CommandPatternEntry, OptionEntry, ModifierEntry, Command
 
 class InspectMode:
@@ -286,7 +286,7 @@ class Runner:
       ui.fatal(msg if msg else 'need target')
 
   def _get_context(self, path: str) -> Context:
-    from trueseeing.core.context import Context
+    from trueseeing.core.android.context import Context
     return Context(path, [])
 
   async def _get_context_analyzed(self, path: str, level: int = 3) -> Context:

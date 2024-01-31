@@ -5,8 +5,8 @@ import io
 import os
 import re
 
-from trueseeing.core.model.code import InvocationPattern
-from trueseeing.core.analysis.flow import DataFlows
+from trueseeing.core.android.model.code import InvocationPattern
+from trueseeing.core.android.analysis.flow import DataFlows
 from trueseeing.core.model.sig import Detector
 from trueseeing.core.model.issue import Issue
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from functools import cache
-from contextlib import contextmanager
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -72,28 +71,6 @@ async def try_invoke(as_: str) -> Optional[str]:
     return await invoke(as_)
   except CalledProcessError:
     return None
-
-@contextmanager
-def toolchains() -> Iterator[Toolchain]:
-  from importlib.resources import files, as_file
-  require_in_path('java', 'java -version')
-  libs = files('trueseeing')/'libs'
-  with as_file(libs/'apkeditor.jar') as apkeditorpath:
-    with as_file(libs/'apksigner.jar') as apksignerpath:
-      with as_file(libs/'abe.jar') as abepath:
-        yield dict(
-          apkeditor=apkeditorpath,
-          apksigner=apksignerpath,
-          abe=abepath,
-        )
-
-def move_apk(src: str, dest: str) -> None:
-  import shutil
-  shutil.move(src, dest)
-  try:
-    shutil.move(src.replace('.apk', '.apk.idsig'), dest.replace('.apk', '.apk.idsig'))
-  except OSError:
-    pass
 
 def copytree(src: str, dst: str, divisor: Optional[int] = 256) -> Iterator[int]:
   import os

@@ -2,14 +2,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from contextlib import contextmanager
-from trueseeing.core.model.code import Op
+from trueseeing.core.android.model.code import Op
 from trueseeing.core.model.issue import Issue
 from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Dict, Optional, Iterator
-  from trueseeing.core.store import Store
-  from trueseeing.core.model.code import InvocationPattern
+  from trueseeing.core.android.store import Store
+  from trueseeing.core.android.model.code import InvocationPattern
 
 class StorePrep:
   def __init__(self, c: Any) -> None:
@@ -17,15 +17,15 @@ class StorePrep:
 
   def stage0(self) -> None:
     from importlib.resources import files
-    self.c.executescript((files('trueseeing')/'libs'/'store.s.sql').read_text())
+    self.c.executescript((files('trueseeing')/'libs'/'android'/'store.s.sql').read_text())
 
   def stage1(self) -> None:
     from importlib.resources import files
-    self.c.executescript((files('trueseeing')/'libs'/'store.0.sql').read_text())
+    self.c.executescript((files('trueseeing')/'libs'/'android'/'store.0.sql').read_text())
 
   def stage2(self) -> None:
     from importlib.resources import files
-    self.c.executescript((files('trueseeing')/'libs'/'store.1.sql').read_text())
+    self.c.executescript((files('trueseeing')/'libs'/'android'/'store.1.sql').read_text())
 
 class FileTablePrep:
   def __init__(self, c: Any) -> None:

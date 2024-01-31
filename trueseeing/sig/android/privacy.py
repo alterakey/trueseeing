@@ -3,15 +3,15 @@ from typing import TYPE_CHECKING
 
 import re
 
-from trueseeing.core.model.code import InvocationPattern
-from trueseeing.core.analysis.flow import DataFlows
+from trueseeing.core.android.model.code import InvocationPattern
+from trueseeing.core.android.analysis.flow import DataFlows
 from trueseeing.core.model.sig import Detector
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Optional
-  from trueseeing.core.store import Store
-  from trueseeing.core.model.code import Op
+  from trueseeing.core.android.store import Store
+  from trueseeing.core.android.model.code import Op
 
 class PrivacyDeviceIdDetector(Detector):
   option = 'privacy-device-id'
