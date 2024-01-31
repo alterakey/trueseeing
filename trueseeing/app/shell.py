@@ -6,65 +6,9 @@ import sys
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Type, Set, Dict, Optional, Coroutine, Any, Literal
-  from trueseeing.core.model.sig import Detector
+  from typing import Optional, Coroutine, Any, Literal
 
   OpMode = Optional[Literal['scan', 'inspect', 'batch']]
-
-class Signatures:
-  content: Dict[str, Type[Detector]]
-  def __init__(self) -> None:
-    from trueseeing.sig.android import crypto, fingerprint, manifest, privacy, security
-
-    sigs: List[Type[Detector]] = [
-      crypto.CryptoStaticKeyDetector,
-      crypto.CryptoEcbDetector,
-      crypto.CryptoNonRandomXorDetector,
-      fingerprint.LibraryDetector,
-      fingerprint.ProGuardDetector,
-      fingerprint.UrlLikeDetector,
-      fingerprint.NativeMethodDetector,
-      fingerprint.NativeArchDetector,
-      fingerprint.ReflectionDetector,
-      manifest.ManifestOpenPermissionDetector,
-      manifest.ManifestManipActivity,
-      manifest.ManifestManipBroadcastReceiver,
-      manifest.ManifestManipContentProvider,
-      manifest.ManifestManipBackup,
-      manifest.ManifestDebuggable,
-      manifest.ManifestCleartextPermitted,
-      privacy.PrivacyDeviceIdDetector,
-      privacy.PrivacySMSDetector,
-      security.SecurityFilePermissionDetector,
-      security.SecurityTlsInterceptionDetector,
-      security.SecurityTamperableWebViewDetector,
-      security.SecurityInsecureWebViewDetector,
-      security.FormatStringDetector,
-      security.LogDetector,
-      security.ADBProbeDetector,
-      security.ClientXSSJQDetector,
-      security.SecurityFileWriteDetector,
-      security.SecurityInsecureRootedDetector,
-      security.SecuritySharedPreferencesDetector,
-    ]
-
-    self.content = {cl.option:cl for cl in sigs}
-
-  def all(self) -> Set[str]:
-    return set(self.content.keys())
-
-  def default(self) -> Set[str]:
-    return self.all().copy()
-
-  def selected_on(self, switch: str) -> Set[str]:
-    if switch != 'all':
-      if not switch.endswith('-all'):
-        return set([switch])
-      else:
-        return {v for v in self.all() if v.startswith(switch.replace('-all', ''))}
-    else:
-      return self.all()
-
 
 class Shell:
   @classmethod
@@ -123,12 +67,6 @@ class Shell:
       ui.warn('disabling extensions')
       Extension.disabled = True
 
-    sigs = Signatures()
-    for clazz in Extension.get().get_signatures():
-      sigs.content[clazz.option] = clazz
-
-    signature_selected = sigs.default().copy()
-
     if not args.mode:
       args.mode = 'inspect'
     elif args.mode == 'inspect':
@@ -143,12 +81,6 @@ class Shell:
           cmdlines = [l for l in f]
       except OSError as e:
         ui.fatal(f'cannot open script file: {e}')
-    if args.scan_sigs:
-      for s in args.scan_sigs.split(','):
-        if s.startswith('no-'):
-          signature_selected.difference_update(sigs.selected_on(s[3:]))
-        else:
-          signature_selected.update(sigs.selected_on(s))
     if args.scan_max_graph_size:
       from trueseeing.core.android.analysis.flow import DataFlows
       DataFlows.set_max_graph_size(args.scan_max_graph_size)
@@ -185,7 +117,6 @@ class Shell:
 
       InspectMode().do(
         args.fn,
-        signatures=sigs,
         batch=True if args.mode == 'batch' else False,
         cmdlines=cmdlines,
       )
@@ -195,7 +126,7 @@ class Shell:
         args.fn,
         outform=args.scan_report_format,
         outfile=args.scan_output_filename,
-        signatures=[v for k, v in sigs.content.items() if k in signature_selected],
+        sigsels=args.scan_sigs.split(',') if args.scan_sigs else [],
         excludes=args.scan_exclude_packages if args.scan_exclude_packages else [],
       )
       if args.scan_update_cache:

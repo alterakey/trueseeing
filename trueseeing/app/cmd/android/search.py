@@ -4,21 +4,21 @@ from typing import TYPE_CHECKING
 import re
 from collections import deque
 
-from trueseeing.core.model.cmd import Command
+from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Dict
-  from trueseeing.app.inspect import Runner
-  from trueseeing.core.model.cmd import CommandEntry
+  from trueseeing.api import CommandHelper, Command, CommandMap
 
-class SearchCommand(Command):
-  _runner: Runner
+class SearchCommand(CommandMixin):
+  def __init__(self, helper: CommandHelper) -> None:
+    self._helper = helper
 
-  def __init__(self, runner: Runner) -> None:
-    self._runner = runner
+  @staticmethod
+  def create(helper: CommandHelper) -> Command:
+    return SearchCommand(helper)
 
-  def get_commands(self) -> Dict[str, CommandEntry]:
+  def get_commands(self) -> CommandMap:
     return {
       '/c':dict(e=self._search_call, n='/c [pat]', d='search call for pattern'),
       '/k':dict(e=self._search_const, n='/k insn [pat]', d='search consts for pattern'),
@@ -33,30 +33,26 @@ class SearchCommand(Command):
     }
 
   async def _search_file(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if args:
       pat = args.popleft()
     else:
       pat = '.'
 
-    context = await self._runner._get_context_analyzed(apk, level=1)
+    context = await self._helper.get_context_analyzed(level=1)
     level = context.get_analysis_level()
     if level < 3:
-      ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._runner._decode_analysis_level(level)))
+      ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._helper.decode_analysis_level(level)))
     for path in context.store().query().file_find(pat=pat, regex=True):
       ui.info(f'{path}')
 
   async def _search_string(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if not args:
       ui.fatal('need pattern')
@@ -65,19 +61,17 @@ class SearchCommand(Command):
 
     ui.info('searching in files: {pat}'.format(pat=pat))
 
-    context = await self._runner._get_context_analyzed(apk, level=1)
+    context = await self._helper.get_context_analyzed(level=1)
     level = context.get_analysis_level()
     if level < 3:
-      ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._runner._decode_analysis_level(level)))
+      ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._helper.decode_analysis_level(level)))
     for path in context.store().query().file_search(pat=pat.encode('latin1'), regex=True):
       ui.info(f'{path}')
 
   async def _search_call(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if not args:
       ui.fatal('need pattern')
@@ -85,18 +79,16 @@ class SearchCommand(Command):
     pat = args.popleft()
 
     from trueseeing.core.android.model.code import InvocationPattern
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     q = context.store().query()
     for op in q.invocations(InvocationPattern('invoke-', pat)):
       qn = q.qualname_of(op)
       ui.info(f'{qn}: {op}')
 
   async def _search_const(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if not args:
       ui.fatal('need insn')
@@ -108,25 +100,23 @@ class SearchCommand(Command):
       pat = '.'
 
     from trueseeing.core.android.model.code import InvocationPattern
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     q = context.store().query()
     for op in q.consts(InvocationPattern(insn, pat)):
       qn = q.qualname_of(op)
       ui.info(f'{qn}: {op}')
 
   async def _search_put(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     cmd = args.popleft()
-    apk = self._runner._target
 
     if args:
       pat = args.popleft()
     else:
       pat = '.'
 
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     q = context.store().query()
     if not cmd.endswith('i'):
       fun = q.sputs
@@ -138,11 +128,9 @@ class SearchCommand(Command):
       ui.info(f'{qn}: {op}')
 
   async def _search_defined_package(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if args:
       pat = args.popleft()
@@ -150,7 +138,7 @@ class SearchCommand(Command):
       pat = '.'
 
     import os
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     packages = set()
     for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
       if fn.endswith('.smali'):
@@ -160,29 +148,25 @@ class SearchCommand(Command):
         ui.info(pkg)
 
   async def _search_defined_class(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if not args:
       ui.fatal('need pattern')
 
     pat = args.popleft()
 
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     q = context.store().query()
     for op in q.classes_in_package_named(pat):
       cn = q.class_name_of(op)
       ui.info(f'{cn}: {op}')
 
   async def _search_derived_class(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if not args:
       ui.fatal('need class')
@@ -193,18 +177,16 @@ class SearchCommand(Command):
     else:
       pat = '.'
 
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     q = context.store().query()
     for op in q.classes_extends_has_method_named(base, pat):
       cn = q.class_name_of(op)
       ui.info(f'{cn}: {op}')
 
   async def _search_implementing_class(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if not args:
       ui.fatal('need pattern')
@@ -215,25 +197,23 @@ class SearchCommand(Command):
     else:
       pat = '.'
 
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     q = context.store().query()
     for op in q.classes_implements_has_method_named(interface, pat):
       cn = q.class_name_of(op)
       ui.info(f'{cn}: {op}')
 
   async def _search_defined_method(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     if not args:
       ui.fatal('need classname')
 
     pat = args.popleft()
 
-    context = await self._runner._get_context_analyzed(apk)
+    context = await self._helper.get_context_analyzed()
     q = context.store().query()
     for op in q.classes_has_method_named(pat):
       qn = q.qualname_of(op)

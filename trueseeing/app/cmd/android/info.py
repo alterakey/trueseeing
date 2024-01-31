@@ -3,21 +3,21 @@ from typing import TYPE_CHECKING
 
 from collections import deque
 
-from trueseeing.core.model.cmd import Command
+from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Dict
-  from trueseeing.app.inspect import Runner
-  from trueseeing.core.model.cmd import CommandEntry
+  from trueseeing.api import CommandHelper, Command, CommandMap
 
-class InfoCommand(Command):
-  _runner: Runner
+class InfoCommand(CommandMixin):
+  def __init__(self, helper: CommandHelper) -> None:
+    self._helper = helper
 
-  def __init__(self, runner: Runner) -> None:
-    self._runner = runner
+  @staticmethod
+  def create(helper: CommandHelper) -> Command:
+    return InfoCommand(helper)
 
-  def get_commands(self) -> Dict[str, CommandEntry]:
+  def get_commands(self) -> CommandMap:
     return {
       'i':dict(e=self._info, n='i[i][i]', d='print info (ii: overall, iii: detailed)'),
       'ii':dict(e=self._info2),
@@ -25,11 +25,9 @@ class InfoCommand(Command):
     }
 
   async def _info(self, args: deque[str], level: int = 0) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    apk = self._helper.require_target()
 
     _ = args.popleft()
-    apk = self._runner._target
 
     import os
 
@@ -41,7 +39,7 @@ class InfoCommand(Command):
     ui.info('path         {}'.format(apk))
     ui.info('size         {}'.format(os.stat(apk).st_size))
 
-    context = self._runner._get_context(self._runner._target)
+    context = self._helper.get_context()
 
     ui.info('fp           {}'.format(context.fingerprint_of()))
     ui.info('ctx          {}'.format(context.wd))
@@ -54,7 +52,7 @@ class InfoCommand(Command):
 
     ui.info('has patch?   {}'.format(boolmap[patched]))
     ui.info('analyzed?    {}{}'.format(
-      self._runner._decode_analysis_level(analyzed),
+      self._helper.decode_analysis_level(analyzed),
       ' ({})'.format(analysisguidemap[analyzed]) if analyzed < 3 else '',
     ))
     if analyzed > 0:

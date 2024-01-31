@@ -5,19 +5,27 @@ import re
 
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlows
-from trueseeing.core.model.sig import Detector
+from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Optional
   from trueseeing.core.android.store import Store
   from trueseeing.core.android.model.code import Op
+  from trueseeing.api import Detector, DetectorHelper, DetectorMap
 
-class PrivacyDeviceIdDetector(Detector):
-  option = 'privacy-device-id'
+class PrivacyDeviceIdDetector(DetectorMixin):
+  _id = 'privacy-device-id'
   description = 'Detects device fingerprinting behavior'
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:N/A:N/'
   _summary = 'privacy concerns'
+
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return PrivacyDeviceIdDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects device fingerprinting behavior')}
 
   def analyzed(self, store: Store, op: Op) -> Optional[str]:
     x = op.p[1].v
@@ -42,16 +50,17 @@ class PrivacyDeviceIdDetector(Detector):
     return None
 
   async def detect(self) -> None:
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
       qn = q.qualname_of(op)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       val_type = self.analyzed(store, op)
       if val_type is not None:
-        self._raise_issue(Issue(
-          detector_id=self.option,
+        self._helper.raise_issue(Issue(
+          detector_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss,
           summary=self._summary,
@@ -59,23 +68,30 @@ class PrivacyDeviceIdDetector(Detector):
           source=q.qualname_of(op)
         ))
 
-class PrivacySMSDetector(Detector):
-  option = 'privacy-sms'
-  description = 'Detects SMS-related behavior'
+class PrivacySMSDetector(DetectorMixin):
+  _id = 'privacy-sms'
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:N/A:N/'
   _summary = 'privacy concerns'
 
+  @staticmethod
+  def create(helper: DetectorHelper) -> Detector:
+    return PrivacySMSDetector(helper)
+
+  def get_descriptor(self) -> DetectorMap:
+    return {self._id:dict(e=self.detect, d='Detects SMS-related behavior')}
+
   async def detect(self) -> None:
-    store = self._context.store()
+    context = self._helper.get_context()
+    store = context.store()
     q = store.query()
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
       qn = q.qualname_of(op)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
       try:
         if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
-          self._raise_issue(Issue(
-            detector_id=self.option,
+          self._helper.raise_issue(Issue(
+            detector_id=self._id,
             confidence='certain',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -87,10 +103,10 @@ class PrivacySMSDetector(Detector):
 
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsManager;->send')):
       qn = q.qualname_of(op)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
-      self._raise_issue(Issue(
-        detector_id=self.option,
+      self._helper.raise_issue(Issue(
+        detector_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary=self._summary,
@@ -100,10 +116,10 @@ class PrivacySMSDetector(Detector):
 
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsMessage;->createFromPdu\(')):
       qn = q.qualname_of(op)
-      if self._context.is_qualname_excluded(qn):
+      if context.is_qualname_excluded(qn):
         continue
-      self._raise_issue(Issue(
-        detector_id=self.option,
+      self._helper.raise_issue(Issue(
+        detector_id=self._id,
         confidence='firm',
         cvss3_vector=self._cvss,
         summary=self._summary,

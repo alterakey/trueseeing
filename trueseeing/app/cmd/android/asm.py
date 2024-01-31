@@ -3,22 +3,22 @@ from typing import TYPE_CHECKING
 
 from collections import deque
 
-from trueseeing.core.model.cmd import Command
+from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.env import is_in_container
 from trueseeing.core.ui import ui, FileTransferProgressReporter
 
 if TYPE_CHECKING:
-  from typing import Dict
-  from trueseeing.app.inspect import Runner
-  from trueseeing.core.model.cmd import CommandEntry, OptionEntry
+  from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
 
-class AssembleCommand(Command):
-  _runner: Runner
+class AssembleCommand(CommandMixin):
+  def __init__(self, helper: CommandHelper) -> None:
+    self._helper = helper
 
-  def __init__(self, runner: Runner) -> None:
-    self._runner = runner
+  @staticmethod
+  def create(helper: CommandHelper) -> Command:
+    return AssembleCommand(helper)
 
-  def get_commands(self) -> Dict[str, CommandEntry]:
+  def get_commands(self) -> CommandMap:
     return {
       'ca':dict(e=self._assemble, n='ca[!] /path', d='assemble as target from path'),
       'ca!':dict(e=self._assemble),
@@ -30,14 +30,13 @@ class AssembleCommand(Command):
       'co!':dict(e=self._export_context),
     }
 
-  def get_options(self) -> Dict[str, OptionEntry]:
+  def get_options(self) -> OptionMap:
     return {
       'nocache':dict(n='nocache', d='do not replicate content before build [ca]')
     }
 
   async def _assemble(self, args: deque[str]) -> None:
-    self._runner._require_target('need target (i.e. output apk filename)')
-    assert self._runner._target is not None
+    apk = self._helper.require_target('need target (i.e. output apk filename)')
 
     cmd = args.popleft()
 
@@ -52,13 +51,12 @@ class AssembleCommand(Command):
     from trueseeing.core.tools import copytree
 
     root = args.popleft()
-    apk = self._runner._target
     origapk = apk.replace('.apk', '.apk.orig')
 
     if os.path.exists(origapk) and not cmd.endswith('!'):
       ui.fatal('backup file exists; force (!) to overwrite')
 
-    opts = self._runner._get_effective_options(self._runner._get_modifiers(args))
+    opts = self._helper.get_effective_options(self._helper.get_modifiers(args))
 
     ui.info('assembling {root} -> {apk}'.format(root=root, apk=apk))
 
@@ -84,8 +82,7 @@ class AssembleCommand(Command):
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
   async def _disassemble(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    apk = self._helper.require_target()
 
     cmd = args.popleft()
 
@@ -100,7 +97,6 @@ class AssembleCommand(Command):
     from trueseeing.core.tools import move_as_output
 
     path = args.popleft()
-    apk = self._runner._target
 
     if os.path.exists(path):
       if not cmd.endswith('!'):
@@ -123,8 +119,7 @@ class AssembleCommand(Command):
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
   async def _export_context(self, args: deque[str]) -> None:
-    self._runner._require_target()
-    assert self._runner._target is not None
+    self._helper.require_target()
 
     _ = args.popleft()
 
@@ -144,7 +139,7 @@ class AssembleCommand(Command):
 
     at = time.time()
     extracted = 0
-    context = self._runner._get_context(self._runner._target)
+    context = self._helper.get_context()
     q = context.store().query()
     for path,blob in q.file_enum(pat=pat, regex=True):
       target = os.path.join(root, *path.split('/'))

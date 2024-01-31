@@ -10,8 +10,7 @@ from trueseeing.core.env import get_extension_dir, get_extension_dir_v0, get_ext
 if TYPE_CHECKING:
   from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type, TypeVar
   from typing_extensions import Final
-  from trueseeing.core.model.cmd import Command
-  from trueseeing.core.model.sig import Detector
+  from trueseeing.api import Command, Detector
 
   T = TypeVar('T')
 
@@ -68,17 +67,25 @@ class Extension:
       return {}
 
   def get_signatures(self) -> Iterator[Type[Detector]]:
-    from trueseeing.core.model.sig import Detector
-    from trueseeing.core.tools import get_public_subclasses
+    from trueseeing.api import Detector
+    from trueseeing.core.tools import get_public_subclasses, has_mandatory_ctor
     for _, m in self._ns.items():
       for clazz in get_public_subclasses(m, Detector):  # type: ignore[type-abstract]
+        if not has_mandatory_ctor(clazz):
+          from trueseeing.core.tools import get_fully_qualified_classname
+          ui.warn('ignoring signature {}: needs the static ctor (forgot "create"?)'.format(get_fully_qualified_classname(clazz)))
+          continue
         yield clazz
 
   def get_commands(self) -> Iterator[Type[Command]]:
-    from trueseeing.core.model.cmd import Command
-    from trueseeing.core.tools import get_public_subclasses
+    from trueseeing.api import Command
+    from trueseeing.core.tools import get_public_subclasses, has_mandatory_ctor
     for _, m in self._ns.items():
-      for clazz in get_public_subclasses(m, Command):
+      for clazz in get_public_subclasses(m, Command):  # type: ignore[type-abstract]
+        if not has_mandatory_ctor(clazz):
+          from trueseeing.core.tools import get_fully_qualified_classname
+          ui.warn('ignoring command {}: needs the static ctor (forgot "create"?)'.format(get_fully_qualified_classname(clazz)))
+          continue
         yield clazz
 
   # XXX: gross hack

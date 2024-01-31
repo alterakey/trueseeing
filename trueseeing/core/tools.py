@@ -6,7 +6,7 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from pathlib import Path
-  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type
+  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable
   T = TypeVar('T')
 
   class Toolchain(TypedDict):
@@ -117,8 +117,15 @@ def move_as_output(src: str, dst: str, divisor: Optional[int] = 256, allow_orpha
         yield nr
       nr += 1
 
-def get_public_subclasses(mod: Any, typ: Type[T]) -> Iterator[Type[T]]:
+def get_public_subclasses(mod: Any, typ: Type[T], typs: Iterable[Type[T]] = []) -> Iterator[Type[T]]:
   from inspect import getmembers, isclass
-  for n, clazz in getmembers(mod, lambda x: isclass(x) and x != typ and issubclass(x, typ)):
+  for n, clazz in getmembers(mod, lambda x: isclass(x) and x != typ and (x not in typs) and issubclass(x, typ)):
     if not n.startswith('_'):
       yield clazz
+
+def has_mandatory_ctor(clazz: Any) -> bool:
+  from inspect import isclass
+  return isclass(clazz) and not getattr(getattr(clazz, 'create', None), '__isabstractmethod__', False)
+
+def get_fully_qualified_classname(clazz: Any) -> str:
+  return '.'.join([clazz.__module__, clazz.__name__])
