@@ -69,20 +69,17 @@ class Extension:
 
   def get_signatures(self) -> Iterator[Type[Detector]]:
     from trueseeing.core.model.sig import Detector
-    for clazz in self._get_public_subclasses(Detector):  # type: ignore[type-abstract]
-      yield clazz
+    from trueseeing.core.tools import get_public_subclasses
+    for _, m in self._ns.items():
+      for clazz in get_public_subclasses(m, Detector):  # type: ignore[type-abstract]
+        yield clazz
 
   def get_commands(self) -> Iterator[Type[Command]]:
     from trueseeing.core.model.cmd import Command
-    for clazz in self._get_public_subclasses(Command):
-      yield clazz
-
-  def _get_public_subclasses(self, typ: Type[T]) -> Iterable[Type[T]]:
-    from inspect import getmembers, isclass
-    for _,m in self._ns.items():
-      for n, clazz in getmembers(m, lambda x: isclass(x) and x != typ and issubclass(x, typ)):
-        if not n.startswith('_'):
-          yield clazz
+    from trueseeing.core.tools import get_public_subclasses
+    for _, m in self._ns.items():
+      for clazz in get_public_subclasses(m, Command):
+        yield clazz
 
   # XXX: gross hack
   def _importer(self, path: str, /, only: Optional[str] = None) -> Optional[str]:

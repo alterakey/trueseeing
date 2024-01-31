@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
   from typing import Dict, Any, TypedDict
+  from trueseeing.app.inspect import Runner
 
   class Entry(TypedDict, total=False):
     e: Any
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
     pass
 
 class Command:
+  def __init__(self, runner: Runner) -> None:
+    pass
   def get_commands(self) -> Dict[str, CommandEntry]:
     return dict()
   def get_command_patterns(self) -> Dict[str, CommandPatternEntry]:

@@ -1,14 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import asyncio
 from functools import cache
 from contextlib import contextmanager
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from pathlib import Path
-  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator
+  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type
   T = TypeVar('T')
 
   class Toolchain(TypedDict):
@@ -44,21 +43,24 @@ def require_in_path(cmd: str, cmdline: str) -> None:
     ui.fatal('not found: {cmd}')
 
 async def invoke(as_: str, redir_stderr: bool = False) -> str:
+  from asyncio import create_subprocess_shell
   from subprocess import PIPE, STDOUT
-  p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
+  p = await create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
   out, _ = await p.communicate()
   _check_return_code(p, as_, out, None)
   return out.decode('UTF-8')
 
 async def invoke_passthru(as_: str, nocheck: bool = False) -> None:
-  p = await asyncio.create_subprocess_shell(as_)
+  from asyncio import create_subprocess_shell
+  p = await create_subprocess_shell(as_)
   await p.communicate()
   if not nocheck:
     _check_return_code(p, as_, None, None)
 
 async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterator[bytes]:
+  from asyncio import create_subprocess_shell
   from subprocess import PIPE, STDOUT
-  p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
+  p = await create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
   if p.stdout is not None:
     async for l in p.stdout:
       yield l
@@ -137,3 +139,9 @@ def move_as_output(src: str, dst: str, divisor: Optional[int] = 256, allow_orpha
       if divisor is None or (nr % divisor == 0):
         yield nr
       nr += 1
+
+def get_public_subclasses(mod: Any, typ: Type[T]) -> Iterator[Type[T]]:
+  from inspect import getmembers, isclass
+  for n, clazz in getmembers(mod, lambda x: isclass(x) and x != typ and issubclass(x, typ)):
+    if not n.startswith('_'):
+      yield clazz
