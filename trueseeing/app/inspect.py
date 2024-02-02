@@ -20,32 +20,39 @@ class InspectMode:
       target: Optional[str],
       batch: bool = False,
       cmdlines: List[str] = [],
+      abort_on_errors: bool = False,
   ) -> NoReturn:
     try:
-      if ui.is_tty():
-        ui.enter_inspect()
-      with CoreProgressReporter().scoped():
-        self._do(target, batch, cmdlines)
-    finally:
-      if ui.is_tty():
-        ui.exit_inspect()
+      try:
+        if ui.is_tty():
+          ui.enter_inspect()
+        with CoreProgressReporter().scoped():
+          self._do(target, batch, cmdlines, abort_on_errors)
+      finally:
+        if ui.is_tty():
+          ui.exit_inspect()
+    except QuitSession as e:
+      sys.exit(e.code)
+    else:
+      sys.exit(0)
 
   def _do(
       self,
       target: Optional[str],
       batch: bool,
       cmdlines: List[str],
-  ) -> NoReturn:
+      abort_on_errors: bool,
+  ) -> int:
     from code import InteractiveConsole
 
     sein = self
-    runner = Runner(target)
+    runner = Runner(target, abort_on_errors=abort_on_errors)
 
     for line in cmdlines:
       asyncio.run(sein._worker(runner.run(line)))
 
     if batch:
-      sys.exit(0)
+      return 0
 
     if not ui.is_tty(stdin=True):
       ui.fatal('requires a tty')
@@ -67,11 +74,8 @@ class InspectMode:
     ps1, ps2 = getattr(sys, 'ps1', None), getattr(sys, 'ps2', None)
     try:
       runner.reset_prompt()
-      try:
-        LambdaConsole(locals=locals(), filename='<input>').interact(banner='', exitmsg='')
-      except QuitSession:
-        pass
-      sys.exit(0)
+      LambdaConsole(locals=locals(), filename='<input>').interact(banner='', exitmsg='')
+      return 0
     finally:
       sys.ps1, sys.ps2 = ps1, ps2
 
@@ -93,7 +97,7 @@ class InspectMode:
             ui.fatal('unhandled exception', exc=x)
 
 class QuitSession(Exception):
-  pass
+  code: int
 
 class Runner:
   _cmds: Dict[str, CommandEntry]
@@ -104,9 +108,10 @@ class Runner:
   _quiet: bool = False
   _verbose: bool = False
   _target: Optional[str]
+  _abort_on_errors: bool = False
   _helper: CommandHelper
 
-  def __init__(self, target: Optional[str]) -> None:
+  def __init__(self, target: Optional[str], /, abort_on_errors: bool = False) -> None:
     self._helper = CommandHelperImpl(self)
     self._target = target
     self._cmds = {
@@ -126,6 +131,8 @@ class Runner:
     self._confs = {
     }
     self._opts = {}
+    if abort_on_errors:
+      self._abort_on_errors = True
 
     self._init_cmds()
 
@@ -220,7 +227,8 @@ class Runner:
       except KeyboardInterrupt:
         ui.fatal('interrupted')
     except FatalError:
-      pass
+      if self._abort_on_errors:
+        raise QuitSession(1)
 
   def _reset_loglevel(self, debug:bool = False) -> None:
     ui.set_level(ui.INFO)
@@ -262,7 +270,7 @@ class Runner:
     await (await create_subprocess_exec(get_shell())).wait()
 
   async def _quit(self, args: deque[str]) -> None:
-    raise QuitSession()
+    raise QuitSession(0)
 
   async def _set_target(self, args: deque[str]) -> None:
     _ = args.popleft()

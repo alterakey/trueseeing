@@ -43,12 +43,13 @@ class Shell:
     parser.add_argument('--norc', action='store_true', help='Ignore startup file')
     parser.add_argument('--noext', action='store_true', help='Ignore extensions')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
+    parser.add_argument('-e', '--abort-on-errors', action='store_true', help='Abort on errors')
     parser.add_argument('-n', dest='no_target', action='store_true', help='Open empty file')
     args_mut0.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
     args_mut0.add_argument('-c', dest='inline_cmd', metavar='COMMAND', help='Run commands before prompt')
     args_mut1.add_argument('-q', dest='mode', action='store_const', const='batch', help='Batch mode; quit instead of giving prompt')
     args_mut1.add_argument('--inspect', dest='mode', action='store_const', const='inspect', help='Inspect mode (deprecated; now default)')
-    args_mut1.add_argument('--scan', dest='mode', action='store_const', const='scan', help='Scan mode (deprecated; use -qc "as;g*"; e.g. gh for HTML)')
+    args_mut1.add_argument('--scan', dest='mode', action='store_const', const='scan', help='Scan mode (deprecated; use -eqc "as;g*"; e.g. gh for HTML)')
 
     scan_args = parser.add_argument_group('Scan mode (DEPRECATED)')
     scan_args.add_argument('--scan-sigs', metavar='SIG,...', help='Select signatures (use --help-signatures to list signatures)')
@@ -72,7 +73,7 @@ class Shell:
     elif args.mode == 'inspect':
       self._deprecated('--inspect is deprecated; ignored as default')
     elif args.mode == 'scan':
-      self._deprecated('--scan is deprecated; use -qc "as;g*"; e.g. gh for HTML')
+      self._deprecated('--scan is deprecated; use -eqc "as;g*"; e.g. gh for HTML')
     if args.inline_cmd:
       cmdlines = [args.inline_cmd]
     if args.scriptfn:
@@ -119,6 +120,7 @@ class Shell:
         args.fn,
         batch=True if args.mode == 'batch' else False,
         cmdlines=cmdlines,
+        abort_on_errors=args.abort_on_errors,
       )
     elif args.mode == 'scan':
       from trueseeing.app.scan import ScanMode
