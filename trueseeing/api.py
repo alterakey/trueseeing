@@ -31,6 +31,9 @@ if TYPE_CHECKING:
   class ModifierEntry(Entry):
     pass
 
+  class ConfigEntry(Entry):
+    pass
+
   class DetectorEntry(TypedDict):
     e: DetectorEntrypoint
     d: str
@@ -39,6 +42,7 @@ if TYPE_CHECKING:
   CommandPatternMap = Mapping[str, CommandPatternEntry]
   OptionMap = Mapping[str, OptionEntry]
   ModifierMap = Mapping[str, ModifierEntry]
+  ConfigMap = Mapping[str, ConfigEntry]
   DetectorMap = Mapping[str, DetectorEntry]
 
   class CommandHelper(Protocol):
@@ -67,6 +71,8 @@ class Command(ABC):
   def get_command_patterns(self) -> CommandPatternMap: ...
   @abstractmethod
   def get_modifiers(self) -> ModifierMap: ...
+  @abstractmethod
+  def get_configs(self) -> ConfigMap: ...
   @abstractmethod
   def get_options(self) -> OptionMap: ...
 
