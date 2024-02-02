@@ -12,7 +12,7 @@ from trueseeing.core.exc import FatalError
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
   from trueseeing.core.android.context import Context
-  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry
+  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigEntry
 
 class InspectMode:
   def do(
@@ -100,6 +100,7 @@ class Runner:
   _cmdpats: Dict[str, CommandPatternEntry]
   _mods: Dict[str, ModifierEntry]
   _opts: Dict[str, OptionEntry]
+  _confs: Dict[str, ConfigEntry]
   _quiet: bool = False
   _verbose: bool = False
   _target: Optional[str]
@@ -110,6 +111,7 @@ class Runner:
     self._target = target
     self._cmds = {
       '?':dict(e=self._help, n='?', d='help'),
+      '?e?':dict(e=self._help_conf, n='?e?', d='config help'),
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
       '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
       '!':dict(e=self._shell, n='!', d='shell'),
@@ -120,6 +122,8 @@ class Runner:
     self._mods = {
       'o':dict(n='@o:option', d='pass option'),
       'gs':dict(n='@gs:<int>[kmKM]', d='set graph size limit'),
+    }
+    self._confs = {
     }
     self._opts = {}
 
@@ -140,6 +144,7 @@ class Runner:
     self._cmds.update(t.get_commands())
     self._cmdpats.update(t.get_command_patterns())
     self._mods.update(t.get_modifiers())
+    self._confs.update(t.get_configs())
     self._opts.update(t.get_options())
 
   def get_target(self) -> Optional[str]:
@@ -234,6 +239,9 @@ class Runner:
 
   async def _help_mod(self, args: deque[str]) -> None:
     await self._help_on('Modifiers:', self._mods)
+
+  async def _help_conf(self, args: deque[str]) -> None:
+    await self._help_on('Configs:', self._confs)
 
   async def _help_opt(self, args: deque[str]) -> None:
     await self._help_on('Options:', self._opts)
