@@ -6,7 +6,7 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from pathlib import Path
-  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable
+  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable, FrozenSet
   T = TypeVar('T')
 
   class Toolchain(TypedDict):
@@ -123,9 +123,10 @@ def get_public_subclasses(mod: Any, typ: Type[T], typs: Iterable[Type[T]] = []) 
     if not n.startswith('_'):
       yield clazz
 
-def has_mandatory_ctor(clazz: Any) -> bool:
+def get_missing_methods(clazz: Any) -> FrozenSet[str]:
   from inspect import isclass
-  return isclass(clazz) and not getattr(getattr(clazz, 'create', None), '__isabstractmethod__', False)
+  assert isclass(clazz)
+  return getattr(clazz, '__abstractmethods__', frozenset())
 
 def get_fully_qualified_classname(clazz: Any) -> str:
   return '.'.join([clazz.__module__, clazz.__name__])
