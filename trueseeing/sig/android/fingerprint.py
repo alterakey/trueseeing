@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-
 import io
 import os
 import re
@@ -13,6 +12,7 @@ from trueseeing.core.model.issue import Issue
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any, Set
   from trueseeing.api import Detector, DetectorHelper, DetectorMap
+  from trueseeing.core.model.issue import IssueConfidence
 
 # XXX huge duplication
 class TopLevelSuffixes:
@@ -237,22 +237,25 @@ class UrlLikeDetector(DetectorMixin):
   def _analyzed(self, x: str, qn: Optional[str] = None) -> Iterable[Dict[str, Any]]:
     assert self._re_tlds is not None
     if '://' in x:
-      yield dict(type_='URL', value=re.findall(r'\S+://\S+', x))
+      yield dict(type_='URL', value=re.findall(r'\S+://\S+', x), confidence='firm')
     elif re.search(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x):
-      yield dict(type_='path component', value=re.findall(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x))
+      yield dict(type_='path component', value=re.findall(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x), confidence='firm')
     elif re.search(r'^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$', x):
       m = re.search(r'^([^:/]+)', x)
       if m:
         hostlike = m.group(1)
         components = hostlike.split('.')
         if len(components) == 4 and all(re.match(r'^\d+$', c) for c in components) and all(int(c) < 256 for c in components):
-          if re.match(r'1\.[239]\.|2\.(1|5|160)\.|3\.1\.', hostlike) and qn is not None and re.search(r'asn1|x509|X509|KeyUsage', qn):
+          if re.match(r'1\.[239]\.|2\.(1|5|160)\.|3\.1\.', hostlike) and qn is not None and re.search(r'asn1|ASN1|x509|X509|KeyUsage', qn):
             pass
           else:
-            yield dict(type_='possible IPv4 address', value=[hostlike])
+            yield dict(type_='possible IPv4 address', value=[hostlike], confidence='firm')
         elif self._re_tlds.search(components[-1]):
-          if not re.search(r'^android\.(intent|media)\.|^os\.name$|^java\.vm\.name|^[A-Z]+.*\.(java|EC|name|secure)$', hostlike):
-            yield dict(type_='possible FQDN', value=[hostlike])
+          if not re.search(r'^android\.(intent|media)\.|^os\.name$|^java\.vm\.name|^[A-Z]+.*\.(java|EC|name|secure)$|^Dispatchers\.IO', hostlike):
+            confidence: IssueConfidence = 'firm'
+            if re.search(r'^(java|os|kotlin|google\.[a-z]+?)\.|^(com|cn)\.google|\.(date|time|host|help|prof|name|top|link|id|icu|app|[a-z]{5,})$', hostlike, flags=re.IGNORECASE):
+              confidence = 'tentative'
+            yield dict(type_='possible FQDN', value=[hostlike], confidence=confidence)
 
   async def detect(self) -> None:
     from importlib.resources import files
@@ -267,11 +270,11 @@ class UrlLikeDetector(DetectorMixin):
         continue
       for match in self._analyzed(cl.p[1].v, qn):
         for v in match['value']:
-          self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
+          self._helper.raise_issue(Issue(detector_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
     for name, val in context.string_resources():
       for match in self._analyzed(val):
         for v in match['value']:
-          self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
+          self._helper.raise_issue(Issue(detector_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
 
 class NativeMethodDetector(DetectorMixin):
   _id = 'detect-native-method'
