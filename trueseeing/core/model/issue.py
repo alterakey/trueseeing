@@ -30,7 +30,6 @@ class Issue:
   cvss3_score: Optional[float] = None
 
   def __attrs_post_init__(self) -> None:
-    self.cvss3_vector = CVSS3Scoring.temporalified(self.cvss3_vector, self.confidence)
     self.cvss3_score = noneif(self.cvss3_score, lambda: CVSS3Scoring.score_of(self.cvss3_vector))
 
   def severity(self) -> IssueSeverity:
