@@ -51,8 +51,12 @@ class CVSS3Scoring:
     return 1
 
   def _report_confidence_score(self) -> float:
-    M = dict(X=1.0, C=1.0, R=0.96, U=0.92)
-    return M[self._m.group('RC')]
+    m = self._m.group('RC')
+    if m:
+      M = dict(X=1.0, C=1.0, R=0.96, U=0.92)
+      return M[m]
+    else:
+      return 1
 
   def _base_score(self) -> float:
     impact, exploitability = self._subscore_impact(), self._subscore_exploitability()
