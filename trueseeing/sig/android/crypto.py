@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import asyncio
 import re
 import math
+from functools import cache
 
 from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.android.model.code import InvocationPattern
@@ -11,7 +12,7 @@ from trueseeing.core.android.analysis.flow import DataFlows
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
-  from typing import Dict, Iterable
+  from typing import Dict, Iterable, Optional, Any
   from trueseeing.core.android.model.code import Op
   from trueseeing.core.android.store import Store
   from trueseeing.api import Detector, DetectorHelper, DetectorMap
@@ -20,6 +21,8 @@ class CryptoStaticKeyDetector(DetectorMixin):
   _id = 'crypto-static-keys'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N/'
   _cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+  _cvss_pubkey = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:C/C:N/I:L/A:N/'
+  _cvss_privkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
   @staticmethod
   def create(helper: DetectorHelper) -> Detector:
@@ -65,6 +68,7 @@ class CryptoStaticKeyDetector(DetectorMixin):
       # XXX: silly
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
+    pat_case2 = '^M[C-I][0-9A-Za-z+/=-]{48,}'
     context = self._helper.get_context()
     store = context.store()
     q = store.query()
@@ -76,6 +80,9 @@ class CryptoStaticKeyDetector(DetectorMixin):
         for nr in self._important_args_on_invocation(cl):
           for found in DataFlows.solved_possible_constant_data_in_invocation(store, cl, nr):
             try:
+              if re.search(pat_case2, found):
+                continue
+
               decoded = base64.b64decode(found)
               info1 = '"{target_val}" [{target_val_len}] (base64; "{decoded_val}" [{decoded_val_len}])'.format(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
             except (ValueError, binascii.Error):
@@ -86,7 +93,7 @@ class CryptoStaticKeyDetector(DetectorMixin):
                 detector_id=self._id,
                 cvss3_vector=self._cvss,
                 confidence='firm',
-                summary='insecure cryptography: static keys',
+                summary='insecure cryptography: static keys detected',
                 info1=info1,
                 info2=q.method_call_target_of(cl),
                 source=qn,
@@ -124,7 +131,7 @@ Possible cryptographic constants has been found in the application binary.
       else:
         return False
 
-    pat = '^MI[IG][0-9A-Za-z+/=-]{32,}AQAB'
+    pat = '^M[C-I][0-9A-Za-z+/=-]{48,}'
     context = self._helper.get_context()
     store = context.store()
     q = store.query()
@@ -133,39 +140,81 @@ Possible cryptographic constants has been found in the application binary.
       if context.is_qualname_excluded(qn):
         continue
       val = cl.p[1].v
+      typ = self._inspect_value_type(val)
+      param = self._build_template_params(val, typ)
       self._helper.raise_issue(Issue(
         detector_id=self._id,
-        cvss3_vector=self._cvss,
-        confidence={True:'firm', False:'tentative'}[should_be_secret(store, cl, val)], # type: ignore[arg-type]
-        summary='insecure cryptography: static keys (2)',
-        info1=f'"{val}" [{len(val)}] (X.509)',
+        cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
+        confidence='certain' if typ else ('firm' if should_be_secret(store, cl, val) else 'tentative'),
+        summary=('insecure cryptography: {key} detected' if typ else '{key} detected').format(**param),
+        info1='"{val}" [{len}] ({keytype})'.format(**param),
         source=qn,
-        synopsis='Traces of X.509 certificates has been found the application binary.',
+        synopsis='Traces of {key}s have been found the application binary.'.format(**param),
         description='''\
-Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
-''',
+Traces of {key}s have been found in the application binary.  If they are hardcoded, attackers can extract or replace them.'''.format(**param),
         solution='''\
-Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
+Use a device or installation specific information, or obfuscate them.
 '''
       ))
+
     for name, val in context.string_resources():
       if re.match(pat, val):
+        typ = self._inspect_value_type(val)
+        param = self._build_template_params(val, typ)
         self._helper.raise_issue(Issue(
           detector_id=self._id,
-          cvss3_vector=self._cvss,
-          confidence='tentative',
-          summary='insecure cryptography: static keys (2)',
-          info1=f'"{val}" [{len(val)}] (X.509)',
+          cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
+          confidence='certain' if typ else 'firm',
+          summary=('insecure cryptography: {key} detected' if typ else '{key} detected').format(**param),
+          info1='"{val}" [{len}] ({keytype})'.format(**param),
           source=f'R.string.{name}',
-          synopsis='Traces of X.509 certificates has been found the application binary.',
+          synopsis='Traces of {key}s have been found the application binary.'.format(**param),
           description='''\
-Traces of X.509 certificates has been found in the application binary.  X.509 certificates describe public key materials.  Their notable uses include Google Play in-app billing identity.  If is hardcoded, attackers can extract or replace them.
-''',
+Traces of {key}s have been found in the application binary.  If they are hardcoded, attackers can extract or replace them.'''.format(**param),
           solution='''\
-Use a device or installation specific information, or obfuscate them.  Especially, do not use the stock implementation of in-app billing logic.
+Use a device or installation specific information, or obfuscate them.
 '''
         ))
 
+  def _build_template_params(self, val: str, typ: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    param = dict(
+      nonkey=True,
+      val=val,
+      len=len(val),
+      key='cryptographic material',
+      keytype='ASN.1',
+    )
+    if typ:
+      param.update(dict(
+        nonkey=False,
+        private=typ['private'],
+        key='{} key'.format('public' if not typ['private'] else 'private'),
+        keytype=('{}-bit {}'.format(typ['bits'], typ['type'])) if 'bits' in typ else typ['type'],
+      ))
+    return param
+
+  @cache
+  def _inspect_value_type(self, v: str) -> Optional[Dict[str, Any]]:
+    from base64 import b64decode
+    from Crypto.PublicKey import RSA, ECC, DSA
+    r = b64decode(v)
+    try:
+      k0 = RSA.import_key(r)
+      return dict(type='RSA', private=k0.has_private(), bits=k0.size_in_bits())
+    except ValueError:
+      pass
+    try:
+      k1 = ECC.import_key(r)
+      return dict(type=k1.curve, private=k1.has_private())
+    except ValueError:
+      pass
+    try:
+      k2 = DSA.import_key(r)
+      m = re.search(r'p([0-9]+)', repr(k2))
+      return dict(type='DSA', private=k2.has_private(), bits=int(m.group(1)) if m else None)
+    except ValueError:
+      pass
+    return None
 
 class CryptoEcbDetector(DetectorMixin):
   _id = 'crypto-ecb'
