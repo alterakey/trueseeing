@@ -7,9 +7,10 @@ from trueseeing.core.model.issue import Issue
 from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
-  from typing import Any, Iterable, Tuple, Dict, Optional, Iterator
+  from typing import Any, Iterable, Tuple, Dict, Optional, Iterator, List
   from trueseeing.core.android.store import Store
   from trueseeing.core.android.model.code import InvocationPattern
+  from trueseeing.core.model.issue import IssueConfidence
 
 class StorePrep:
   def __init__(self, c: Any) -> None:
@@ -261,7 +262,7 @@ class Query:
       dict(
         detector_id=i.detector_id,
         summary=i.summary,
-        confidence=i.confidence,
+        confidence=self._issue_confidence_to_int(i.confidence),
         cvss3_vector=i.cvss3_vector,
         cvss3_score=i.cvss3_score,
         synopsis=noneif(i.synopsis, ''),
@@ -296,16 +297,25 @@ class Query:
         r[7],
       )
 
-  def issues_by_group(self, *, detector: str, summary: str, cvss3_score: float) -> Iterable[Issue]:
-    for m in self.db.execute('select detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues where detector=:detector and summary=:summary and cvss3_score=:cvss3_score', dict(detector=detector, summary=summary, cvss3_score=cvss3_score)):
+  def issues_by_group(self, *, detector: str, summary: str) -> Iterable[Issue]:
+    for m in self.db.execute('select detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues where detector=:detector and summary=:summary order by cvss3_score desc, confidence desc', dict(detector=detector, summary=summary)):
       yield self._issue_from_row(m)
 
-  @staticmethod
-  def _issue_from_row(r: Tuple[Any, ...]) -> Issue:
+  @classmethod
+  def _issue_confidence_to_int(cls, c: IssueConfidence) -> int:
+    return dict(certain=2, firm=1, tentative=0)[c]
+
+  @classmethod
+  def _issue_confidence_from_int(cls, c: int) -> IssueConfidence:
+    m: List[IssueConfidence] = ['tentative', 'firm', 'certain']
+    return m[c]
+
+  @classmethod
+  def _issue_from_row(cls, r: Tuple[Any, ...]) -> Issue:
     return Issue(
       detector_id=r[0],
       summary=r[1],
-      confidence=r[9],
+      confidence=cls._issue_confidence_from_int(r[9]),
       cvss3_vector=r[11],
       cvss3_score=r[10],
       synopsis=r[2] if r[2] else None,
