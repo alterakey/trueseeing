@@ -94,8 +94,19 @@ class HTMLReportGenerator:
       from importlib.resources import as_file, files
       from jinja2 import Environment, FileSystemLoader
       with as_file(files('trueseeing')/'libs'/'template') as path:
-        template = Environment(loader=FileSystemLoader(path), autoescape=True).get_template('report.html')
-        f.write(template.render(app=app, issues=issues, toolchain=self._toolchain, ts=ts))
+        env = Environment(loader=FileSystemLoader(path), autoescape=True)
+        env.filters['excerpt'] = self._excerpt
+        f.write(env.get_template('report.html').render(app=app, issues=issues, toolchain=self._toolchain, ts=ts))
+
+  @staticmethod
+  def _excerpt(x: str, w: int = 256, p: float = 0.214, ellipsis: str = ' ... ') -> str:
+    l = len(x)
+    if l < w:
+      return x
+    else:
+      pl1 = int(w * p)
+      pl0 = w - pl1 - len(ellipsis)
+      return x[:pl0] + ellipsis + x[-pl1:]
 
 class JSONReportGenerator:
   def __init__(self, context: Context) -> None:

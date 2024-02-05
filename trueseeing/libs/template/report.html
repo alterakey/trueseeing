@@ -123,12 +123,12 @@
 	      {% for instance in issue.instances -%}
 	      {% if instance.source is not none %}
 	      {% if instance.row is not none %}
-	      <li>{{instance.info}} ({{instance.source}}:{{instance.row}})</li>
+	      <li>{{instance.info|excerpt}} ({{instance.source}}:{{instance.row}})</li>
 	      {% else %}
-	      <li>{{instance.info}} ({{instance.source}})</li>
+	      <li>{{instance.info|excerpt}} ({{instance.source}})</li>
 	      {% endif %}
 	      {% else %}
-	      <li>{{instance.info}}</li>
+	      <li>{{instance.info|excerpt}}</li>
 	      {% endif %}
 	      {% endfor -%}
 	    </ul>
