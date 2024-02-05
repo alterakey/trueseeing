@@ -15,6 +15,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import Iterable, Optional, Set, Tuple, Any, TypeVar, Dict
   from trueseeing.api import Detector, DetectorHelper, DetectorMap
+  from trueseeing.core.model.issue import IssueConfidence
   T = TypeVar('T')
 
 class SecurityFilePermissionDetector(DetectorMixin):
@@ -693,7 +694,8 @@ class SecurityInsecureRootedDetector(DetectorMixin):
   _id = 'security-insecure-rooted'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
-  _pat = r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+'
+  _pat_path = r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+'
+  _pat_detect = r'Sup(?!p)|/su(?!pp)|xbin|sbin|root'
 
   @staticmethod
   def create(helper: DetectorHelper) -> Detector:
@@ -707,8 +709,9 @@ class SecurityInsecureRootedDetector(DetectorMixin):
     store = context.store()
     q = store.query()
 
-    found: Set[str] = set()
-    attestations: Set[str] = set()
+    attestations: Dict[str, Any] = dict()
+    path_based_detection_attempt: Dict[str, Any] = dict()
+    confidence: Dict[str, IssueConfidence] = dict()
 
     for cl in q.invocations(InvocationPattern('invoke-', r'Lcom/google/android/gms/safetynet/SafetyNetClient;->attest\(\[BLjava/lang/String;\)')):
       qn = q.qualname_of(cl)
@@ -717,24 +720,45 @@ class SecurityInsecureRootedDetector(DetectorMixin):
       # XXX: crude detection
       verdict_accesses = list(q.consts_in_class(cl, InvocationPattern('const-string', r'ctsProfileMatch|basicIntegrity')))
       if verdict_accesses and qn is not None:
-        attestations.add(qn)
+        attestations[qn] = verdict_accesses
 
-    for cl in q.consts(InvocationPattern('const-string', self._pat)):
+    for cl in q.consts(InvocationPattern('const-string', self._pat_path)):
       qn = q.qualname_of(cl)
       if context.is_qualname_excluded(qn):
         continue
-      found = found.union([m.group(0) for m in re.finditer(self._pat, cl.p[1].v)])
+      if qn is not None:
+        attempts = self._get_attempts(cl.p[1].v)
+        if attempts:
+          confidence[qn] = 'firm'
+          if qn not in path_based_detection_attempt:
+            path_based_detection_attempt[qn] = attempts
+          else:
+            path_based_detection_attempt[qn].update(attempts)
     for name, val in context.string_resources():
-      found = found.union([m.group(0) for m in re.finditer(self._pat, val)])
+      qn = f'R.string.{name}'
+      attempts = self._get_attempts(val)
+      if attempts:
+        confidence[qn] = 'tentative'
+        if qn not in path_based_detection_attempt:
+          path_based_detection_attempt[qn] = attempts
+        else:
+          path_based_detection_attempt[qn].update(attempts)
 
-    path_based_detection_attempt: Set[str] = set()
-    for s in found:
-      if re.search(r'Sup|su|xbin|sbin|root', s):
-        path_based_detection_attempt.add(s)
-    if path_based_detection_attempt and not attestations:
-      self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(path_based_detection_attempt)))
-    elif attestations and not path_based_detection_attempt:
-      self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(attestations)))
+    # TBD: fussy match
+    for qn,vals in path_based_detection_attempt.items():
+      if qn not in attestations:
+        self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(vals), source=qn))
+    for qn,verdicts in attestations.items():
+      if qn not in path_based_detection_attempt:
+        self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(verdicts), source=qn))
+
+  def _get_attempts(self, x: str) -> Set[str]:
+    o: Set[str] = set()
+    for m in re.finditer(self._pat_path, x):
+      v = m.group(0)
+      if re.search(self._pat_detect, v):
+        o.add(v)
+    return o
 
 class SecuritySharedPreferencesDetector(DetectorMixin):
   _id = 'security-sharedpref'
