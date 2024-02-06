@@ -146,7 +146,7 @@ Possible cryptographic constants has been found in the application binary.
         detector_id=self._id,
         cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
         confidence='certain' if typ else ('firm' if should_be_secret(store, cl, val) else 'tentative'),
-        summary=('insecure cryptography: {key} detected' if typ else '{key} detected').format(**param),
+        summary=('insecure cryptography: {key} detected' if not param['nonkey'] else '{key} detected').format(**param),
         info1='"{val}" [{len}] ({keytype})'.format(**param),
         source=qn,
         synopsis='Traces of {key}s have been found the application binary.'.format(**param),
@@ -165,7 +165,7 @@ Use a device or installation specific information, or obfuscate them.
           detector_id=self._id,
           cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
           confidence='certain' if typ else 'firm',
-          summary=('insecure cryptography: {key} detected' if typ else '{key} detected').format(**param),
+          summary=('insecure cryptography: {key} detected' if param['nonkey'] else '{key} detected').format(**param),
           info1='"{val}" [{len}] ({keytype})'.format(**param),
           source=f'R.string.{name}',
           synopsis='Traces of {key}s have been found the application binary.'.format(**param),
@@ -185,36 +185,71 @@ Use a device or installation specific information, or obfuscate them.
       keytype='ASN.1',
     )
     if typ:
-      param.update(dict(
-        nonkey=False,
-        private=typ['private'],
-        key='{} key'.format('public' if not typ['private'] else 'private'),
-        keytype=('{}-bit {}'.format(typ['bits'], typ['type'])) if 'bits' in typ else typ['type'],
-      ))
+      if typ['type'] == 'cert':
+        param.update(dict(
+          private=False,
+          key='X.509 certificate',
+          keytype=('{}-bit {} with {}, subject CN: {}, issuer CN: {}{})'.format(typ['bits'], typ['algo'], typ['hashalgo'], typ['subject'], typ['issuer'], ' [self-signed]' if typ['selfsign'] != 'no' else ''))
+        ))
+      elif typ['type'] == 'pub':
+        param.update(dict(
+          nonkey=False,
+          private=False,
+          key='public key',
+          keytype=('{}-bit {}'.format(typ['bits'], typ['algo'])),
+        ))
+      elif typ['type'] == 'priv':
+        param.update(dict(
+          nonkey=False,
+          private=True,
+          key='private key',
+          keytype=('{}-bit {}'.format(typ['bits'] if isinstance(typ['bits'], int) else '~{:.01f}'.format(typ['bits']), typ['algo'])),
+        ))
     return param
 
   @cache
   def _inspect_value_type(self, v: str) -> Optional[Dict[str, Any]]:
     from base64 import b64decode
-    from Crypto.PublicKey import RSA, ECC, DSA
+    from asn1crypto.x509 import Certificate
+    from asn1crypto.keys import PublicKeyInfo, PrivateKeyInfo, RSAPrivateKey
     r = b64decode(v)
     try:
-      k0 = RSA.import_key(r)
-      return dict(type='RSA', private=k0.has_private(), bits=k0.size_in_bits())
+      cert = Certificate.load(r)
+      return dict(type='cert', algo=self._read_algo(cert.public_key), hashalgo=self._read_algo(cert.hash_algo), bits=cert.public_key.bit_size, subject=cert.subject.native.get('common_name', '(unknown)'), issuer=cert.issuer.native.get('common_name', '(unknown)'), selfsign=cert.self_signed)
     except ValueError:
       pass
     try:
-      k1 = ECC.import_key(r)
-      return dict(type=k1.curve, private=k1.has_private())
+      pubkey = PublicKeyInfo.load(r)
+      return dict(type='pub', algo=self._read_algo(pubkey), bits=pubkey.bit_size)
     except ValueError:
       pass
     try:
-      k2 = DSA.import_key(r)
-      m = re.search(r'p([0-9]+)', repr(k2))
-      return dict(type='DSA', private=k2.has_private(), bits=int(m.group(1)) if m else None)
+      privkey0 = PrivateKeyInfo.load(r)
+      return dict(type='priv', algo=self._read_algo(privkey0), bits=privkey0.bit_size)
+    except ValueError:
+      pass
+    try:
+      from math import log
+      privkey1 = RSAPrivateKey.load(r)
+      return dict(type='priv', algo=self._read_algo('rsa'), bits=log(privkey1['modulus'].native) / log(2))
     except ValueError:
       pass
     return None
+
+  @cache
+  def _read_algo(self, x: Any) -> str:
+    if isinstance(x, str):
+      return x.upper()
+    else:
+      algo = str(x.algorithm)
+      if algo != 'ec':
+        return algo.upper()
+      else:
+        if x.curve[0] == 'named':
+          return '{} [{}]'.format(algo.upper(), str(x.curve[1]))
+        else:
+          return '{}'.format(algo.upper())
+
 
 class CryptoEcbDetector(DetectorMixin):
   _id = 'crypto-ecb'
