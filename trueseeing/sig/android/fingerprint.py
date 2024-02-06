@@ -339,12 +339,25 @@ class ReflectionDetector(DetectorMixin):
   _summary1 = 'Classloader reference'
   _synopsis1 = "The application makes use of classloaders."
 
-  _blacklist = [
+  _blacklist_caller = [
+    r'Lkotlin/',
+    r'Lkotlinx/',
+  ]
+
+  _blacklist_meth = [
     r'Ljava/lang/Object;->getClass\(\)',
     r'Ljava/lang/Class;->getClassLoader',
-    r'Ljava/lang/Class;->get((Simple)?Name|ComponentType)',
-    r'Ljava/lang/Class;->is(Instance|Array|Primitive)',
+    r'Ljava/lang/Class;->get((Simple|Canonical)?Name|ComponentType|Annotation)',
+    r'Ljava/lang/Class;->.*?\(\)',
+    r'Ljava/lang/reflect/Method;->.*?\(\)',
+    r'Ljava/lang/reflect/Field;->.*?\(\)',
   ]
+
+  _blacklist_val = [
+    r'^-?0x[0-9a-f]+$'
+  ]
+
+  _masker = '(unknown)'
 
   @staticmethod
   def create(helper: DetectorHelper) -> Detector:
@@ -359,16 +372,24 @@ class ReflectionDetector(DetectorMixin):
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(Class|Method|Field);->|^Ljava/lang/[A-Za-z]*?ClassLoader;->')):
       qn = q.qualname_of(cl)
-      if context.is_qualname_excluded(qn):
-        continue
+      if qn:
+        if context.is_qualname_excluded(qn):
+          continue
+        if any(re.match(x, qn) for x in self._blacklist_caller):
+          continue
       ct = q.method_call_target_of(cl)
       if ct is None:
         continue
-      if any(re.match(x, ct) for x in self._blacklist):
+      if any(re.match(x, ct) for x in self._blacklist_meth):
         continue
       if 'ClassLoader;->' in ct:
         try:
-          for x in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0):
+          xs = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
+          if not xs:
+            xs = {self._masker}
+          for x in xs:
+            if any(re.match(p, x) for p in self._blacklist_val):
+              x = self._masker
             self._helper.raise_issue(Issue(
               detector_id=self._id,
               cvss3_vector=self._cvss,
@@ -393,7 +414,12 @@ class ReflectionDetector(DetectorMixin):
           ))
       else:
         try:
-          for x in DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0):
+          xs = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
+          if not xs:
+            xs = {self._masker}
+          for x in xs:
+            if any(re.match(p, x) for p in self._blacklist_val):
+              x = self._masker
             self._helper.raise_issue(Issue(
               detector_id=self._id,
               cvss3_vector=self._cvss,
