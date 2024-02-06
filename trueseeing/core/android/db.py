@@ -281,7 +281,7 @@ class Query:
     self.db.execute('delete from analysis_issues')
 
   def issues(self) -> Iterable[Issue]:
-    for m in self.db.execute('select * from analysis_issues'):
+    for m in self.db.execute('select detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues'):
       yield self._issue_from_row(m)
 
   def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, Optional[str], Optional[str], Optional[str], Optional[str], float, str]]]:
