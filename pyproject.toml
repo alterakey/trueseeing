@@ -27,7 +27,7 @@ dependencies = [
     "termcolor~=2.4",
     "progressbar2~=4.3",
     "importlib_metadata~=7.0",
-    "pycryptodome~=3.20",
+    "asn1crypto~=1.5",
 ]
 requires-python = ">=3.9"
 dynamic = ['version', 'description']
@@ -55,6 +55,7 @@ module = [
   "lxml.*",
   "jinja2",
   "pubsub",
+  "asn1crypto.*",
 ]
 ignore_missing_imports = true
 
