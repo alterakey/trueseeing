@@ -3,30 +3,35 @@ from typing import TYPE_CHECKING
 
 import os
 
-from trueseeing.core.model.issue import Issue
 from trueseeing.core.cvss import CVSS3Scoring
 from trueseeing.core.tools import noneif
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import List, Protocol, Any, Dict, TextIO
+  from typing import List, Protocol, Any, Dict, TextIO, Set
   from typing_extensions import Literal
   from trueseeing.core.android.context import Context
+  from trueseeing.core.model.issue import Issue
 
   ReportFormat = Literal['html', 'json']
 
   class ReportGenerator(Protocol):
     def __init__(self, context: Context) -> None: ...
-    def note(self, issue: Issue) -> None: ...
     def generate(self, f: TextIO) -> None: ...
 
 class ConsoleNoter:
-  @classmethod
-  def note(cls, issue: Issue) -> None:
-    ui.info(cls.formatted(issue))
+  _seen: Set[Issue]
+
+  def __init__(self) -> None:
+    self._seen = set()
+
+  def note(self, issue: Issue) -> None:
+    if issue not in self._seen:
+      ui.info(self._formatted(issue))
+      self._seen.add(issue)
 
   @classmethod
-  def formatted(cls, issue: Issue) -> str:
+  def _formatted(cls, issue: Issue) -> str:
     return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [-W{detector_id}]'.format(
       source=noneif(issue.source, '(global)'),
       row=noneif(issue.row, 0),
@@ -41,21 +46,15 @@ class CIReportGenerator:
   def __init__(self, context: Context) -> None:
     self._context = context
 
-  def note(self, issue: Issue) -> None:
-    ConsoleNoter.note(issue)
-
   def generate(self, f: TextIO) -> None:
     for issue in self._context.store().query().issues():
-      f.write(ConsoleNoter.formatted(issue) + '\n')
+      f.write(ConsoleNoter._formatted(issue) + '\n')
 
 class HTMLReportGenerator:
   def __init__(self, context: Context) -> None:
     from trueseeing import __version__
     self._context = context
     self._toolchain = dict(version=__version__)
-
-  def note(self, issue: Issue) -> None:
-    ConsoleNoter.note(issue)
 
   def generate(self, f: TextIO) -> None:
     with self._context.store().db as db:
@@ -111,9 +110,6 @@ class HTMLReportGenerator:
 class JSONReportGenerator:
   def __init__(self, context: Context) -> None:
     self._context = context
-
-  def note(self, issue: Issue) -> None:
-    ConsoleNoter.note(issue)
 
   def generate(self, f: TextIO) -> None:
     from json import dumps

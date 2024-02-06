@@ -379,7 +379,7 @@ class FileTransferProgressReporter:
 class ScanProgressReporter:
   def __init__(self) -> None:
     from trueseeing.core.report import ConsoleNoter
-    self._CN = ConsoleNoter
+    self._CN = ConsoleNoter()
 
   @contextmanager
   def scoped(self) -> Iterator[None]:
