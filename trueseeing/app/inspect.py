@@ -7,7 +7,7 @@ from shlex import shlex
 import sys
 import re
 from trueseeing.core.ui import ui, CoreProgressReporter
-from trueseeing.core.exc import FatalError
+from trueseeing.core.exc import FatalError, InvalidSchemaError
 
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
@@ -163,7 +163,10 @@ class Runner:
 
   async def run(self, s: str) -> None:
     try:
-      await self._run(s)
+      try:
+        await self._run(s)
+      except InvalidSchemaError:
+        ui.fatal('invalid schema detected, forced reanalysis needed (try a! or aa!)')
     finally:
       self._reset_loglevel()
       self.reset_prompt()

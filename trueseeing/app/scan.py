@@ -31,11 +31,18 @@ class ScanMode:
       return 0
 
   async def scan(self, incremental: bool = False, oneshot: bool = False) -> int:
+    from trueseeing.core.exc import InvalidSchemaError
     with CoreProgressReporter().scoped():
       import time
       at = time.time()
       try:
-        await self._context.analyze()
+        try:
+          await self._context.analyze()
+        except InvalidSchemaError:
+          ui.warn('invalid schema detected; forcing reanalysis')
+          self._context.remove()
+          await self._context.analyze()
+
         ui.info(f"{self._target} -> {self._context.wd}")
 
         with self._context.store().query().scoped() as q:

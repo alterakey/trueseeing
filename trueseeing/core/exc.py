@@ -6,3 +6,6 @@ if TYPE_CHECKING:
 
 class FatalError(Exception):
     pass
+
+class InvalidSchemaError(Exception):
+    pass

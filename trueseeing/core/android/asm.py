@@ -21,18 +21,14 @@ class APKDisassembler:
 
   async def disassemble(self, level: int = 3) -> None:
     await self._do(level)
-    if level > 2:
-      self._context.store().prepare_schema()
 
   async def _do(self, level: int) -> None:
-    import sqlite3
     import glob
     import shutil
     from trueseeing.core.tools import invoke_streaming
-    from trueseeing.core.android.db import StorePrep, FileTablePrep, Query
     from trueseeing.core.android.tools import toolchains
 
-    apk, archive = 'target.apk', 'store.db'
+    apk = 'target.apk'
 
     cwd = os.getcwd()
 
@@ -40,12 +36,8 @@ class APKDisassembler:
 
     try:
       os.chdir(self._context.wd)
-      c = sqlite3.connect(archive)
-      query = Query(c=c)
-      StorePrep(c).stage0()
-      FileTablePrep(c).prepare()
 
-      with c:
+      with self._context.store().query().scoped() as query:
         with toolchains() as tc:
           async for l in invoke_streaming(r'java -jar {apkeditor} d -i {apk} {suppressor} -o files'.format(
               apkeditor=tc['apkeditor'],
@@ -71,7 +63,6 @@ class APKDisassembler:
 
         query.file_put_batch(read_as_row(fn) for fn in glob.glob('**', recursive=True) if should_cache(fn))
         pub.sendMessage('progress.core.asm.lift.update')
-        c.commit()
     finally:
       os.chdir(cwd)
       pub.sendMessage('progress.core.asm.lift.update')

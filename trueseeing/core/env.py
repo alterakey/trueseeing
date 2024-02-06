@@ -54,3 +54,7 @@ def get_extension_dir_v0() -> str:
 @cache
 def get_extension_package_prefix() -> str:
   return 'trueseeing_ext0_'
+
+@cache
+def get_cache_schema_id() -> int:
+  return 0x398c7555  # FIXME: remember to randomize this whenever incompatible changes occur on cache file structure, or DB schema
