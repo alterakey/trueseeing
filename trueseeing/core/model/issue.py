@@ -4,14 +4,13 @@ from typing import TYPE_CHECKING, Optional
 import attr
 
 from trueseeing.core.cvss import CVSS3Scoring
-from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
   from typing_extensions import Literal
   IssueSeverity = Literal['critical', 'high', 'medium', 'low', 'info']
   IssueConfidence = Literal['certain', 'firm', 'tentative']
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, frozen=True)
 class Issue:
   detector_id: str
   confidence: IssueConfidence
@@ -27,14 +26,13 @@ class Issue:
   info3: Optional[str] = None
   row: Optional[str] = None
   col: Optional[str] = None
-  cvss3_score: Optional[float] = None
-
-  def __attrs_post_init__(self) -> None:
-    self.cvss3_score = noneif(self.cvss3_score, lambda: CVSS3Scoring.score_of(self.cvss3_vector))
 
   def severity(self) -> IssueSeverity:
-    assert self.cvss3_score is not None
     return CVSS3Scoring.severity_of(self.cvss3_score)
+
+  @property
+  def cvss3_score(self) -> float:
+    return CVSS3Scoring.score_of(self.cvss3_vector)
 
   def brief_description(self) -> str:
     return ': '.join(filter(None, (self.summary, self.brief_info())))
