@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import re
-from trueseeing.core.android.db import StorePrep, Query
+from trueseeing.core.android.db import Query
 
 if TYPE_CHECKING:
   import sqlite3
@@ -20,17 +20,30 @@ class Store:
   def _open_db(self) -> sqlite3.Connection:
     import os.path
     import sqlite3
+    from trueseeing.core.android.db import StorePrep, FileTablePrep
     store_path = os.path.join(self._path, 'store.db')
     is_creating = not os.path.exists(store_path)
     o = sqlite3.connect(store_path)
     o.create_function("REGEXP", 2, Store._re_fn, deterministic=True)
     StorePrep(o).stage0()
     if is_creating:
-      self.prepare_schema()
+      FileTablePrep(o).prepare()
+      StorePrep(o).stage1()
+    StorePrep(o).require_valid_schema()
     return o
 
-  def prepare_schema(self) -> None:
-    StorePrep(self.db).stage1()
+  @staticmethod
+  def require_valid_schema_on(path: str) -> None:
+    import os.path
+    import sqlite3
+    from trueseeing.core.android.db import StorePrep
+    store_path = os.path.join(path, 'store.db')
+    if not os.path.exists(store_path):
+      from trueseeing.core.exc import InvalidSchemaError
+      raise InvalidSchemaError()
+    else:
+      o = sqlite3.connect(store_path)
+      StorePrep(o).require_valid_schema()
 
   @staticmethod
   def _re_fn(expr: AnyStr, item: Any) -> bool:
@@ -40,6 +53,7 @@ class Store:
       return False
 
   def op_finalize(self) -> None:
+    from trueseeing.core.android.db import StorePrep
     StorePrep(self.db).stage2()
 
   def op_get(self, k: int) -> Optional[Op]:

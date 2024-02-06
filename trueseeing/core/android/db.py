@@ -22,11 +22,20 @@ class StorePrep:
 
   def stage1(self) -> None:
     from importlib.resources import files
+    from trueseeing.core.env import get_cache_schema_id
+    self.c.execute('pragma user_version={}'.format(get_cache_schema_id()))
     self.c.executescript((files('trueseeing')/'libs'/'android'/'store.0.sql').read_text())
 
   def stage2(self) -> None:
     from importlib.resources import files
     self.c.executescript((files('trueseeing')/'libs'/'android'/'store.1.sql').read_text())
+
+  def require_valid_schema(self) -> None:
+    from trueseeing.core.env import get_cache_schema_id
+    v, = self.c.execute('pragma user_version').fetchone()
+    if v != get_cache_schema_id():
+      from trueseeing.core.exc import InvalidSchemaError
+      raise InvalidSchemaError()
 
 class FileTablePrep:
   def __init__(self, c: Any) -> None:

@@ -94,6 +94,8 @@ class Context:
 
   async def analyze(self, level: int = 3) -> None:
     if self.get_analysis_level() >= level:
+      from trueseeing.core.android.store import Store
+      Store.require_valid_schema_on(self.wd)
       ui.debug('analyzed once')
     else:
       flagfn = self._get_analysis_flag_name(level)
