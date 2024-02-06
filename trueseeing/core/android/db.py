@@ -317,7 +317,6 @@ class Query:
       summary=r[1],
       confidence=cls._issue_confidence_from_int(r[9]),
       cvss3_vector=r[11],
-      cvss3_score=r[10],
       synopsis=r[2] if r[2] else None,
       description=r[3] if r[3] else None,
       seealso=r[4] if r[4] else None,
