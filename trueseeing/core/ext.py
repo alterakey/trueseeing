@@ -33,13 +33,24 @@ class Extension:
       self._ns.update(self._compile())
 
   def _import(self) -> Any:
+    import sys
+    from glob import iglob
     from importlib import import_module
     from importlib_metadata import packages_distributions
+
     o = {}
+    prefix = get_extension_package_prefix()
     for n in packages_distributions():
-      if not n.startswith(get_extension_package_prefix()):
+      if not n.startswith(prefix):
         continue
       o[n] = import_module(n)
+    # We need to discover *.pth by our own
+    for p in sys.path:
+      if os.path.isfile(p):
+        continue
+      for path in iglob('{}/{}*.pth'.format(p, prefix)):
+        n = os.path.basename(path).replace('.pth', '')
+        o[n] = import_module(n)
     return o
 
   def _compile(self) -> Any:
