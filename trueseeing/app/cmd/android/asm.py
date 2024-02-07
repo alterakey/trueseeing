@@ -24,8 +24,8 @@ class AssembleCommand(CommandMixin):
       'ca!':dict(e=self._assemble),
       'cd':dict(e=self._disassemble, n='cd[s][!] /path', d='disassemble target into path'),
       'cd!':dict(e=self._disassemble),
-      'cds':dict(e=self._disassemble),
-      'cds!':dict(e=self._disassemble),
+      'cds':dict(e=self._disassemble_nodex),
+      'cds!':dict(e=self._disassemble_nodex),
       'co':dict(e=self._export_context, n='co[!] /path [pat]', d='export codebase'),
       'co!':dict(e=self._export_context),
     }
@@ -81,7 +81,7 @@ class AssembleCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  async def _disassemble(self, args: deque[str]) -> None:
+  async def _disassemble(self, args: deque[str], nodex: bool = False) -> None:
     apk = self._helper.require_target()
 
     cmd = args.popleft()
@@ -104,12 +104,12 @@ class AssembleCommand(CommandMixin):
       else:
         rmtree(path)
 
-    ui.info('disassembling {apk} -> {path}'.format(apk=apk, path=path))
+    ui.info('disassembling {apk} -> {path}{nodex}'.format(apk=apk, path=path, nodex=' [res]' if nodex else ''))
 
     at = time.time()
 
     with TemporaryDirectory() as td:
-      await APKDisassembler.disassemble_to_path(apk, td)
+      await APKDisassembler.disassemble_to_path(apk, td, nodex=nodex)
 
       with FileTransferProgressReporter('disassemble: writing').scoped() as progress:
         for nr in move_as_output(td, path, allow_orphans=True):
@@ -117,6 +117,9 @@ class AssembleCommand(CommandMixin):
         progress.done()
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+
+  async def _disassemble_nodex(self, args: deque[str]) -> None:
+    await self._disassemble(args, nodex=True)
 
   async def _export_context(self, args: deque[str]) -> None:
     self._helper.require_target()
