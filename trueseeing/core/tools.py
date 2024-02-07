@@ -176,7 +176,7 @@ def discover_modules_under(anchor: str) -> Iterator[str]:
   seen: Set[str] = set()
   basepath = str(files(anchor))
   for path in iglob(os.path.join(basepath, '**', '*.p*'), recursive=True):
-    if '__pycache__' in path:
+    if '__' in path or os.path.basename(path).startswith('_') or not re.search(r'\.pyc?$', path):
       continue
     n = '{}.{}'.format(anchor, re.sub(r'\.pyc?$', '', os.path.relpath(path, basepath)).replace('/', '.'))
     if n not in seen:
