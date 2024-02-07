@@ -32,7 +32,7 @@ class ConsoleNoter:
 
   @classmethod
   def _formatted(cls, issue: Issue) -> str:
-    return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [-W{detector_id}]'.format(
+    return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [{detector_id}]'.format(
       source=noneif(issue.source, '(global)'),
       row=noneif(issue.row, 0),
       col=noneif(issue.col, 0),
