@@ -8,7 +8,7 @@ from trueseeing.core.env import is_in_container
 from trueseeing.core.ui import ui, FileTransferProgressReporter
 
 if TYPE_CHECKING:
-  from typing import Any, Optional, Literal
+  from typing import Any, Optional, Literal, Dict
   from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
 
   ArchiveFormat = Optional[Literal['tar:', 'tar:gz']]
@@ -156,14 +156,6 @@ class AssembleCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  def _deduce_archive_format(self, path: str) -> ArchiveFormat:
-    if path.endswith('.tar'):
-      return 'tar:'
-    elif path.endswith('.tar.gz'):
-      return 'tar:gz'
-    else:
-      return None
-
   async def _disassemble_nodex(self, args: deque[str]) -> None:
     await self._disassemble(args, nodex=True)
 
@@ -186,16 +178,56 @@ class AssembleCommand(CommandMixin):
     import os
     import time
 
+    archive = self._deduce_archive_format(root)
+
+    if not archive:
+      self._warn_if_container('disassembling to directory could be slow in container builds (try disassembling to archives)')
+
     at = time.time()
     extracted = 0
     context = self._helper.get_context()
     q = context.store().query()
-    for path,blob in q.file_enum(pat=pat, regex=True):
-      target = os.path.join(root, *path.split('/'))
-      if extracted % 10000 == 0:
-        ui.info(' .. {nr} files'.format(nr=extracted))
-      os.makedirs(os.path.dirname(target), exist_ok=True)
-      with open(target, 'wb') as f:
-        f.write(blob)
-        extracted += 1
+
+    if not archive:
+      for path,blob in q.file_enum(pat=pat, regex=True):
+        target = os.path.join(root, *path.split('/'))
+        if extracted % 10000 == 0:
+          ui.info(' .. {nr} files'.format(nr=extracted))
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, 'wb') as f:
+          f.write(blob)
+          extracted += 1
+    elif archive.startswith('tar'):
+      import tarfile
+      from io import BytesIO
+      kwargs: Dict[str, int] = dict()
+      subformat = archive[4:]
+
+      if subformat in ['gz']:
+        kwargs.update(dict(compresslevel=3))
+
+      with tarfile.open(root, 'w:{}'.format(subformat), **kwargs) as tf:  # type: ignore[arg-type]
+        now = int(time.time())
+        for path,blob in q.file_enum(pat=pat, regex=True):
+          target = os.path.join('files', *path.split('/'))
+          if extracted % 10000 == 0:
+            ui.info(' .. {nr} files'.format(nr=extracted))
+
+          bf = BytesIO(blob)
+          ti = tarfile.TarInfo(name=target)
+          ti.uname = 'root'
+          ti.gname = 'root'
+          ti.mode = 0o600
+          ti.mtime = now
+          tf.addfile(ti, fileobj=bf)
+          extracted += 1
+
     ui.success('done: {nr} files ({t:.02f} sec.)'.format(nr=extracted, t=(time.time() - at)))
+
+  def _deduce_archive_format(self, path: str) -> ArchiveFormat:
+    if path.endswith('.tar'):
+      return 'tar:'
+    elif path.endswith('.tar.gz'):
+      return 'tar:gz'
+    else:
+      return None
