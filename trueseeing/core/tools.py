@@ -6,7 +6,7 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from pathlib import Path
-  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable, FrozenSet, Dict
+  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable, FrozenSet, Dict, Set
   T = TypeVar('T')
 
   class Toolchain(TypedDict):
@@ -167,3 +167,18 @@ def get_missing_methods(clazz: Any) -> FrozenSet[str]:
 
 def get_fully_qualified_classname(clazz: Any) -> str:
   return '.'.join([clazz.__module__, clazz.__name__])
+
+def discover_modules_under(anchor: str) -> Iterator[str]:
+  import os.path
+  import re
+  from importlib.resources import files
+  from glob import iglob
+  seen: Set[str] = set()
+  basepath = str(files(anchor))
+  for path in iglob(os.path.join(basepath, '**', '*.p*'), recursive=True):
+    if '__pycache__' in path:
+      continue
+    n = '{}.{}'.format(anchor, re.sub(r'\.pyc?$', '', os.path.relpath(path, basepath)).replace('/', '.'))
+    if n not in seen:
+      seen.add(n)
+      yield n
