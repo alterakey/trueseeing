@@ -8,7 +8,10 @@ from trueseeing.core.env import is_in_container
 from trueseeing.core.ui import ui, FileTransferProgressReporter
 
 if TYPE_CHECKING:
+  from typing import Any, Optional, Literal
   from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
+
+  ArchiveFormat = Optional[Literal['tar:', 'tar:gz']]
 
 class AssembleCommand(CommandMixin):
   def __init__(self, helper: CommandHelper) -> None:
@@ -48,7 +51,6 @@ class AssembleCommand(CommandMixin):
     from tempfile import TemporaryDirectory
     from trueseeing.core.android.asm import APKAssembler
     from trueseeing.core.android.tools import move_apk
-    from trueseeing.core.tools import copytree
 
     root = args.popleft()
     origapk = apk.replace('.apk', '.apk.orig')
@@ -63,14 +65,30 @@ class AssembleCommand(CommandMixin):
     at = time.time()
 
     with TemporaryDirectory() as td:
-      if opts.get('nocache', 0 if is_in_container() else 1):
+      archive = self._deduce_archive_format(root)
+
+      if not archive and opts.get('nocache', not is_in_container()):
+        self._warn_if_container('nocache could be slow in container builds (try assembling from archives)')
         path = root
       else:
+        path = os.path.join(td, 'f')
+
+        if not archive:
+          self._warn_if_container('caching massive files could be slow in container builds (try assembling from archives)')
+
         with FileTransferProgressReporter('caching content').scoped() as progress:
-          path = os.path.join(td, 'f')
-          for nr in copytree(os.path.join(root, '.'), path, divisor=(256 if progress.using_bar() else 1024)):
-            progress.update(nr)
-          progress.done()
+          if not archive:
+            from trueseeing.core.tools import copytree
+            for nr in copytree(os.path.join(root, '.'), path, divisor=(256 if progress.using_bar() else 1024)):
+              progress.update(nr)
+            progress.done()
+          elif archive.startswith('tar'):
+            from trueseeing.core.tools import copy_from_pack
+            prefix = 'files'
+            for nr in copy_from_pack(root, td, prefix=prefix, divisor=(256 if progress.using_bar() else 1024)):
+              progress.update(nr)
+            os.rename(os.path.join(td, prefix), path)
+            progress.done()
 
       outapk, outsig = await APKAssembler.assemble_from_path(td, path)
 
@@ -80,6 +98,11 @@ class AssembleCommand(CommandMixin):
       move_apk(outapk, apk)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+
+  def _warn_if_container(self, *args: Any, **kw: Any) -> None:
+    from trueseeing.core.env import is_in_container
+    if is_in_container():
+      ui.warn(*args, **kw)
 
   async def _disassemble(self, args: deque[str], nodex: bool = False) -> None:
     apk = self._helper.require_target()
@@ -94,7 +117,7 @@ class AssembleCommand(CommandMixin):
     from shutil import rmtree
     from tempfile import TemporaryDirectory
     from trueseeing.core.android.asm import APKDisassembler
-    from trueseeing.core.tools import move_as_output
+    from trueseeing.core.tools import move_as_output, pack_as_output
 
     path = args.popleft()
 
@@ -102,7 +125,15 @@ class AssembleCommand(CommandMixin):
       if not cmd.endswith('!'):
         ui.fatal('output path exists; force (!) to overwrite')
       else:
-        rmtree(path)
+        try:
+          rmtree(path)
+        except NotADirectoryError:
+          os.remove(path)
+
+    archive = self._deduce_archive_format(path)
+
+    if not archive:
+      self._warn_if_container('disassembling to directory could be slow in container builds (try disassembling to archives)')
 
     ui.info('disassembling {apk} -> {path}{nodex}'.format(apk=apk, path=path, nodex=' [res]' if nodex else ''))
 
@@ -111,12 +142,27 @@ class AssembleCommand(CommandMixin):
     with TemporaryDirectory() as td:
       await APKDisassembler.disassemble_to_path(apk, td, nodex=nodex)
 
-      with FileTransferProgressReporter('disassemble: writing').scoped() as progress:
-        for nr in move_as_output(td, path, allow_orphans=True):
-          progress.update(nr)
-        progress.done()
+      if not archive:
+        with FileTransferProgressReporter('disassemble: writing').scoped() as progress:
+          for nr in move_as_output(td, path, allow_orphans=True):
+            progress.update(nr)
+          progress.done()
+      elif archive.startswith('tar'):
+        with FileTransferProgressReporter('disassemble: writing').scoped() as progress:
+          for nr in pack_as_output(td, path, prefix='files', subformat=archive[4:], allow_orphans=True):
+            progress.update(nr)
+          progress.done()
+        pass
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
+
+  def _deduce_archive_format(self, path: str) -> ArchiveFormat:
+    if path.endswith('.tar'):
+      return 'tar:'
+    elif path.endswith('.tar.gz'):
+      return 'tar:gz'
+    else:
+      return None
 
   async def _disassemble_nodex(self, args: deque[str]) -> None:
     await self._disassemble(args, nodex=True)

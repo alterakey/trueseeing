@@ -6,7 +6,7 @@ from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from pathlib import Path
-  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable, FrozenSet
+  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable, FrozenSet, Dict
   T = TypeVar('T')
 
   class Toolchain(TypedDict):
@@ -88,6 +88,18 @@ def copytree(src: str, dst: str, divisor: Optional[int] = 256) -> Iterator[int]:
         yield nr
       nr += 1
 
+def copy_from_pack(src: str, dst: str, prefix: str, divisor: Optional[int] = 256) -> Iterator[int]:
+  import tarfile
+
+  nr = 0
+  with tarfile.open(src) as tf:
+    for name in tf.getnames():
+      if name.startswith(prefix):
+        tf.extract(name, dst)
+      if divisor is None or (nr % divisor == 0):
+        yield nr
+      nr += 1
+
 def move_as_output(src: str, dst: str, divisor: Optional[int] = 256, allow_orphans: bool = False) -> Iterator[int]:
   import os
   from trueseeing.core.env import is_in_container
@@ -116,6 +128,31 @@ def move_as_output(src: str, dst: str, divisor: Optional[int] = 256, allow_orpha
       if divisor is None or (nr % divisor == 0):
         yield nr
       nr += 1
+
+def pack_as_output(src: str, dst: str, prefix: str, subformat: str, divisor: Optional[int] = 256, allow_orphans: bool = False) -> Iterator[int]:
+  import os
+
+  nr = 0
+
+  import tarfile
+  kwargs: Dict[str, int] = dict()
+  if subformat in ['gz']:
+    kwargs.update(dict(compresslevel=3))
+
+  with tarfile.open(dst, 'w:{}'.format(subformat), **kwargs) as tf:  # type: ignore[arg-type]
+    for sp, dns, fns in os.walk(src, topdown=False):
+      dp = os.path.join(prefix, os.path.relpath(sp, src))
+      for dn in dns:
+        tf.add(os.path.join(sp, dn), arcname=os.path.join(dp, dn), recursive=False)
+        if not allow_orphans:
+          os.rmdir(os.path.join(sp, dn))
+      for fn in fns:
+        tf.add(os.path.join(sp, fn), arcname=os.path.join(dp, fn), recursive=False)
+        if not allow_orphans:
+          os.remove(os.path.join(sp, fn))
+        if divisor is None or (nr % divisor == 0):
+          yield nr
+        nr += 1
 
 def get_public_subclasses(mod: Any, typ: Type[T], typs: Iterable[Type[T]] = []) -> Iterator[Type[T]]:
   from inspect import getmembers, isclass
