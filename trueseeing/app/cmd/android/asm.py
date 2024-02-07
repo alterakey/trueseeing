@@ -181,7 +181,7 @@ class AssembleCommand(CommandMixin):
     archive = self._deduce_archive_format(root)
 
     if not archive:
-      self._warn_if_container('disassembling to directory could be slow in container builds (try disassembling to archives)')
+      self._warn_if_container('exporting to directory could be slow in container builds (try exporting to archives)')
 
     at = time.time()
     extracted = 0
