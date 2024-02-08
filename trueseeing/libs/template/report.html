@@ -120,7 +120,7 @@
 	    <p>{{issue.cvss3_score}} ({{issue.cvss3_vector}})</p>
 	    <h4>Instances</h4>
 	    <ul>
-	      {% for instance in issue.instances -%}
+	      {% for instance in issue.instances %}
 	      {% if instance.source is not none %}
 	      {% if instance.row is not none %}
 	      <li>{{instance.info|excerpt}} ({{instance.source}}:{{instance.row}})</li>
@@ -130,7 +130,7 @@
 	      {% else %}
 	      <li>{{instance.info|excerpt}}</li>
 	      {% endif %}
-	      {% endfor -%}
+	      {% endfor %}
 	    </ul>
 	</div>
       </div>
