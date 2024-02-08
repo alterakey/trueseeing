@@ -93,7 +93,7 @@ class HTMLReportGenerator:
       from importlib.resources import as_file, files
       from jinja2 import Environment, FileSystemLoader
       with as_file(files('trueseeing')/'libs'/'template') as path:
-        env = Environment(loader=FileSystemLoader(path), autoescape=True)
+        env = Environment(loader=FileSystemLoader(path), autoescape=True, trim_blocks=True, lstrip_blocks=True)
         env.filters['excerpt'] = self._excerpt
         f.write(env.get_template('report.html').render(app=app, issues=issues, toolchain=self._toolchain, ts=ts))
 
