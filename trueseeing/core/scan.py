@@ -33,14 +33,22 @@ class Scanner:
   async def scan(self, q: Query) -> int:
     import asyncio
     from pubsub import pub
+    from trueseeing.core.exc import InvalidContextError
     from trueseeing.core.android.analysis.flow import DataFlows
+    from trueseeing.core.ui import ui
     with DataFlows.apply_max_graph_size(self._max_graph_size):
       with self._apply_excludes_on_context():
         def _detected(issue: Issue) -> None:
           q.issue_raise(issue)
 
+        async def _call(id_: str, ent: DetectorEntry) -> None:
+          try:
+            await ent['e']()
+          except InvalidContextError:
+            ui.warn(f'scan: {id_}: context invalid, signature ignored')
+
         pub.subscribe(_detected, 'issue')
-        await asyncio.gather(*[e['e']() for e in self._sigs.values()])
+        await asyncio.gather(*[_call(k, v) for k,v in self._sigs.items()])
         pub.unsubscribe(_detected, 'issue')
 
         return q.issue_count()

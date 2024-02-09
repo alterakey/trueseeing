@@ -11,6 +11,7 @@ from pubsub import pub
 
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v1
+from trueseeing.core.exc import InvalidContextError
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional, Final
@@ -34,8 +35,9 @@ class APKContext:
     return self._type
 
   def require_type(self, typ: ContextType) -> APKContext:
-    assert typ == self._type
-    return self
+    if typ == self._type:
+      return self
+    raise InvalidContextError()
 
   def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
