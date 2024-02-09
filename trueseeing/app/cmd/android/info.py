@@ -25,6 +25,7 @@ class InfoCommand(CommandMixin):
     }
 
   async def _info(self, args: deque[str], level: int = 0) -> None:
+    from trueseeing.core.android.context import APKContext
     apk = self._helper.require_target()
 
     _ = args.popleft()
@@ -34,12 +35,14 @@ class InfoCommand(CommandMixin):
     boolmap = {True:'yes',False:'no','true':'yes','false':'no',1:'yes',0:'no'}
     analysisguidemap = {0: 'try ii for more info', 1: 'try iii for more info', 2: 'try iii for more info'}
 
+    context = self._helper.get_context()
+
     ui.info(f'info on {apk}')
 
     ui.info('path         {}'.format(apk))
-    ui.info('size         {}'.format(os.stat(apk).st_size))
 
-    context = self._helper.get_context()
+    if context.type == 'apk':  # XXX
+      ui.info('size         {}'.format(os.stat(apk).st_size))
 
     ui.info('fp           {}'.format(context.fingerprint_of()))
     ui.info('ctx          {}'.format(context.wd))
@@ -55,6 +58,10 @@ class InfoCommand(CommandMixin):
       self._helper.decode_analysis_level(analyzed),
       ' ({})'.format(analysisguidemap[analyzed]) if analyzed < 3 else '',
     ))
+
+    if not isinstance(context, APKContext):
+      return
+
     if analyzed > 0:
       store = context.store()
       manif = context.parsed_manifest()

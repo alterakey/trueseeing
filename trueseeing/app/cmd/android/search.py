@@ -138,7 +138,7 @@ class SearchCommand(CommandMixin):
       pat = '.'
 
     import os
-    context = await self._helper.get_context_analyzed()
+    context = (await self._helper.get_context_analyzed()).require_type('apk')
     packages = set()
     for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
       if fn.endswith('.smali'):

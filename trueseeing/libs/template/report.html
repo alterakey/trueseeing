@@ -18,10 +18,21 @@
       <div>
 	<p>We have analyzed the following application.</p>
 	<ul>
+{% if app.package %}
 	  <li>Package name: {{app.package}}</li>
+{% endif %}
+{% if app.version_code %}
 	  <li>Package version: {{app.version_name}} ({{app.version_code}})</li>
+{% endif %}
+{% if app.path %}
+	  <li>Path: {{app.path}}</li>
+{% endif %}
+{% if app.size %}
 	  <li>File size: {{app.size}}</li>
+{% endif %}
+{% if app.fp %}
 	  <li>Fingerprint (SHA-256): {{app.fp}}</li>
+{% endif %}
 	</ul>
 
 	<p>And here is summary of the report:</p>

@@ -50,7 +50,7 @@ class PrivacyDeviceIdDetector(DetectorMixin):
     return None
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
@@ -81,7 +81,7 @@ class PrivacySMSDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects SMS-related behavior')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):

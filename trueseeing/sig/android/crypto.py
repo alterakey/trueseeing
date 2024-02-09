@@ -69,7 +69,7 @@ class CryptoStaticKeyDetector(DetectorMixin):
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
     pat_case2 = '^M[C-I][0-9A-Za-z+/=-]{48,}'
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|^Ljavax?.*/MessageDigest;->(update|digest)')):
@@ -132,7 +132,7 @@ Possible cryptographic constants has been found in the application binary.
         return False
 
     pat = '^M[C-I][0-9A-Za-z+/=-]{48,}'
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.consts(InvocationPattern('const-string', pat)):
@@ -263,7 +263,7 @@ class CryptoEcbDetector(DetectorMixin):
     return {self._id: dict(e=self.detect, d='Detects ECB mode ciphers')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
@@ -303,7 +303,7 @@ class CryptoNonRandomXorDetector(DetectorMixin):
     return {self._id: dict(e=self.detect, d='Detects Vernum cipher usage with static keys')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.ops_of('xor-int/lit8'):
