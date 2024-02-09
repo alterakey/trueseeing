@@ -10,7 +10,7 @@ from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Optional
-  from trueseeing.core.android.store import Store
+  from trueseeing.core.android.db import Query
   from trueseeing.core.android.model.code import Op
   from trueseeing.api import Detector, DetectorHelper, DetectorMap
 
@@ -27,11 +27,11 @@ class PrivacyDeviceIdDetector(DetectorMixin):
   def get_descriptor(self) -> DetectorMap:
     return {self._id:dict(e=self.detect, d='Detects device fingerprinting behavior')}
 
-  def analyzed(self, store: Store, op: Op) -> Optional[str]:
+  def analyzed(self, q: Query, op: Op) -> Optional[str]:
     x = op.p[1].v
     if re.search(r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
       try:
-        if DataFlows.solved_constant_data_in_invocation(store, op, 1) == 'android_id':
+        if DataFlows.solved_constant_data_in_invocation(q, op, 1) == 'android_id':
           return 'ANDROID_ID'
         else:
           return None
@@ -57,7 +57,7 @@ class PrivacyDeviceIdDetector(DetectorMixin):
       qn = q.qualname_of(op)
       if context.is_qualname_excluded(qn):
         continue
-      val_type = self.analyzed(store, op)
+      val_type = self.analyzed(q, op)
       if val_type is not None:
         self._helper.raise_issue(Issue(
           detector_id=self._id,
@@ -89,7 +89,7 @@ class PrivacySMSDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        if DataFlows.solved_constant_data_in_invocation(store, op, 0).startswith('content://sms/'):
+        if DataFlows.solved_constant_data_in_invocation(q, op, 0).startswith('content://sms/'):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
             confidence='certain',

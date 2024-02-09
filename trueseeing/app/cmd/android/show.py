@@ -113,11 +113,11 @@ class ShowCommand(CommandMixin):
       op = q.op_get(opn)
       if op is not None:
         if cmd.endswith('!'):
-          vs = DataFlows.solved_possible_constant_data_in_invocation(store, op, idx)
+          vs = DataFlows.solved_possible_constant_data_in_invocation(q, op, idx)
           ui.info(repr(vs))
         else:
           try:
-            v = DataFlows.solved_constant_data_in_invocation(store, op, idx)
+            v = DataFlows.solved_constant_data_in_invocation(q, op, idx)
             ui.info(repr(v))
           except DataFlows.NoSuchValueError as e:
             ui.error(str(e))
@@ -144,7 +144,7 @@ class ShowCommand(CommandMixin):
       q = store.query()
       op = q.op_get(opn)
       if op is not None:
-        vs = DataFlows.solved_typeset_in_invocation(store, op, idx)
+        vs = DataFlows.solved_typeset_in_invocation(q, op, idx)
         ui.info(repr(vs))
       else:
         ui.error('op #{} not found'.format(opn))

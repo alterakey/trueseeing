@@ -10,20 +10,20 @@ from trueseeing.core.android.model.code import Op
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict, Iterator
   from typing_extensions import Final
-  from trueseeing.core.android.store import Store
+  from trueseeing.core.android.db import Query
 
   DataGraph = Union[Op, Mapping[Op, Any]]
 
 class CodeFlows:
   @classmethod
-  def callers_of(cls, store: Store, method: Op) -> Iterable[Op]:
-    yield from store.query().callers_of(method)
+  def callers_of(cls, q: Query, method: Op) -> Iterable[Op]:
+    yield from q.callers_of(method)
 
   @classmethod
-  def callstacks_of(cls, store: Store, method: Op) -> Mapping[Op, Any]:
+  def callstacks_of(cls, q: Query, method: Op) -> Mapping[Op, Any]:
     o = dict()
-    for m in cls.callers_of(store, method):
-      o[m] = cls.callstacks_of(store, m)
+    for m in cls.callers_of(q, method):
+      o[m] = cls.callstacks_of(q, m)
     return o
 
 class DataFlows:
@@ -65,12 +65,12 @@ class DataFlows:
       cls.set_max_graph_size(o)
 
   @classmethod
-  def likely_calling_in(cls, store: Store, ops: List[Op]) -> None:
+  def likely_calling_in(cls, q: Query, ops: List[Op]) -> None:
     pass
 
   @classmethod
-  def into(cls, store: Store, o: Op) -> Optional[Union[Op, Mapping[Op, Any]]]:
-    return cls.analyze(store, o)
+  def into(cls, q: Query, o: Op) -> Optional[Union[Op, Mapping[Op, Any]]]:
+    return cls.analyze(q, o)
 
   @classmethod
   def _decoded_registers_of(cls, ref: Op, type_: Any = frozenset) -> Any:
@@ -103,9 +103,9 @@ class DataFlows:
 
   # TBD: pack as SQL function
   @classmethod
-  def looking_behind_from(cls, store: Store, op: Op) -> Iterable[Op]:
+  def looking_behind_from(cls, q: Query, op: Op) -> Iterable[Op]:
     focus = None
-    for o in store.query().reversed_insns_in_method(op):
+    for o in q.reversed_insns_in_method(op):
       if focus is None:
         if o.t != 'label':
           yield o
@@ -119,9 +119,9 @@ class DataFlows:
           focus = None
 
   @classmethod
-  def solved_constant_data_in_invocation(cls, store: Store, invokation_op: Op, index: int) -> str:
+  def solved_constant_data_in_invocation(cls, q: Query, invokation_op: Op, index: int) -> str:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
-    graph = cls.analyze(store, invokation_op)
+    graph = cls.analyze(q, invokation_op)
     try:
       reg = cls.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     except IndexError:
@@ -147,9 +147,9 @@ class DataFlows:
       yield d # type:ignore[misc]
 
   @classmethod
-  def solved_possible_constant_data_in_invocation(cls, store: Store, invokation_op: Op, index: int) -> Set[str]:
+  def solved_possible_constant_data_in_invocation(cls, q: Query, invokation_op: Op, index: int) -> Set[str]:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
-    graph = cls.analyze(store, invokation_op)
+    graph = cls.analyze(q, invokation_op)
     reg = cls.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     if graph:
       n = graph[invokation_op][reg] # type: ignore[index]
@@ -158,9 +158,9 @@ class DataFlows:
       return set()
 
   @classmethod
-  def solved_typeset_in_invocation(cls, store: Store, invokation_op: Op, index: int) -> Set[Any]:
+  def solved_typeset_in_invocation(cls, q: Query, invokation_op: Op, index: int) -> Set[Any]:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
-    graph = cls.analyze(store, invokation_op)
+    graph = cls.analyze(q, invokation_op)
     reg = cls.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     if graph:
       arg = graph[invokation_op][reg] # type: ignore[index]
@@ -213,7 +213,7 @@ class DataFlows:
     return n
 
   @classmethod
-  def analyze(cls, store: Store, op: Optional[Op], state:Optional[Dict[int, Any]]=None, stage:int = 0) -> Optional[DataGraph]:
+  def analyze(cls, q: Query, op: Optional[Op], state:Optional[Dict[int, Any]]=None, stage:int = 0) -> Optional[DataGraph]:
     if op is None or stage > 64: # XXX: Is it sufficient? Might be better if we make it tunable?
       return None
     if state is None:
@@ -231,36 +231,36 @@ class DataFlows:
           state[op._id] = o
           return o
         elif op.v in ['move', 'array-length']:
-          o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[1])}}
+          o = {op:{k:cls.analyze(q, cls.analyze_recent_load_of(q, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[1])}}
           ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move', id=op._id, stage=stage, nodes=cls._check_graph(o)))
           state[op._id] = o
           return o
         elif any(op.v.startswith(x) for x in ['aget-']):
           assert len(op.p) == 3
-          o = {op:{k:cls.analyze(store, cls.analyze_recent_array_load_of(store, op, k), state, stage=stage+1) for k in (cls.decoded_registers_of_set(op.p[1]) | cls.decoded_registers_of_set(op.p[2]))}}
+          o = {op:{k:cls.analyze(q, cls.analyze_recent_array_load_of(q, op, k), state, stage=stage+1) for k in (cls.decoded_registers_of_set(op.p[1]) | cls.decoded_registers_of_set(op.p[2]))}}
           ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='aget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
           state[op._id] = o
           return o
         elif any(op.v.startswith(x) for x in ['sget-']):
           assert len(op.p) == 2
-          o = {op:{k:cls.analyze(store, cls.analyze_recent_static_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+          o = {op:{k:cls.analyze(q, cls.analyze_recent_static_load_of(q, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
           ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='sget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
           state[op._id] = o
           return o
         elif any(op.v.startswith(x) for x in ['iget-']):
           assert len(op.p) == 3
-          o = {op:{k:cls.analyze(store, cls.analyze_recent_instance_load_of(store, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+          o = {op:{k:cls.analyze(q, cls.analyze_recent_instance_load_of(q, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
           ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='iget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
           state[op._id] = o
           return o
         elif op.v.startswith('move-result'):
-          o = cls.analyze(store, cls.analyze_recent_invocation(store, op), state, stage=stage+1)
+          o = cls.analyze(q, cls.analyze_recent_invocation(q, op), state, stage=stage+1)
           ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move-result', id=op._id, stage=stage, nodes=cls._check_graph(o)))
           state[op._id] = o
           return o
         else:
           try:
-            o = {op:{k:cls.analyze(store, cls.analyze_recent_load_of(store, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
+            o = {op:{k:cls.analyze(q, cls.analyze_recent_load_of(q, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
             ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='gen.', id=op._id, stage=stage, nodes=cls._check_graph(o)))
             state[op._id] = o
             return o
@@ -275,10 +275,10 @@ class DataFlows:
       return None
 
   @classmethod
-  def analyze_recent_static_load_of(cls, store: Store, op: Op) -> Optional[Op]:
+  def analyze_recent_static_load_of(cls, q: Query, op: Op) -> Optional[Op]:
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['sget-'])
     target = op.p[1].v
-    for o in itertools.chain(cls.looking_behind_from(store, op), store.query().sputs(target)):
+    for o in itertools.chain(cls.looking_behind_from(q, op), q.sputs(target)):
       if o.t == 'id' and o.v.startswith('sput-'):
         if o.p[1].v == target:
           return o
@@ -287,7 +287,7 @@ class DataFlows:
       return None
 
   @classmethod
-  def analyze_load(cls, store: Store, op: Op) -> FrozenSet[str]:
+  def analyze_load(cls, q: Query, op: Op) -> FrozenSet[str]:
     if op.t == 'id':
       if any(op.v.startswith(x) for x in ['const','new-','move','array-length','aget-','sget-','iget-']):
         return cls.decoded_registers_of_set(op.p[0])
@@ -297,42 +297,42 @@ class DataFlows:
     return frozenset()
 
   @classmethod
-  def analyze_recent_load_of(cls, store: Store, from_: Op, reg: str, stage: int = 0) -> Optional[Op]:
-    for o in cls.looking_behind_from(store, from_):
+  def analyze_recent_load_of(cls, q: Query, from_: Op, reg: str, stage: int = 0) -> Optional[Op]:
+    for o in cls.looking_behind_from(q, from_):
       if o.t == 'id':
-        if reg in cls.analyze_load(store, o):
+        if reg in cls.analyze_load(q, o):
           return o
     if reg.startswith('p'):
       index = int(reg.replace('p', ''))
-      for caller in CodeFlows.callers_of(store, from_):
-        if store.query().qualname_of(from_) != store.query().qualname_of(caller):
+      for caller in CodeFlows.callers_of(q, from_):
+        if q.qualname_of(from_) != q.qualname_of(caller):
           caller_reg = cls.decoded_registers_of_list(caller.p[0])[index]
           ui.debug(f"analyze_recent_load_of: retrace: {from_!r} [{reg}] <-> {caller!r} [{caller_reg}] [stage: {stage}]")
           if stage < 5:
-            retraced = cls.analyze_recent_load_of(store, caller, caller_reg, stage=stage+1)
+            retraced = cls.analyze_recent_load_of(q, caller, caller_reg, stage=stage+1)
             if retraced:
               return retraced
     return None
 
   # TBD: tracing on static-array fields
   @classmethod
-  def analyze_recent_array_load_of(cls, store: Store, from_: Op, reg: str) -> Optional[Op]:
-    return cls.analyze_recent_load_of(store, from_, reg)
+  def analyze_recent_array_load_of(cls, q: Query, from_: Op, reg: str) -> Optional[Op]:
+    return cls.analyze_recent_load_of(q, from_, reg)
 
   # TBD: tracing on static-instance fields
   @classmethod
-  def analyze_recent_instance_load_of(cls, store: Store, op: Op) -> Optional[Op]:
+  def analyze_recent_instance_load_of(cls, q: Query, op: Op) -> Optional[Op]:
     assert len(op.p) == 3
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['iget-'])
     field = op.p[2].v
-    for o in itertools.chain(cls.looking_behind_from(store, op), store.query().iputs(field)):
+    for o in itertools.chain(cls.looking_behind_from(q, op), q.iputs(field)):
       if o.t == 'id' and o.v.startswith('iput-') and o.p[2].v == field:
         return o
     return None
 
   @classmethod
-  def analyze_recent_invocation(cls, store: Store, from_: Op) -> Optional[Op]:
-    for o in cls.looking_behind_from(store, from_):
+  def analyze_recent_invocation(cls, q: Query, from_: Op) -> Optional[Op]:
+    for o in cls.looking_behind_from(q, from_):
       if o.t == 'id' and o.v.startswith('invoke'):
         return o
     return None

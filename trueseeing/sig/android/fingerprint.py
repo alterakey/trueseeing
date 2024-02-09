@@ -384,7 +384,7 @@ class ReflectionDetector(DetectorMixin):
         continue
       if 'ClassLoader;->' in ct:
         try:
-          xs = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
+          xs = DataFlows.solved_possible_constant_data_in_invocation(q, cl, 0)
           if not xs:
             xs = {self._masker}
           for x in xs:
@@ -414,7 +414,7 @@ class ReflectionDetector(DetectorMixin):
           ))
       else:
         try:
-          xs = DataFlows.solved_possible_constant_data_in_invocation(store, cl, 0)
+          xs = DataFlows.solved_possible_constant_data_in_invocation(q, cl, 0)
           if not xs:
             xs = {self._masker}
           for x in xs:
