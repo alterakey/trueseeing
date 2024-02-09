@@ -9,3 +9,6 @@ class FatalError(Exception):
 
 class InvalidSchemaError(Exception):
     pass
+
+class InvalidContextError(Exception):
+    pass
