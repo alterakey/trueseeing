@@ -109,7 +109,8 @@ class ShowCommand(CommandMixin):
     with DataFlows.apply_max_graph_size(limit):
       context = await self._helper.get_context_analyzed()
       store = context.store()
-      op = store.op_get(opn)
+      q = store.query()
+      op = q.op_get(opn)
       if op is not None:
         if cmd.endswith('!'):
           vs = DataFlows.solved_possible_constant_data_in_invocation(store, op, idx)
@@ -140,7 +141,8 @@ class ShowCommand(CommandMixin):
     with DataFlows.apply_max_graph_size(limit):
       context = await self._helper.get_context_analyzed()
       store = context.store()
-      op = store.op_get(opn)
+      q = store.query()
+      op = q.op_get(opn)
       if op is not None:
         vs = DataFlows.solved_typeset_in_invocation(store, op, idx)
         ui.info(repr(vs))

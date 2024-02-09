@@ -54,7 +54,7 @@ class SmaliAnalyzer:
         for t in ops:
           t._id = base_id
           base_id += 1
-        self._store.op_store_ops(ops, c=c)
+        q.op_store_ops(ops, c=c)
 
         start = None
         for t in ops:
@@ -69,18 +69,18 @@ class SmaliAnalyzer:
 
       pub.sendMessage('progress.core.analysis.smali.analyzed')
 
-      analyzed_ops = self._store.op_count_ops(c=c)
+      analyzed_ops = q.op_count_ops(c=c)
       pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops)
 
-      analyzed_classes = self._store.op_store_classmap(classmap, c=c)
+      analyzed_classes = q.op_store_classmap(classmap, c=c)
       pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops, classes=analyzed_classes)
 
-      analyzed_methods = self._store.op_generate_methodmap(c=c)
+      analyzed_methods = q.op_generate_methodmap(c=c)
       pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops, classes=analyzed_classes, methods=analyzed_methods)
 
-    pub.sendMessage('progress.core.analysis.smali.finalizing')
-    self._store.op_finalize()
-    pub.sendMessage('progress.core.analysis.smali.done', t=time.time() - started)
+      pub.sendMessage('progress.core.analysis.smali.finalizing')
+      q.op_finalize()
+      pub.sendMessage('progress.core.analysis.smali.done', t=time.time() - started)
 
 class P:
   @classmethod
