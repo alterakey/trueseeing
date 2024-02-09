@@ -11,7 +11,7 @@ from trueseeing.core.exc import FatalError, InvalidSchemaError
 
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
-  from trueseeing.core.android.context import Context
+  from trueseeing.core.context import ContextType
   from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigEntry
 
 class InspectMode:
@@ -296,12 +296,15 @@ class CommandHelperImpl:
       ui.fatal(msg if msg else 'need target')
     return t
 
-  def get_context(self) -> Context:
-    from trueseeing.core.android.context import Context
-    return Context(self.require_target(), [])
+  def get_context(self, typ: Optional[ContextType] = None) -> Any:
+    from trueseeing.core.android.context import APKContext
+    c = APKContext(self.require_target(), [])
+    if typ is not None:
+      c.require_type(typ)
+    return c
 
-  async def get_context_analyzed(self, level: int = 3) -> Context:
-    c = self.get_context()
+  async def get_context_analyzed(self, typ: Optional[ContextType] = None, *, level: int = 3) -> Any:
+    c = self.get_context(typ)
     await c.analyze(level=level)
     return c
 

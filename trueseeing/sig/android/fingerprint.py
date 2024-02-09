@@ -104,7 +104,7 @@ class LibraryDetector(DetectorMixin):
       return not cls._suffixes_public.looks_public(shared)
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     q = context.store().query()
     package = context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
@@ -212,7 +212,7 @@ class ProGuardDetector(DetectorMixin):
     return path.replace('.smali', '').replace('/', '.')
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     for c in (self._class_name_of(context.source_name_of_disassembled_class(r)) for r in context.disassembled_classes()):
       m = re.search(r'(?:^|\.)(.)$', c)
       if m and m.group(1) not in self._whitelist:
@@ -262,7 +262,7 @@ class UrlLikeDetector(DetectorMixin):
     with (files('trueseeing')/'libs'/'tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     q = context.store().query()
     for cl in q.consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
       qn = q.qualname_of(cl)
@@ -367,7 +367,7 @@ class ReflectionDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects reflections')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(Class|Method|Field);->|^Ljava/lang/[A-Za-z]*?ClassLoader;->')):

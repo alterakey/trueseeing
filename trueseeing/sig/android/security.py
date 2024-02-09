@@ -31,7 +31,7 @@ class SecurityFilePermissionDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects insecure file creation')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     for cl in store.query().invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
       qn = store.query().qualname_of(cl)
@@ -66,7 +66,7 @@ class SecurityTlsInterceptionDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects certificate (non-)pinning')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     pin_nsc = False
     if context.get_min_sdk_version() > 23:
       if not context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
@@ -240,7 +240,7 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
     import lxml.etree as ET
     from functools import reduce
 
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     targets = {'WebView','XWalkView','GeckoView'}
@@ -322,7 +322,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
       return default
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     query = store.query()
 
@@ -463,7 +463,7 @@ class FormatStringDetector(DetectorMixin):
         yield dict(confidence='firm', value=x)
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     q = context.store().query()
     for cl in q.consts(InvocationPattern('const-string', r'%s')):
       qn = q.qualname_of(cl)
@@ -502,7 +502,7 @@ class LogDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects logging activities')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', r'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
@@ -573,7 +573,7 @@ class ADBProbeDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects probe of adbd status.')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', r'^Landroid/provider/Settings\$(Global|Secure);->getInt\(')):
@@ -605,7 +605,7 @@ class ClientXSSJQDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects potential client-side XSS vector in JQuery-based apps')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     for fn, blob in context.store().query().file_enum(pat='root/assets/%.js'):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
@@ -636,7 +636,7 @@ class SecurityFileWriteDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects file creation')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
@@ -705,7 +705,7 @@ class SecurityInsecureRootedDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects insecure rooted device probes')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
 
@@ -774,7 +774,7 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
     return {self._id:dict(e=self.detect, d='Detects SharedPreferences access')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences;->get(Boolean|Float|Int|String|StringSet)\(Ljava/lang/String;')):

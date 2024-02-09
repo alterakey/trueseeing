@@ -13,19 +13,29 @@ from trueseeing.core.ui import ui
 from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v1
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Tuple, Optional
+  from typing import List, Any, Iterable, Tuple, Optional, Final
+  from trueseeing.core.context import ContextType
   from trueseeing.core.android.store import Store
 
-class Context:
+class APKContext:
   wd: str
   excludes: List[str]
   _apk: str
   _store: Optional[Store] = None
+  _type: Final[ContextType] = 'apk'
 
-  def __init__(self, apk: str, excludes: List[str]) -> None:
-    self._apk = apk
+  def __init__(self, path: str, excludes: List[str]) -> None:
+    self._apk = path
     self.wd = self._workdir_of()
     self.excludes = excludes
+
+  @property
+  def type(self) -> ContextType:
+    return self._type
+
+  def require_type(self, typ: ContextType) -> APKContext:
+    assert typ == self._type
+    return self
 
   def _workdir_of(self) -> str:
     hashed = self.fingerprint_of()
@@ -52,6 +62,10 @@ class Context:
 
   def _get_workdir_v0(self, fp: str) -> str:
     return os.path.join(get_cache_dir_v0(), fp)
+
+  @property
+  def target(self) -> str:
+    return self._apk
 
   def store(self) -> Store:
     if self._store is None:

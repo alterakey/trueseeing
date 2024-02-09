@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 from contextlib import contextmanager
 
 if TYPE_CHECKING:
-  from typing import List, Optional, Iterator, Dict
+  from typing import List, Optional, Iterator, Dict, Any
   from trueseeing.api import DetectorEntry, DetectorHelper, DetectorMap
-  from trueseeing.core.android.context import Context
+  from trueseeing.core.context import Context, ContextType
   from trueseeing.core.android.db import Query
   from trueseeing.core.model.issue import Issue
 
@@ -87,7 +87,9 @@ class Scanner:
 class DetectorHelperImpl:
   def __init__(self, scanner: Scanner) -> None:
     self._s = scanner
-  def get_context(self) -> Context:
+  def get_context(self, typ: Optional[ContextType] = None) -> Any:
+    if typ:
+      self._s._context.require_type(typ)
     return self._s._context
   def raise_issue(self, issue: Issue) -> None:
     from pubsub import pub

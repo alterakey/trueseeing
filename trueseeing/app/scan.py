@@ -1,11 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.core.android.context import Context
 from trueseeing.core.ui import CoreProgressReporter, ScanProgressReporter, ui
+from trueseeing.core.android.context import APKContext
 
 if TYPE_CHECKING:
   from typing import List, Optional
+  from trueseeing.core.context import Context
   from trueseeing.core.report import ReportGenerator, ReportFormat
   from trueseeing.core.scan import Scanner
 
@@ -20,7 +21,7 @@ class ScanMode:
     from trueseeing.core.scan import Scanner
     self._target = target
     self._outfile = outfile
-    self._context = Context(self._target, excludes)
+    self._context = APKContext(self._target, excludes)
     self._reporter = self._get_reporter(self._context, outform, outfile)
     self._scanner = Scanner(self._context, sigsels, excludes)
 

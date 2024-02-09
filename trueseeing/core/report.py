@@ -10,7 +10,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import List, Protocol, Any, Dict, TextIO, Set
   from typing_extensions import Literal
-  from trueseeing.core.android.context import Context
+  from trueseeing.core.context import Context
   from trueseeing.core.model.issue import Issue
 
   ReportFormat = Literal['html', 'json']
@@ -63,12 +63,25 @@ class HTMLReportGenerator:
 
       from trueseeing.core.android.db import Query
       query = Query(c=db)
+      app: Dict[str, Any] = dict(
+        path=self._context.target,
+      )
       issues = []
 
-      apk = self._context._apk
-      manif = self._context.parsed_manifest()
-      ns = dict(android='http://schemas.android.com/apk/res/android')
       ts = datetime.now(tz=ZoneInfo('UTC')).isoformat(timespec='seconds')
+
+      if self._context.type == 'apk':
+        ctx = self._context.require_type('apk')
+        apk = ctx.target
+        manif = ctx.parsed_manifest()
+        ns = dict(android='http://schemas.android.com/apk/res/android')
+
+        app.update(dict(
+          package=manif.xpath('/manifest/@package', namespaces=ns)[0],
+          version_name=manif.xpath('/manifest/@android:versionName', namespaces=ns)[0],
+          version_code=manif.xpath('/manifest/@android:versionCode', namespaces=ns)[0],
+          size=os.stat(apk).st_size,
+        ))
 
       for no, row in query.findings_list():
         instances: List[Dict[str, Any]] = []
@@ -76,11 +89,7 @@ class HTMLReportGenerator:
         for issue in query.issues_by_group(detector=row[0], summary=row[1]):
           instances.append(dict(info=issue.brief_info(), source=issue.source, row=issue.row, col=issue.col))
 
-      app = dict(
-        package=manif.xpath('/manifest/@package', namespaces=ns)[0],
-        version_name=manif.xpath('/manifest/@android:versionName', namespaces=ns)[0],
-        version_code=manif.xpath('/manifest/@android:versionCode', namespaces=ns)[0],
-        size=os.stat(apk).st_size,
+      app.update(dict(
         fp=self._context.fingerprint_of(),
         issues=len(issues),
         issues_critical=len([_ for _ in issues if _['severity'] == 'Critical']),
@@ -88,7 +97,7 @@ class HTMLReportGenerator:
         issues_medium=len([_ for _ in issues if _['severity'] == 'Medium']),
         issues_low=len([_ for _ in issues if _['severity'] == 'Low']),
         issues_info=len([_ for _ in issues if _['severity'] == 'Info']),
-      )
+      ))
 
       from importlib.resources import as_file, files
       from jinja2 import Environment, FileSystemLoader
@@ -117,10 +126,22 @@ class JSONReportGenerator:
       from trueseeing.core.android.db import Query
       query = Query(c=db)
       issues = []
+      app: Dict[str, Any] = dict(
+        path=self._context.target,
+      )
 
-      apk = self._context._apk
-      manif = self._context.parsed_manifest()
-      ns = dict(android='http://schemas.android.com/apk/res/android')
+      if self._context.type == 'apk':
+        ctx = self._context.require_type('apk')
+        apk = ctx.target
+        manif = ctx.parsed_manifest()
+        ns = dict(android='http://schemas.android.com/apk/res/android')
+
+        app.update(dict(
+          package=manif.xpath('/manifest/@package', namespaces=ns)[0],
+          version_name=manif.xpath('/manifest/@android:versionName', namespaces=ns)[0],
+          version_code=manif.xpath('/manifest/@android:versionCode', namespaces=ns)[0],
+          size=os.stat(apk).st_size,
+        ))
 
       for no, row in query.findings_list():
         instances: List[Dict[str, Any]] = []
@@ -144,12 +165,8 @@ class JSONReportGenerator:
             row=issue.row,
             col=issue.col))
 
-      app = dict(
-        package=self._context.parsed_manifest().xpath('/manifest/@package', namespaces=ns)[0],
-        version_name=manif.xpath('/manifest/@android:versionName', namespaces=ns)[0],
-        version_code=manif.xpath('/manifest/@android:versionCode', namespaces=ns)[0],
-        size=os.stat(apk).st_size,
+      app.update(dict(
         fp=self._context.fingerprint_of(),
         issues=len(issues)
-      )
+      ))
       f.write(dumps({"app": app, "issues": issues}, indent=2))
