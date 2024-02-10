@@ -39,7 +39,7 @@ class SecurityFilePermissionDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = int(DataFlows.solved_constant_data_in_invocation(q, cl, 1), 16)
+        target_val = int(DataFlows(q).solved_constant_data_in_invocation(cl, 1), 16)
         if target_val & 3:
           self._helper.raise_issue(Issue(
             detector_id=self._id,
@@ -127,7 +127,7 @@ class SecurityTlsInterceptionDetector(DetectorMixin):
       custom_sslcontext_detected = False
       for cl in q.invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext;->init')):
         custom_sslcontext_detected = True
-        pins = DataFlows.solved_typeset_in_invocation(q, cl, 1) & pins
+        pins = DataFlows(q).solved_typeset_in_invocation(cl, 1) & pins
 
       if not custom_sslcontext_detected:
         return set()
@@ -278,7 +278,7 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        v = DataFlows.solved_constant_data_in_invocation(q, op, 0)
+        v = DataFlows(q).solved_constant_data_in_invocation(op, 0)
         if v.startswith('http://'):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
@@ -349,11 +349,11 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
         if context.is_qualname_excluded(qn):
           continue
         try:
-          if DataFlows.solved_constant_data_in_invocation(query, p, 0):
+          if DataFlows(query).solved_constant_data_in_invocation(p, 0):
             for target in targets:
               for q in query.invocations_in_class(p, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
                 try:
-                  if DataFlows.solved_constant_data_in_invocation(query, q, 0):
+                  if DataFlows(query).solved_constant_data_in_invocation(q, 0):
                     self._helper.raise_issue(Issue(
                       detector_id=self._id,
                       confidence='firm',
@@ -379,7 +379,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
         if context.is_qualname_excluded(qn):
           continue
         try:
-          val = int(DataFlows.solved_constant_data_in_invocation(query, q, 0), 16)
+          val = int(DataFlows(query).solved_constant_data_in_invocation(q, 0), 16)
           if val == 0:
             self._helper.raise_issue(Issue(
               detector_id=self._id,
@@ -415,7 +415,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        v = DataFlows.solved_constant_data_in_invocation(query, op, 0)
+        v = DataFlows(query).solved_constant_data_in_invocation(op, 0)
         if v.startswith('file:///android_asset/'):
           path = v.replace('file:///android_asset/', 'assets/')
           blob = query.file_get(f'root/{path}')
@@ -518,7 +518,7 @@ class LogDetector(DetectorMixin):
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=cl.p[1].v,
-            info2=DataFlows.solved_constant_data_in_invocation(q, cl, 1),
+            info2=DataFlows(q).solved_constant_data_in_invocation(cl, 1),
             source=q.qualname_of(cl)
           ))
         except (DataFlows.NoSuchValueError):
@@ -538,7 +538,7 @@ class LogDetector(DetectorMixin):
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=cl.p[1].v,
-            info2=DataFlows.solved_constant_data_in_invocation(q, cl, 0),
+            info2=DataFlows(q).solved_constant_data_in_invocation(cl, 0),
             source=q.qualname_of(cl)
           ))
         except (DataFlows.NoSuchValueError):
@@ -581,7 +581,7 @@ class ADBProbeDetector(DetectorMixin):
       qn = q.qualname_of(cl)
       if context.is_qualname_excluded(qn):
         continue
-      for found in DataFlows.solved_possible_constant_data_in_invocation(q, cl, 1):
+      for found in DataFlows(q).solved_possible_constant_data_in_invocation(cl, 1):
         if found == 'adb_enabled':
           self._helper.raise_issue(Issue(
             detector_id=self._id,
@@ -645,7 +645,7 @@ class SecurityFileWriteDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows.solved_constant_data_in_invocation(q, cl, 0)
+        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
       except DataFlows.NoSuchValueError:
         target_val = '(unknown name)'
 
@@ -675,7 +675,7 @@ class SecurityFileWriteDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows.solved_constant_data_in_invocation(q, cl, 0)
+        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
 
         if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
           if not re.search(r'^/proc/|^/sys/', target_val):
@@ -783,7 +783,7 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows.solved_constant_data_in_invocation(q, cl, 0)
+        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
       except DataFlows.NoSuchValueError:
         target_val = '(unknown name)'
 
@@ -803,7 +803,7 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows.solved_constant_data_in_invocation(q, cl, 0)
+        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
       except DataFlows.NoSuchValueError:
         target_val = '(unknown name)'
 
@@ -823,7 +823,7 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows.solved_constant_data_in_invocation(q, cl, 0)
+        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
       except DataFlows.NoSuchValueError:
         target_val = '(unknown name)'
 

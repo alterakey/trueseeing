@@ -78,7 +78,7 @@ class CryptoStaticKeyDetector(DetectorMixin):
         continue
       try:
         for nr in self._important_args_on_invocation(cl):
-          for found in DataFlows.solved_possible_constant_data_in_invocation(q, cl, nr):
+          for found in DataFlows(q).solved_possible_constant_data_in_invocation(cl, nr):
             try:
               if re.search(pat_case2, found):
                 continue
@@ -271,7 +271,7 @@ class CryptoEcbDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows.solved_possible_constant_data_in_invocation(q, cl, 0)
+        target_val = DataFlows(q).solved_possible_constant_data_in_invocation(cl, 0)
         if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
