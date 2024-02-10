@@ -7,7 +7,7 @@ import re
 import os
 
 from trueseeing.core.android.model.code import InvocationPattern
-from trueseeing.core.android.analysis.flow import DataFlows
+from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.model.issue import Issue
 from trueseeing.core.ui import ui
@@ -39,7 +39,7 @@ class SecurityFilePermissionDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = int(DataFlows(q).solved_constant_data_in_invocation(cl, 1), 16)
+        target_val = int(DataFlow(q).solved_constant_data_in_invocation(cl, 1), 16)
         if target_val & 3:
           self._helper.raise_issue(Issue(
             detector_id=self._id,
@@ -49,7 +49,7 @@ class SecurityFilePermissionDetector(DetectorMixin):
             info1={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
             source=q.qualname_of(cl)
           ))
-      except (DataFlows.NoSuchValueError):
+      except (DataFlow.NoSuchValueError):
         pass
 
 
@@ -127,7 +127,7 @@ class SecurityTlsInterceptionDetector(DetectorMixin):
       custom_sslcontext_detected = False
       for cl in q.invocations(InvocationPattern('invoke-virtual', 'Ljavax/net/ssl/SSLContext;->init')):
         custom_sslcontext_detected = True
-        pins = DataFlows(q).solved_typeset_in_invocation(cl, 1) & pins
+        pins = DataFlow(q).solved_typeset_in_invocation(cl, 1) & pins
 
       if not custom_sslcontext_detected:
         return set()
@@ -278,7 +278,7 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        v = DataFlows(q).solved_constant_data_in_invocation(op, 0)
+        v = DataFlow(q).solved_constant_data_in_invocation(op, 0)
         if v.startswith('http://'):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
@@ -288,7 +288,7 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
             info1=v,
             source=q.qualname_of(op)
           ))
-      except DataFlows.NoSuchValueError:
+      except DataFlow.NoSuchValueError:
         pass
 
 
@@ -349,11 +349,11 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
         if context.is_qualname_excluded(qn):
           continue
         try:
-          if DataFlows(query).solved_constant_data_in_invocation(p, 0):
+          if DataFlow(query).solved_constant_data_in_invocation(p, 0):
             for target in targets:
               for q in query.invocations_in_class(p, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
                 try:
-                  if DataFlows(query).solved_constant_data_in_invocation(q, 0):
+                  if DataFlow(query).solved_constant_data_in_invocation(q, 0):
                     self._helper.raise_issue(Issue(
                       detector_id=self._id,
                       confidence='firm',
@@ -361,7 +361,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
                       summary=self._summary1,
                       source=query.qualname_of(q)
                     ))
-                except (DataFlows.NoSuchValueError):
+                except (DataFlow.NoSuchValueError):
                   self._helper.raise_issue(Issue(
                     detector_id=self._id,
                     confidence='tentative',
@@ -369,7 +369,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
                     summary=self._summary1,
                     source=query.qualname_of(q)
                   ))
-        except (DataFlows.NoSuchValueError):
+        except (DataFlow.NoSuchValueError):
           pass
 
     # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
@@ -379,7 +379,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
         if context.is_qualname_excluded(qn):
           continue
         try:
-          val = int(DataFlows(query).solved_constant_data_in_invocation(q, 0), 16)
+          val = int(DataFlow(query).solved_constant_data_in_invocation(q, 0), 16)
           if val == 0:
             self._helper.raise_issue(Issue(
               detector_id=self._id,
@@ -396,7 +396,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
               summary=self._summary2b,
               info1='MIXED_CONTENT_COMPATIBILITY_MODE',
               source=query.qualname_of(q)))
-        except (DataFlows.NoSuchValueError):
+        except (DataFlow.NoSuchValueError):
           pass
     else:
       for target in targets:
@@ -415,7 +415,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        v = DataFlows(query).solved_constant_data_in_invocation(op, 0)
+        v = DataFlow(query).solved_constant_data_in_invocation(op, 0)
         if v.startswith('file:///android_asset/'):
           path = v.replace('file:///android_asset/', 'assets/')
           blob = query.file_get(f'root/{path}')
@@ -443,7 +443,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
                 info2=csp,
                 source=query.qualname_of(op)
               ))
-      except DataFlows.NoSuchValueError:
+      except DataFlow.NoSuchValueError:
         pass
 
 class FormatStringDetector(DetectorMixin):
@@ -518,10 +518,10 @@ class LogDetector(DetectorMixin):
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=cl.p[1].v,
-            info2=DataFlows(q).solved_constant_data_in_invocation(cl, 1),
+            info2=DataFlow(q).solved_constant_data_in_invocation(cl, 1),
             source=q.qualname_of(cl)
           ))
-        except (DataFlows.NoSuchValueError):
+        except (DataFlow.NoSuchValueError):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
             confidence='tentative',
@@ -538,10 +538,10 @@ class LogDetector(DetectorMixin):
             cvss3_vector=self._cvss,
             summary=self._summary,
             info1=cl.p[1].v,
-            info2=DataFlows(q).solved_constant_data_in_invocation(cl, 0),
+            info2=DataFlow(q).solved_constant_data_in_invocation(cl, 0),
             source=q.qualname_of(cl)
           ))
-        except (DataFlows.NoSuchValueError):
+        except (DataFlow.NoSuchValueError):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
             confidence='tentative',
@@ -581,7 +581,7 @@ class ADBProbeDetector(DetectorMixin):
       qn = q.qualname_of(cl)
       if context.is_qualname_excluded(qn):
         continue
-      for found in DataFlows(q).solved_possible_constant_data_in_invocation(cl, 1):
+      for found in DataFlow(q).solved_possible_constant_data_in_invocation(cl, 1):
         if found == 'adb_enabled':
           self._helper.raise_issue(Issue(
             detector_id=self._id,
@@ -645,8 +645,8 @@ class SecurityFileWriteDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
-      except DataFlows.NoSuchValueError:
+        target_val = DataFlow(q).solved_constant_data_in_invocation(cl, 0)
+      except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
       if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
@@ -675,7 +675,7 @@ class SecurityFileWriteDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
+        target_val = DataFlow(q).solved_constant_data_in_invocation(cl, 0)
 
         if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
           if not re.search(r'^/proc/|^/sys/', target_val):
@@ -688,7 +688,7 @@ class SecurityFileWriteDetector(DetectorMixin):
               info1=target_val,
               source=q.qualname_of(cl)
             ))
-      except DataFlows.NoSuchValueError:
+      except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
 class SecurityInsecureRootedDetector(DetectorMixin):
@@ -783,8 +783,8 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
-      except DataFlows.NoSuchValueError:
+        target_val = DataFlow(q).solved_constant_data_in_invocation(cl, 0)
+      except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
       self._helper.raise_issue(Issue(
@@ -803,8 +803,8 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
-      except DataFlows.NoSuchValueError:
+        target_val = DataFlow(q).solved_constant_data_in_invocation(cl, 0)
+      except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
       self._helper.raise_issue(Issue(
@@ -823,8 +823,8 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows(q).solved_constant_data_in_invocation(cl, 0)
-      except DataFlows.NoSuchValueError:
+        target_val = DataFlow(q).solved_constant_data_in_invocation(cl, 0)
+      except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
       self._helper.raise_issue(Issue(

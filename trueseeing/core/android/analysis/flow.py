@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
   DataGraph = Union[Op, Mapping[Op, Any]]
 
-class CodeFlows:
+class CodeFlow:
   def __init__(self, q: Query) -> None:
     self._q = q
 
@@ -27,7 +27,7 @@ class CodeFlows:
       o[m] = self.callstacks_of(m)
     return o
 
-class DataFlows:
+class DataFlow:
   _q: Query
   _default_max_graph_size: Final[int] = 2 * 1048576
 
@@ -300,7 +300,7 @@ class DataFlows:
           return o
     if reg.startswith('p'):
       index = int(reg.replace('p', ''))
-      for caller in CodeFlows(self._q).callers_of(from_):
+      for caller in CodeFlow(self._q).callers_of(from_):
         if self._q.qualname_of(from_) != self._q.qualname_of(caller):
           caller_reg = self.decoded_registers_of_list(caller.p[0])[index]
           ui.debug(f"analyze_recent_load_of: retrace: {from_!r} [{reg}] <-> {caller!r} [{caller_reg}] [stage: {stage}]")

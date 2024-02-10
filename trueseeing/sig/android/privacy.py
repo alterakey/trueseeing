@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import re
 
 from trueseeing.core.android.model.code import InvocationPattern
-from trueseeing.core.android.analysis.flow import DataFlows
+from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.model.issue import Issue
 
@@ -31,11 +31,11 @@ class PrivacyDeviceIdDetector(DetectorMixin):
     x = op.p[1].v
     if re.search(r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
       try:
-        if DataFlows(q).solved_constant_data_in_invocation(op, 1) == 'android_id':
+        if DataFlow(q).solved_constant_data_in_invocation(op, 1) == 'android_id':
           return 'ANDROID_ID'
         else:
           return None
-      except DataFlows.NoSuchValueError:
+      except DataFlow.NoSuchValueError:
         return None
     elif re.search(r'Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;', x):
       return 'IMEI'
@@ -89,7 +89,7 @@ class PrivacySMSDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        if DataFlows(q).solved_constant_data_in_invocation(op, 0).startswith('content://sms/'):
+        if DataFlow(q).solved_constant_data_in_invocation(op, 0).startswith('content://sms/'):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
             confidence='certain',
@@ -98,7 +98,7 @@ class PrivacySMSDetector(DetectorMixin):
             info1='accessing SMS',
             source=q.qualname_of(op)
           ))
-      except DataFlows.NoSuchValueError:
+      except DataFlow.NoSuchValueError:
         pass
 
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsManager;->send')):
