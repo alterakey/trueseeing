@@ -105,21 +105,21 @@ class ShowCommand(CommandMixin):
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
 
-    from trueseeing.core.android.analysis.flow import DataFlows
-    with DataFlows.apply_max_graph_size(limit):
+    from trueseeing.core.android.analysis.flow import DataFlow
+    with DataFlow.apply_max_graph_size(limit):
       context = await self._helper.get_context_analyzed()
       store = context.store()
       q = store.query()
       op = q.op_get(opn)
       if op is not None:
         if cmd.endswith('!'):
-          vs = DataFlows(q).solved_possible_constant_data_in_invocation(op, idx)
+          vs = DataFlow(q).solved_possible_constant_data_in_invocation(op, idx)
           ui.info(repr(vs))
         else:
           try:
-            v = DataFlows(q).solved_constant_data_in_invocation(op, idx)
+            v = DataFlow(q).solved_constant_data_in_invocation(op, idx)
             ui.info(repr(v))
-          except DataFlows.NoSuchValueError as e:
+          except DataFlow.NoSuchValueError as e:
             ui.error(str(e))
       else:
         ui.error('op #{} not found'.format(opn))
@@ -137,14 +137,14 @@ class ShowCommand(CommandMixin):
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
 
-    from trueseeing.core.android.analysis.flow import DataFlows
-    with DataFlows.apply_max_graph_size(limit):
+    from trueseeing.core.android.analysis.flow import DataFlow
+    with DataFlow.apply_max_graph_size(limit):
       context = await self._helper.get_context_analyzed()
       store = context.store()
       q = store.query()
       op = q.op_get(opn)
       if op is not None:
-        vs = DataFlows(q).solved_typeset_in_invocation(op, idx)
+        vs = DataFlow(q).solved_typeset_in_invocation(op, idx)
         ui.info(repr(vs))
       else:
         ui.error('op #{} not found'.format(opn))

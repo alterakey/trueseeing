@@ -8,7 +8,7 @@ from functools import cache
 
 from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.android.model.code import InvocationPattern
-from trueseeing.core.android.analysis.flow import DataFlows
+from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
@@ -55,7 +55,7 @@ class CryptoStaticKeyDetector(DetectorMixin):
     if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>|L.*/MessageDigest;->update', method_name):
       yield 0
     else:
-      yield from range(len(DataFlows.decoded_registers_of_set(k.p[0])))
+      yield from range(len(DataFlow.decoded_registers_of_set(k.p[0])))
 
   async def detect(self) -> None:
     await asyncio.gather(self._do_detect_case1(), self._do_detect_case2())
@@ -78,7 +78,7 @@ class CryptoStaticKeyDetector(DetectorMixin):
         continue
       try:
         for nr in self._important_args_on_invocation(cl):
-          for found in DataFlows(q).solved_possible_constant_data_in_invocation(cl, nr):
+          for found in DataFlow(q).solved_possible_constant_data_in_invocation(cl, nr):
             try:
               if re.search(pat_case2, found):
                 continue
@@ -271,7 +271,7 @@ class CryptoEcbDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        target_val = DataFlows(q).solved_possible_constant_data_in_invocation(cl, 0)
+        target_val = DataFlow(q).solved_possible_constant_data_in_invocation(cl, 0)
         if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
@@ -288,7 +288,7 @@ class CryptoEcbDetector(DetectorMixin):
 Use CBC or CTR mode.
 '''
           ))
-      except (DataFlows.NoSuchValueError):
+      except (DataFlow.NoSuchValueError):
         pass
 
 class CryptoNonRandomXorDetector(DetectorMixin):

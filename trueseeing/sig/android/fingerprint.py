@@ -6,7 +6,7 @@ import re
 
 from trueseeing.core.model.sig import DetectorMixin
 from trueseeing.core.android.model.code import InvocationPattern
-from trueseeing.core.android.analysis.flow import DataFlows
+from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
@@ -384,7 +384,7 @@ class ReflectionDetector(DetectorMixin):
         continue
       if 'ClassLoader;->' in ct:
         try:
-          xs = DataFlows(q).solved_possible_constant_data_in_invocation(cl, 0)
+          xs = DataFlow(q).solved_possible_constant_data_in_invocation(cl, 0)
           if not xs:
             xs = {self._masker}
           for x in xs:
@@ -414,7 +414,7 @@ class ReflectionDetector(DetectorMixin):
           ))
       else:
         try:
-          xs = DataFlows(q).solved_possible_constant_data_in_invocation(cl, 0)
+          xs = DataFlow(q).solved_possible_constant_data_in_invocation(cl, 0)
           if not xs:
             xs = {self._masker}
           for x in xs:
