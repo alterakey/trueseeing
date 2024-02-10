@@ -7,7 +7,7 @@ if TYPE_CHECKING:
   from typing import Any, TypedDict, Protocol, Optional, Callable, Coroutine, Union, List, Mapping, overload, Literal
   from trueseeing.core.context import Context, ContextType
   from trueseeing.core.android.context import APKContext
-  from trueseeing.core.model.issue import Issue
+  from trueseeing.core.model.issue import Issue, IssueConfidence
 
   CommandEntrypoint = Callable[[deque[str]], Coroutine[Any, Any, None]]
   CommandlineEntrypoint = Callable[[str], Coroutine[Any, Any, None]]
@@ -73,6 +73,23 @@ if TYPE_CHECKING:
     def get_context(self, typ: Literal['apk']) -> APKContext: ...
     def get_context(self, typ: Optional[ContextType] = None) -> Any: ...
     def raise_issue(self, issue: Issue) -> None: ...
+    def build_issue(
+        self,
+        detector_id: str,
+        cvss_vector: str,
+        confidence: IssueConfidence,
+        summary: str,
+        description: Optional[str] = None,
+        seealso: Optional[str] = None,
+        synopsis: Optional[str] = None,
+        info1: Optional[str] = None,
+        info2: Optional[str] = None,
+        info3: Optional[str] = None,
+        source: Optional[str] = None,
+        row: Optional[str] = None,
+        col: Optional[str] = None,
+    ) -> Issue: ...
+
 
 class Command(ABC):
   @staticmethod
