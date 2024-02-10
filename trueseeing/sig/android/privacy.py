@@ -31,7 +31,7 @@ class PrivacyDeviceIdDetector(DetectorMixin):
     x = op.p[1].v
     if re.search(r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
       try:
-        if DataFlows.solved_constant_data_in_invocation(q, op, 1) == 'android_id':
+        if DataFlows(q).solved_constant_data_in_invocation(op, 1) == 'android_id':
           return 'ANDROID_ID'
         else:
           return None
@@ -89,7 +89,7 @@ class PrivacySMSDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       try:
-        if DataFlows.solved_constant_data_in_invocation(q, op, 0).startswith('content://sms/'):
+        if DataFlows(q).solved_constant_data_in_invocation(op, 0).startswith('content://sms/'):
           self._helper.raise_issue(Issue(
             detector_id=self._id,
             confidence='certain',

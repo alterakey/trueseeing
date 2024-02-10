@@ -15,19 +15,20 @@ if TYPE_CHECKING:
   DataGraph = Union[Op, Mapping[Op, Any]]
 
 class CodeFlows:
-  @classmethod
-  def callers_of(cls, q: Query, method: Op) -> Iterable[Op]:
-    yield from q.callers_of(method)
+  def __init__(self, q: Query) -> None:
+    self._q = q
 
-  @classmethod
-  def callstacks_of(cls, q: Query, method: Op) -> Mapping[Op, Any]:
+  def callers_of(self, method: Op) -> Iterable[Op]:
+    yield from self._q.callers_of(method)
+
+  def callstacks_of(self, method: Op) -> Mapping[Op, Any]:
     o = dict()
-    for m in cls.callers_of(q, method):
-      o[m] = cls.callstacks_of(q, m)
+    for m in self.callers_of(method):
+      o[m] = self.callstacks_of(m)
     return o
 
 class DataFlows:
-  _stash: Final[Dict[int, str]] = dict()
+  _q: Query
   _default_max_graph_size: Final[int] = 2 * 1048576
 
   _max_graph_size: int = _default_max_graph_size
@@ -40,6 +41,9 @@ class DataFlows:
 
   class GraphSizeError(Exception):
     pass
+
+  def __init__(self, q: Query) -> None:
+    self._q = q
 
   @classmethod
   def get_max_graph_size(cls) -> int:
@@ -64,13 +68,11 @@ class DataFlows:
     finally:
       cls.set_max_graph_size(o)
 
-  @classmethod
-  def likely_calling_in(cls, q: Query, ops: List[Op]) -> None:
+  def likely_calling_in(self, ops: List[Op]) -> None:
     pass
 
-  @classmethod
-  def into(cls, q: Query, o: Op) -> Optional[Union[Op, Mapping[Op, Any]]]:
-    return cls.analyze(q, o)
+  def into(self, o: Op) -> Optional[Union[Op, Mapping[Op, Any]]]:
+    return self.analyze(o)
 
   @classmethod
   def _decoded_registers_of(cls, ref: Op, type_: Any = frozenset) -> Any:
@@ -102,10 +104,9 @@ class DataFlows:
     return o
 
   # TBD: pack as SQL function
-  @classmethod
-  def looking_behind_from(cls, q: Query, op: Op) -> Iterable[Op]:
+  def looking_behind_from(self, op: Op) -> Iterable[Op]:
     focus = None
-    for o in q.reversed_insns_in_method(op):
+    for o in self._q.reversed_insns_in_method(op):
       if focus is None:
         if o.t != 'label':
           yield o
@@ -118,25 +119,24 @@ class DataFlows:
         else:
           focus = None
 
-  @classmethod
-  def solved_constant_data_in_invocation(cls, q: Query, invokation_op: Op, index: int) -> str:
+  def solved_constant_data_in_invocation(self, invokation_op: Op, index: int) -> str:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
-    graph = cls.analyze(q, invokation_op)
+    graph = self.analyze(invokation_op)
     try:
-      reg = cls.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
+      reg = self.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     except IndexError:
-      raise cls.NoSuchValueError(f'argument not found at index {index}')
+      raise self.NoSuchValueError(f'argument not found at index {index}')
     if graph:
       try:
         arg = graph[invokation_op][reg] # type: ignore[index]
         if arg.t == 'id' and arg.v.startswith('const'):
           return arg.p[1].v # type: ignore[no-any-return]
         else:
-          raise cls.NoSuchValueError(f'not a compile-time constant: {arg!r}')
+          raise self.NoSuchValueError(f'not a compile-time constant: {arg!r}')
       except (KeyError, AttributeError):
-        raise cls.NoSuchValueError(f'not a compile-time constant: {arg!r}')
+        raise self.NoSuchValueError(f'not a compile-time constant: {arg!r}')
     else:
-      raise cls.NoSuchValueError(f'not a compile-time constant: {arg!r}')
+      raise self.NoSuchValueError(f'not a compile-time constant: {arg!r}')
 
   @classmethod
   def walk_dict_values(cls, d: DataGraph) -> Iterable[Optional[Op]]:
@@ -146,38 +146,38 @@ class DataFlows:
     except AttributeError:
       yield d # type:ignore[misc]
 
-  @classmethod
-  def solved_possible_constant_data_in_invocation(cls, q: Query, invokation_op: Op, index: int) -> Set[str]:
+  def solved_possible_constant_data_in_invocation(self, invokation_op: Op, index: int) -> Set[str]:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
-    graph = cls.analyze(q, invokation_op)
-    reg = cls.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
+    graph = self.analyze(invokation_op)
+    reg = self.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     if graph:
       n = graph[invokation_op][reg] # type: ignore[index]
-      return {x.p[1].v for x in cls.walk_dict_values(n) if x is not None and x.t == 'id' and x.v.startswith('const')}
+      return {x.p[1].v for x in self.walk_dict_values(n) if x is not None and x.t == 'id' and x.v.startswith('const')}
     else:
       return set()
 
-  @classmethod
-  def solved_typeset_in_invocation(cls, q: Query, invokation_op: Op, index: int) -> Set[Any]:
+  def solved_typeset_in_invocation(self, invokation_op: Op, index: int) -> Set[Any]:
     assert invokation_op.t == 'id' and invokation_op.v.startswith('invoke')
-    graph = cls.analyze(q, invokation_op)
-    reg = cls.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
+    graph = self.analyze(invokation_op)
+    reg = self.decoded_registers_of_list(invokation_op.p[0])[index + (0 if ('-static' in invokation_op.v) else 1)]
     if graph:
       arg = graph[invokation_op][reg] # type: ignore[index]
 
-      def assumed_target_type_of_op(x: Op) -> str:
-        assert x.t == 'id'
-        if x.v.startswith('const/4'):
-          return 'Ljava/lang/Integer;'
-        elif x.v.startswith('const-string'):
-          return 'Ljava/lang/String;'
-        elif x.v.startswith('new-array'):
-          return x.p[2].v
-        else:
-          return 'Ljava/lang/Object;'
-      return {assumed_target_type_of_op(x) for x in cls.walk_dict_values(arg) if x is not None and x.t == 'id'}
+      return {self._assumed_target_type_of_op(x) for x in self.walk_dict_values(arg) if x is not None and x.t == 'id'}
     else:
       return set()
+
+  @staticmethod
+  def _assumed_target_type_of_op(x: Op) -> str:
+    assert x.t == 'id'
+    if x.v.startswith('const/4'):
+      return 'Ljava/lang/Integer;'
+    elif x.v.startswith('const-string'):
+      return 'Ljava/lang/String;'
+    elif x.v.startswith('new-array'):
+      return x.p[2].v
+    else:
+      return 'Ljava/lang/Object;'
 
   @classmethod
   def _approximated_size_of_graph(cls, d: Optional[DataGraph], /, _cache:Optional[Dict[int, int]] = None) -> int:
@@ -212,8 +212,7 @@ class DataFlows:
       raise cls.GraphSizeError()
     return n
 
-  @classmethod
-  def analyze(cls, q: Query, op: Optional[Op], state:Optional[Dict[int, Any]]=None, stage:int = 0) -> Optional[DataGraph]:
+  def analyze(self, op: Optional[Op], state:Optional[Dict[int, Any]]=None, stage:int = 0) -> Optional[DataGraph]:
     if op is None or stage > 64: # XXX: Is it sufficient? Might be better if we make it tunable?
       return None
     if state is None:
@@ -231,54 +230,53 @@ class DataFlows:
           state[op._id] = o
           return o
         elif op.v in ['move', 'array-length']:
-          o = {op:{k:cls.analyze(q, cls.analyze_recent_load_of(q, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[1])}}
-          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          o = {op:{k:self.analyze(self.analyze_recent_load_of(op, k), state, stage=stage+1) for k in self.decoded_registers_of_set(op.p[1])}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move', id=op._id, stage=stage, nodes=self._check_graph(o)))
           state[op._id] = o
           return o
         elif any(op.v.startswith(x) for x in ['aget-']):
           assert len(op.p) == 3
-          o = {op:{k:cls.analyze(q, cls.analyze_recent_array_load_of(q, op, k), state, stage=stage+1) for k in (cls.decoded_registers_of_set(op.p[1]) | cls.decoded_registers_of_set(op.p[2]))}}
-          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='aget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          o = {op:{k:self.analyze(self.analyze_recent_array_load_of(op, k), state, stage=stage+1) for k in (self.decoded_registers_of_set(op.p[1]) | self.decoded_registers_of_set(op.p[2]))}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='aget', id=op._id, stage=stage, nodes=self._check_graph(o)))
           state[op._id] = o
           return o
         elif any(op.v.startswith(x) for x in ['sget-']):
           assert len(op.p) == 2
-          o = {op:{k:cls.analyze(q, cls.analyze_recent_static_load_of(q, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
-          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='sget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          o = {op:{k:self.analyze(self.analyze_recent_static_load_of(op), state, stage=stage+1) for k in self.decoded_registers_of_set(op.p[0])}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='sget', id=op._id, stage=stage, nodes=self._check_graph(o)))
           state[op._id] = o
           return o
         elif any(op.v.startswith(x) for x in ['iget-']):
           assert len(op.p) == 3
-          o = {op:{k:cls.analyze(q, cls.analyze_recent_instance_load_of(q, op), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
-          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='iget', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          o = {op:{k:self.analyze(self.analyze_recent_instance_load_of(op), state, stage=stage+1) for k in self.decoded_registers_of_set(op.p[0])}}
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='iget', id=op._id, stage=stage, nodes=self._check_graph(o)))
           state[op._id] = o
           return o
         elif op.v.startswith('move-result'):
-          o = cls.analyze(q, cls.analyze_recent_invocation(q, op), state, stage=stage+1)
-          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move-result', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+          o = self.analyze(self.analyze_recent_invocation(op), state, stage=stage+1)
+          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move-result', id=op._id, stage=stage, nodes=self._check_graph(o)))
           state[op._id] = o
           return o
         else:
           try:
-            o = {op:{k:cls.analyze(q, cls.analyze_recent_load_of(q, op, k), state, stage=stage+1) for k in cls.decoded_registers_of_set(op.p[0])}}
-            ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='gen.', id=op._id, stage=stage, nodes=cls._check_graph(o)))
+            o = {op:{k:self.analyze(self.analyze_recent_load_of(op, k), state, stage=stage+1) for k in self.decoded_registers_of_set(op.p[0])}}
+            ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='gen.', id=op._id, stage=stage, nodes=self._check_graph(o)))
             state[op._id] = o
             return o
-          except cls.RegisterDecodeError:
+          except self.RegisterDecodeError:
             state[op._id] = None
             return None
-      except cls.GraphSizeError:
+      except self.GraphSizeError:
         ui.warn('analyze: op #{id} stage: {stage}: too many nodes'.format(id=op._id, stage=stage))
         state[op._id] = None
         return None
     else:
       return None
 
-  @classmethod
-  def analyze_recent_static_load_of(cls, q: Query, op: Op) -> Optional[Op]:
+  def analyze_recent_static_load_of(self, op: Op) -> Optional[Op]:
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['sget-'])
     target = op.p[1].v
-    for o in itertools.chain(cls.looking_behind_from(q, op), q.sputs(target)):
+    for o in itertools.chain(self.looking_behind_from(op), self._q.sputs(target)):
       if o.t == 'id' and o.v.startswith('sput-'):
         if o.p[1].v == target:
           return o
@@ -286,53 +284,48 @@ class DataFlows:
       ui.debug(f"analyze_recent_static_load_of: failed static trace: {op!r}")
       return None
 
-  @classmethod
-  def analyze_load(cls, q: Query, op: Op) -> FrozenSet[str]:
+  def analyze_load(self, op: Op) -> FrozenSet[str]:
     if op.t == 'id':
       if any(op.v.startswith(x) for x in ['const','new-','move','array-length','aget-','sget-','iget-']):
-        return cls.decoded_registers_of_set(op.p[0])
+        return self.decoded_registers_of_set(op.p[0])
       elif any(op.v.startswith(x) for x in ['invoke-direct', 'invoke-virtual', 'invoke-interface']):
         # Imply modification of "this"
-        return frozenset(cls.decoded_registers_of_list(op.p[0])[:1])
+        return frozenset(self.decoded_registers_of_list(op.p[0])[:1])
     return frozenset()
 
-  @classmethod
-  def analyze_recent_load_of(cls, q: Query, from_: Op, reg: str, stage: int = 0) -> Optional[Op]:
-    for o in cls.looking_behind_from(q, from_):
+  def analyze_recent_load_of(self, from_: Op, reg: str, stage: int = 0) -> Optional[Op]:
+    for o in self.looking_behind_from(from_):
       if o.t == 'id':
-        if reg in cls.analyze_load(q, o):
+        if reg in self.analyze_load(o):
           return o
     if reg.startswith('p'):
       index = int(reg.replace('p', ''))
-      for caller in CodeFlows.callers_of(q, from_):
-        if q.qualname_of(from_) != q.qualname_of(caller):
-          caller_reg = cls.decoded_registers_of_list(caller.p[0])[index]
+      for caller in CodeFlows(self._q).callers_of(from_):
+        if self._q.qualname_of(from_) != self._q.qualname_of(caller):
+          caller_reg = self.decoded_registers_of_list(caller.p[0])[index]
           ui.debug(f"analyze_recent_load_of: retrace: {from_!r} [{reg}] <-> {caller!r} [{caller_reg}] [stage: {stage}]")
           if stage < 5:
-            retraced = cls.analyze_recent_load_of(q, caller, caller_reg, stage=stage+1)
+            retraced = self.analyze_recent_load_of(caller, caller_reg, stage=stage+1)
             if retraced:
               return retraced
     return None
 
   # TBD: tracing on static-array fields
-  @classmethod
-  def analyze_recent_array_load_of(cls, q: Query, from_: Op, reg: str) -> Optional[Op]:
-    return cls.analyze_recent_load_of(q, from_, reg)
+  def analyze_recent_array_load_of(self, from_: Op, reg: str) -> Optional[Op]:
+    return self.analyze_recent_load_of(from_, reg)
 
   # TBD: tracing on static-instance fields
-  @classmethod
-  def analyze_recent_instance_load_of(cls, q: Query, op: Op) -> Optional[Op]:
+  def analyze_recent_instance_load_of(self, op: Op) -> Optional[Op]:
     assert len(op.p) == 3
     assert op.t == 'id' and any(op.v.startswith(x) for x in ['iget-'])
     field = op.p[2].v
-    for o in itertools.chain(cls.looking_behind_from(q, op), q.iputs(field)):
+    for o in itertools.chain(self.looking_behind_from(op), self._q.iputs(field)):
       if o.t == 'id' and o.v.startswith('iput-') and o.p[2].v == field:
         return o
     return None
 
-  @classmethod
-  def analyze_recent_invocation(cls, q: Query, from_: Op) -> Optional[Op]:
-    for o in cls.looking_behind_from(q, from_):
+  def analyze_recent_invocation(self, from_: Op) -> Optional[Op]:
+    for o in self.looking_behind_from(from_):
       if o.t == 'id' and o.v.startswith('invoke'):
         return o
     return None
