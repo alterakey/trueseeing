@@ -8,7 +8,7 @@ if TYPE_CHECKING:
   from trueseeing.api import DetectorEntry, DetectorHelper, DetectorMap
   from trueseeing.core.context import Context, ContextType
   from trueseeing.core.android.db import Query
-  from trueseeing.core.model.issue import Issue
+  from trueseeing.core.model.issue import Issue, IssueConfidence
 
 class Scanner:
   _helper: DetectorHelper
@@ -102,3 +102,35 @@ class DetectorHelperImpl:
   def raise_issue(self, issue: Issue) -> None:
     from pubsub import pub
     pub.sendMessage('issue', issue=issue)
+  def build_issue(
+      self,
+      detector_id: str,
+      cvss_vector: str,
+      confidence: IssueConfidence,
+      summary: str,
+      description: Optional[str] = None,
+      seealso: Optional[str] = None,
+      synopsis: Optional[str] = None,
+      info1: Optional[str] = None,
+      info2: Optional[str] = None,
+      info3: Optional[str] = None,
+      source: Optional[str] = None,
+      row: Optional[str] = None,
+      col: Optional[str] = None,
+  ) -> Issue:
+    from trueseeing.core.model.issue import Issue
+    return Issue(
+      detector_id=detector_id,
+      cvss3_vector=cvss_vector,
+      confidence=confidence,
+      summary=summary,
+      description=description,
+      seealso=seealso,
+      synopsis=synopsis,
+      info1=info1,
+      info2=info2,
+      info3=info3,
+      source=source,
+      row=row,
+      col=col,
+    )
