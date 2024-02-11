@@ -13,6 +13,7 @@ if TYPE_CHECKING:
   CommandlineEntrypoint = Callable[[str], Coroutine[Any, Any, None]]
   CommandPatternEntrypoints = Union[CommandEntrypoint, CommandlineEntrypoint]
   DetectorEntrypoint = Callable[[], Coroutine[Any, Any, None]]
+  FormatHandlerEntrypoint = Callable[[str], Optional[Context]]
 
   class Entry(TypedDict, total=False):
     e: CommandEntrypoint
@@ -39,12 +40,17 @@ if TYPE_CHECKING:
     e: DetectorEntrypoint
     d: str
 
+  class FormatEntry(TypedDict):
+    e: FormatHandlerEntrypoint
+    d: str
+
   CommandMap = Mapping[str, CommandEntry]
   CommandPatternMap = Mapping[str, CommandPatternEntry]
   OptionMap = Mapping[str, OptionEntry]
   ModifierMap = Mapping[str, ModifierEntry]
   ConfigMap = Mapping[str, ConfigEntry]
   DetectorMap = Mapping[str, DetectorEntry]
+  FormatMap = Mapping[str, FormatEntry]
 
   class CommandHelper(Protocol):
     def get_target(self) -> Optional[str]: ...
@@ -90,6 +96,13 @@ if TYPE_CHECKING:
         col: Optional[str] = None,
     ) -> Issue: ...
 
+
+class FileFormatHandler(ABC):
+  @staticmethod
+  @abstractmethod
+  def create() -> FileFormatHandler: ...
+  @abstractmethod
+  def get_formats(self) -> FormatMap: ...
 
 class Command(ABC):
   @staticmethod
