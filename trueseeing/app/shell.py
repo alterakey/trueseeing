@@ -123,18 +123,22 @@ class Shell:
         abort_on_errors=args.abort_on_errors,
       )
     elif args.mode == 'scan':
-      from trueseeing.app.scan import ScanMode
-      app = ScanMode(
-        args.fn,
-        outform=args.scan_report_format,
-        outfile=args.scan_output_filename,
-        sigsels=args.scan_sigs.split(',') if args.scan_sigs else [],
-        excludes=args.scan_exclude_packages if args.scan_exclude_packages else [],
-      )
-      if args.scan_update_cache:
-        return self._launch(app.reanalyze())
-      else:
-        return self._launch(app.scan(oneshot=args.scan_no_cache))
+      from trueseeing.core.exc import InvalidFileFormatError
+      try:
+        from trueseeing.app.scan import ScanMode
+        app = ScanMode(
+          args.fn,
+          outform=args.scan_report_format,
+          outfile=args.scan_output_filename,
+          sigsels=args.scan_sigs.split(',') if args.scan_sigs else [],
+          excludes=args.scan_exclude_packages if args.scan_exclude_packages else [],
+        )
+        if args.scan_update_cache:
+          return self._launch(app.reanalyze())
+        else:
+          return self._launch(app.scan(oneshot=args.scan_no_cache))
+      except InvalidFileFormatError:
+        ui.fatal('cannot recognize format')
     else:
       assert False, f'unknown mode: {args.mode}'
 

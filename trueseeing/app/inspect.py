@@ -6,6 +6,7 @@ import asyncio
 from shlex import shlex
 import sys
 import re
+from trueseeing.core.context import FileOpener
 from trueseeing.core.ui import ui, CoreProgressReporter
 from trueseeing.core.exc import FatalError, InvalidSchemaError
 
@@ -286,6 +287,7 @@ class Runner:
 class CommandHelperImpl:
   def __init__(self, runner: Runner) -> None:
     self._r = runner
+    self._opener = FileOpener()
 
   def get_target(self) -> Optional[str]:
     return self._r.get_target()
@@ -297,11 +299,14 @@ class CommandHelperImpl:
     return t
 
   def get_context(self, typ: Optional[ContextType] = None) -> Any:
-    from trueseeing.core.android.context import APKContext
-    c = APKContext(self.require_target(), [])
-    if typ is not None:
-      c.require_type(typ)
-    return c
+    from trueseeing.core.exc import InvalidFileFormatError
+    try:
+      c = self._opener.get_context(self.require_target())
+      if typ is not None:
+        c.require_type(typ)
+      return c
+    except InvalidFileFormatError:
+      ui.fatal('cannot recognize format')
 
   async def get_context_analyzed(self, typ: Optional[ContextType] = None, *, level: int = 3) -> Any:
     c = self.get_context(typ)

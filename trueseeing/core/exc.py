@@ -12,3 +12,6 @@ class InvalidSchemaError(Exception):
 
 class InvalidContextError(Exception):
     pass
+
+class InvalidFileFormatError(Exception):
+    pass

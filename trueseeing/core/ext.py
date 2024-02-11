@@ -10,7 +10,7 @@ from trueseeing.core.env import get_extension_dir, get_extension_dir_v0, get_ext
 if TYPE_CHECKING:
   from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type, TypeVar
   from typing_extensions import Final
-  from trueseeing.api import Command, Detector
+  from trueseeing.api import Command, Detector, FileFormatHandler
 
   T = TypeVar('T')
 
@@ -98,6 +98,18 @@ class Extension:
         if missing:
           from trueseeing.core.tools import get_fully_qualified_classname
           ui.warn('ignoring command {}: missing methods: {}'.format(get_fully_qualified_classname(clazz), ', '.join(missing)))
+          continue
+        yield clazz
+
+  def get_fileformathandlers(self) -> Iterator[Type[FileFormatHandler]]:
+    from trueseeing.api import FileFormatHandler
+    from trueseeing.core.tools import get_public_subclasses, get_missing_methods
+    for _, m in self._ns.items():
+      for clazz in get_public_subclasses(m, FileFormatHandler):  # type: ignore[type-abstract]
+        missing = get_missing_methods(clazz)
+        if missing:
+          from trueseeing.core.tools import get_fully_qualified_classname
+          ui.warn('ignoring file format handler  {}: missing methods: {}'.format(get_fully_qualified_classname(clazz), ', '.join(missing)))
           continue
         yield clazz
 
