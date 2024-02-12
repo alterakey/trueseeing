@@ -4,8 +4,11 @@ from typing import TYPE_CHECKING
 from trueseeing.api import Detector
 
 if TYPE_CHECKING:
-  from trueseeing.api import DetectorHelper
+  from trueseeing.api import DetectorHelper, ConfigMap
 
 class DetectorMixin(Detector):
   def __init__(self, helper: DetectorHelper) -> None:
     self._helper = helper
+
+  def get_configs(self) -> ConfigMap:
+    return dict()

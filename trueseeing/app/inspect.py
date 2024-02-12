@@ -112,7 +112,7 @@ class Runner:
   _abort_on_errors: bool = False
   _helper: CommandHelper
 
-  def __init__(self, target: Optional[str], /, abort_on_errors: bool = False) -> None:
+  def __init__(self, target: Optional[str], *, abort_on_errors: bool = False) -> None:
     self._helper = CommandHelperImpl(self)
     self._target = target
     self._cmds = {
@@ -253,7 +253,7 @@ class Runner:
     await self._help_on('Modifiers:', self._mods)
 
   async def _help_conf(self, args: deque[str]) -> None:
-    await self._help_on('Configs:', self._confs)
+    await self._help_on('Configs:', self._confs)  # type: ignore[arg-type]
 
   async def _help_opt(self, args: deque[str]) -> None:
     await self._help_on('Options:', self._opts)

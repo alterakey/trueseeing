@@ -14,6 +14,8 @@ if TYPE_CHECKING:
   CommandPatternEntrypoints = Union[CommandEntrypoint, CommandlineEntrypoint]
   DetectorEntrypoint = Callable[[], Coroutine[Any, Any, None]]
   FormatHandlerEntrypoint = Callable[[str], Optional[Context]]
+  ConfigGetterEntrypoint = Callable[[], Any]
+  ConfigSetterEntrypoint = Callable[[Any], None]
 
   class Entry(TypedDict, total=False):
     e: CommandEntrypoint
@@ -33,8 +35,11 @@ if TYPE_CHECKING:
   class ModifierEntry(Entry):
     pass
 
-  class ConfigEntry(Entry):
-    pass
+  class ConfigEntry(TypedDict):
+    g: ConfigGetterEntrypoint
+    s: ConfigSetterEntrypoint
+    n: str
+    d: str
 
   class DetectorEntry(TypedDict):
     e: DetectorEntrypoint
@@ -98,30 +103,153 @@ if TYPE_CHECKING:
 
 
 class FileFormatHandler(ABC):
+  """File format handlers; they are responsible for opening path and create a valid Context."""
+
   @staticmethod
   @abstractmethod
-  def create() -> FileFormatHandler: ...
+  def create() -> FileFormatHandler:
+    """Creates and return itself; This is because Python checks classes of concreteness only in their instantiation. e.g.
+
+    return FooFileFormatHandler()
+    """
+    ...
   @abstractmethod
-  def get_formats(self) -> FormatMap: ...
+  def get_formats(self) -> FormatMap:
+    """Creates and return format descriptor. Format descriptors are dicts comprise of:
+
+    {"<path pattern>": dict(e=<entrypoint>, d="<description>")}
+
+    e.g.:
+
+    return {"\\.apk$": dict(e=self._handler, d="The Android Package File")}
+    """
+    ...
+  @abstractmethod
+  def get_configs(self) -> ConfigMap:
+    """Creates and return the config descriptor it provides. Config descriptors are dicts comprise of:
+
+    {"<name>": dict(g=<getter>, s=<setter>, n="<mnemonic>", d="<description>")}
+
+    e.g.:
+
+    return {
+      'some_value':dict(g=self._getter, s=self._setter, n='some_value=value', d='config variable'),
+    }
+    """
+    ...
 
 class Command(ABC):
+  """Commands; they provides one or more interactive mode commands."""
+
   @staticmethod
   @abstractmethod
-  def create(helper: CommandHelper) -> Command: ...
+  def create(helper: CommandHelper) -> Command:
+    """Creates and return itself; This is because Python checks classes of concreteness only in their instantiation. e.g.
+
+    return FooCommand(helper)
+    """
+    ...
   @abstractmethod
-  def get_commands(self) -> CommandMap: ...
+  def get_commands(self) -> CommandMap:
+    """Creates and return the command descriptor it provides. Command descriptors are dicts comprise of:
+
+    {"<cmd>": dict(e=<entrypoint>, n="<mnemonic>", d="<description>")}
+
+    e.g.:
+
+    return {
+      "a": dict(e=self._analyze, n="a[a]", d="Analyze"),
+      "aa": dict(e=self._analyze2),
+    }
+    """
+    ...
   @abstractmethod
-  def get_command_patterns(self) -> CommandPatternMap: ...
+  def get_command_patterns(self) -> CommandPatternMap:
+    """Creates and return the command pattern descriptor it provides. Command patterns are patterns that the first token (raw=False, the default) or whole command line (raw=True) should match. Entrypoints are called with tokens (raw=False) or whole command line (raw=True). Trailers are ignored while matching whole command line. Command pattern descriptors are dicts comprise of:
+
+    {"<pattern>": dict(e=<entrypoint>, raw=<False|True>, n="<mnemonic>", d="<description>")}
+
+    e.g.:
+
+    return {
+      "\\$[a-z0-9]+": dict(e=self._alias, n="$<name>[=<value>]", d="define alias"),
+      '\\(.+\\)':dict(e=self._alias2, raw=True, n='(macro x y; cmd; cmd; ..)', d='define macro'),
+    }
+    """
+    ...
   @abstractmethod
-  def get_modifiers(self) -> ModifierMap: ...
+  def get_modifiers(self) -> ModifierMap:
+    """Creates and return the modifier descriptor it recognizes. Modifier descriptors are dicts comprise of:
+
+    {"<name>": dict(n="<mnemonic>", d="<description>")}
+
+    e.g.:
+
+    return {
+      's':dict(n='@s:sig', d='include sig'),
+      'x':dict(n='@x:pa.ckage.name', d='exclude package'),
+    }
+    """
+    ...
   @abstractmethod
-  def get_configs(self) -> ConfigMap: ...
+  def get_configs(self) -> ConfigMap:
+    """Creates and return the config descriptor it provides. Config descriptors are dicts comprise of:
+
+    {"<name>": dict(g=<getter>, s=<setter>, n="<mnemonic>", d="<description>")}
+
+    e.g.:
+
+    return {
+      'some_value':dict(g=self._getter, s=self._setter, n='some_value=value', d='config variable'),
+    }
+    """
+    ...
   @abstractmethod
-  def get_options(self) -> OptionMap: ...
+  def get_options(self) -> OptionMap:
+    """Creates and return the option descriptor it recognizes. Option descriptors are dicts comprise of:
+
+    {"<name>": dict(n="<mnemonic>", d="<description>")}
+
+    e.g.:
+
+    return {
+      'nocache':dict(n='nocache', d='do not replicate content before build [ca]')
+    }
+    """
+    ...
 
 class Detector(ABC):
+  """Signatures; they provides one or more signatures for scanner."""
+
   @staticmethod
   @abstractmethod
-  def create(helper: DetectorHelper) -> Detector: ...
+  def create(helper: DetectorHelper) -> Detector:
+    """Creates and return itself; This is because Python checks classes of concreteness only in their instantiation. e.g.
+
+    return FooDetector(helper)
+    """
+    ...
   @abstractmethod
-  def get_descriptor(self) -> DetectorMap: ...
+  def get_descriptor(self) -> DetectorMap:
+    """Creates and return signature descriptor. Signature descriptors are dicts comprise of:
+
+    {"<detector id>": dict(e=<entrypoint>, d="<description>")}
+
+    e.g.:
+
+    return {"my-crypto-static-keys": dict(e=self._detect, d='Detects cryptographic function usage with static keys')}
+    """
+    ...
+  @abstractmethod
+  def get_configs(self) -> ConfigMap:
+    """Creates and return the config descriptor it provides. Config descriptors are dicts comprise of:
+
+    {"<name>": dict(g=<getter>, s=<setter>, n="<mnemonic>", d="<description>")}
+
+    e.g.:
+
+    return {
+      'some_value':dict(g=self._getter, s=self._setter, n='some_value=value', d='config variable'),
+    }
+    """
+    ...
