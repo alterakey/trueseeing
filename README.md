@@ -113,10 +113,7 @@ To get report generated in stdout, specify '-' as filename:
 
 ### Extensions
 
-You can write your own commands and signatures as extensions.  Extensions are placed under `/ext` (containers) or `~/.trueseeing2/extensions/` (pip) . Alternatively you can distribute your extensions as wheels. We provide type information so you can not only type-check your extensions with [mypy](https://github.com/python/mypy) but also get a decent assist from IDEs.
-
-_TBD: Document extension APIs_
-
+You can write your own commands and signatures as extensions.  Extensions are placed under `/ext` (containers) or `~/.trueseeing2/extensions/` (pip) . Alternatively you can distribute your extensions as wheels. We provide type information so you can not only type-check your extensions with [mypy](https://github.com/python/mypy) but also get a decent assist from IDEs. See the details section for details.
 
 ## Build
 
@@ -184,6 +181,122 @@ Currently we can detect the following class of vulnerabilities, largely ones cov
   * Reverse Engineering (M9)
 
 	* Lack of obfuscation
+
+### Extension API
+
+Extension API lays under the `trueseeing.api` package. We provide type information for these classes, your IDE will assist you.
+
+#### Commands
+
+To define a new command, implement `trueseeing.api.Command` and advertise the command you provide.
+
+The following class will provide a sample command as `t`, for example:
+
+```python
+from typing import TYPE_CHECKING
+from trueseeing.api import Command
+from truseeing.core.ui import ui
+if TYPE_CHECKING:
+  from trueseeing.api import CommandMap, CommandPatternMap, ModifierMap, OptionMap, ConfigMap
+
+class MyCommand(Command):
+  @staticmethod
+  def create() -> Command:
+	return MyCommand()
+
+  def get_commands(self) -> CommandMap:
+	return {'t':dict(e=self._test, n='t', d='sample command')}
+
+  def get_command_patterns(self) -> CommandPatternMap:
+	return dict()
+
+  def get_modifiers(self) -> ModifierMap:
+	 return dict()
+
+  def get_options(self) -> OptionMap:
+	return dict()
+
+  def get_configs(self) -> ConfigMap:
+	return dict()
+
+  async def _test(self) -> None:
+	ui.info('hello world')
+```
+
+#### Signatures
+
+To define a new signature, implement `trueseeing.api.Detector` and advertise the detector you provide.
+
+The following class will provide a sample detector as `my-detector`, for example:
+
+```python
+from typing import TYPE_CHECKING
+from trueseeing.api import Detector
+if TYPE_CHECKING:
+  from trueseeing.api import DetectorMap, ConfigMap
+
+class MySignature(Detector):
+  @staticmethod
+  def create() -> Detector:
+	return MySignature()
+
+  def get_descriptor(self) -> DetetorMap:
+	return {'my-detector':dict(e=self._detect, d='sample detector ')}
+
+  def get_configs(self) -> ConfigMap:
+	return dict()
+
+  async def _detect(self) -> None:
+	self._helper.raise_issue(
+	  self._helper.build_issue(
+		detector_id='my-detector',
+		summary='hello world',
+		confidence='firm',
+		cvss_vector='CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/',
+	  )
+	)
+```
+
+
+#### File Formats
+
+To define a new file format, implement `trueseeing.api.FileFormatHandler` and advertise the format you support.
+
+The following class will provide APK file support, for example:
+
+```python
+from typing import TYPE_CHECKING
+from trueseeing.api import FileFormatHandler
+if TYPE_CHECKING:
+  from typing import Optional
+  from trueseeing.api import FormatMap, ConfigMap
+  from trueseeing.core.comtext import Context
+
+class APKFileFormatHandler(FileFormatHandler):
+  @staticmethod
+  def create() -> FileFormatHandler:
+	return APKFileFormatHandler()
+
+  def get_formats(self) -> FormatMap:
+	return {r'\.apk$':dict(e=self._handle, d='apk')}
+
+  def get_configs(self) -> ConfigMap:
+	return dict()
+
+  def _handle(self, path: str) -> Optional[Context]:
+	from trueseeing.core.android.context import APKContext
+	return APKContext(path, [])
+```
+
+Then make sure you check for context type from your signatures, making them ignored on unsupported contexts:
+
+```python
+context = self._helper.get_context('apk')
+```
+
+#### Package requirements
+
+Extensions can be either: any package placed under `/ext` (container) or `~/.truseeing2/extensions` (pip), or any installed module named with prefix of `trueseeing_ext0_`.
 
 ### Origin of Project Name?
 

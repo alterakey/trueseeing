@@ -114,7 +114,7 @@ class Extension:
         yield clazz
 
   # XXX: gross hack
-  def _importer(self, path: str, /, only: Optional[str] = None) -> Optional[str]:
+  def _importer(self, path: str, *, only: Optional[str] = None) -> Optional[str]:
     from glob import iglob
     import re
     path = os.path.expandvars(os.path.expanduser(path))

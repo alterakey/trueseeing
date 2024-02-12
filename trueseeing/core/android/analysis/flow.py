@@ -180,7 +180,7 @@ class DataFlow:
       return 'Ljava/lang/Object;'
 
   @classmethod
-  def _approximated_size_of_graph(cls, d: Optional[DataGraph], /, _cache:Optional[Dict[int, int]] = None) -> int:
+  def _approximated_size_of_graph(cls, d: Optional[DataGraph], *, _cache:Optional[Dict[int, int]] = None) -> int:
     if _cache is None:
       _cache = dict()
 
