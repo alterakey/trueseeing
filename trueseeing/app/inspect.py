@@ -260,13 +260,14 @@ class Runner:
 
   async def _help_on(self, topic: str, entries: Dict[str, Entry]) -> None:
     ui.success(topic)
-    width = (2 + max([len(e.get('d', '')) for e in entries.values()]) // 4) * 4
-    for k in sorted(entries):
-      e = entries[k]
-      if 'n' in e:
-        ui.stderr(
-          f'{{n:<{width}s}}{{d}}'.format(n=e['n'], d=e['d'])
-        )
+    if entries:
+      width = (2 + max([len(e.get('d', '')) for e in entries.values()]) // 4) * 4
+      for k in sorted(entries):
+        e = entries[k]
+        if 'n' in e:
+          ui.stderr(
+            f'{{n:<{width}s}}{{d}}'.format(n=e['n'], d=e['d'])
+          )
 
   async def _shell(self, args: deque[str]) -> None:
     from trueseeing.core.env import get_shell
