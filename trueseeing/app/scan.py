@@ -25,7 +25,7 @@ class ScanMode:
     self._context = FileOpener().get_context(self._target)
     self._context.excludes = excludes
     self._reporter = self._get_reporter(self._context, outform, outfile)
-    self._scanner = Scanner(self._context, sigsels, excludes)
+    self._scanner = Scanner(self._context, sigsels=sigsels, excludes=excludes)
 
   async def reanalyze(self) -> int:
     with CoreProgressReporter().scoped():

@@ -13,7 +13,7 @@ from trueseeing.core.exc import FatalError, InvalidSchemaError
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
   from trueseeing.core.context import ContextType
-  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigEntry
+  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry
 
 class InspectMode:
   def do(
@@ -105,7 +105,6 @@ class Runner:
   _cmdpats: Dict[str, CommandPatternEntry]
   _mods: Dict[str, ModifierEntry]
   _opts: Dict[str, OptionEntry]
-  _confs: Dict[str, ConfigEntry]
   _quiet: bool = False
   _verbose: bool = False
   _target: Optional[str]
@@ -113,11 +112,10 @@ class Runner:
   _helper: CommandHelper
 
   def __init__(self, target: Optional[str], *, abort_on_errors: bool = False) -> None:
-    self._helper = CommandHelperImpl(self)
+    from trueseeing.core.config import Configs
     self._target = target
     self._cmds = {
       '?':dict(e=self._help, n='?', d='help'),
-      '?e?':dict(e=self._help_conf, n='?e?', d='config help'),
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
       '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
       '!':dict(e=self._shell, n='!', d='shell'),
@@ -129,11 +127,12 @@ class Runner:
       'o':dict(n='@o:option', d='pass option'),
       'gs':dict(n='@gs:<int>[kmKM]', d='set graph size limit'),
     }
-    self._confs = {
-    }
+    self._confbag = Configs.get().bag
     self._opts = {}
     if abort_on_errors:
       self._abort_on_errors = True
+
+    self._helper = CommandHelperImpl(self)
 
     self._init_cmds()
 
@@ -152,8 +151,8 @@ class Runner:
     self._cmds.update(t.get_commands())
     self._cmdpats.update(t.get_command_patterns())
     self._mods.update(t.get_modifiers())
-    self._confs.update(t.get_configs())
     self._opts.update(t.get_options())
+    self._confbag.update(t.get_configs())
 
   def get_target(self) -> Optional[str]:
     return self._target
@@ -252,9 +251,6 @@ class Runner:
   async def _help_mod(self, args: deque[str]) -> None:
     await self._help_on('Modifiers:', self._mods)
 
-  async def _help_conf(self, args: deque[str]) -> None:
-    await self._help_on('Configs:', self._confs)  # type: ignore[arg-type]
-
   async def _help_opt(self, args: deque[str]) -> None:
     await self._help_on('Options:', self._opts)
 
@@ -289,6 +285,7 @@ class CommandHelperImpl:
   def __init__(self, runner: Runner) -> None:
     self._r = runner
     self._opener = FileOpener()
+    self._confbag = self._r._confbag
 
   def get_target(self) -> Optional[str]:
     return self._r.get_target()
@@ -353,3 +350,11 @@ class CommandHelperImpl:
         else:
           return int(m[4:])
     return None
+
+  def get_config(self, k: str) -> Any:
+    e = self._confbag[k]
+    return e['g']()
+
+  def set_config(self, k: str, v: Any) -> None:
+    e = self._confbag[k]
+    e['s'](v)
