@@ -267,9 +267,9 @@ class Query:
   def issue_raise(self, i: Issue) -> None:
     assert i.cvss3_score is not None
     self.db.execute(
-      'insert or ignore into analysis_issues (detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:detector_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
+      'insert or ignore into analysis_issues (sig, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:sig_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
       dict(
-        detector_id=i.detector_id,
+        sig_id=i.sig_id,
         summary=i.summary,
         confidence=self._issue_confidence_to_int(i.confidence),
         cvss3_vector=i.cvss3_vector,
@@ -290,11 +290,11 @@ class Query:
     self.db.execute('delete from analysis_issues')
 
   def issues(self) -> Iterable[Issue]:
-    for m in self.db.execute('select detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues'):
+    for m in self.db.execute('select sig, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues'):
       yield self._issue_from_row(m)
 
   def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, Optional[str], Optional[str], Optional[str], Optional[str], float, str]]]:
-    for no, r in enumerate(self.db.execute('select distinct detector, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
+    for no, r in enumerate(self.db.execute('select distinct sig, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
       yield no, (
         r[0],
         r[1],
@@ -306,8 +306,8 @@ class Query:
         r[7],
       )
 
-  def issues_by_group(self, *, detector: str, summary: str) -> Iterable[Issue]:
-    for m in self.db.execute('select detector, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues where detector=:detector and summary=:summary order by cvss3_score desc, confidence desc', dict(detector=detector, summary=summary)):
+  def issues_by_group(self, *, sig: str, summary: str) -> Iterable[Issue]:
+    for m in self.db.execute('select sig, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues where sig=:sig and summary=:summary order by cvss3_score desc, confidence desc', dict(sig=sig, summary=summary)):
       yield self._issue_from_row(m)
 
   def op_get(self, k: int) -> Optional[Op]:
@@ -360,7 +360,7 @@ class Query:
   @classmethod
   def _issue_from_row(cls, r: Tuple[Any, ...]) -> Issue:
     return Issue(
-      detector_id=r[0],
+      sig_id=r[0],
       summary=r[1],
       confidence=cls._issue_confidence_from_int(r[9]),
       cvss3_vector=r[11],

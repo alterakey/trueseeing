@@ -8,26 +8,26 @@ import os
 
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
-from trueseeing.core.model.sig import DetectorMixin
+from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.model.issue import Issue
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, Set, Tuple, Any, TypeVar, Dict
-  from trueseeing.api import Detector, DetectorHelper, DetectorMap
+  from trueseeing.api import Signature, SignatureHelper, SignatureMap
   from trueseeing.core.model.issue import IssueConfidence
   T = TypeVar('T')
 
-class SecurityFilePermissionDetector(DetectorMixin):
+class SecurityFilePermissionDetector(SignatureMixin):
   _id = 'security-file-permission'
   _cvss = 'CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
   _summary = 'insecure file permission'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return SecurityFilePermissionDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects insecure file creation')}
 
   async def detect(self) -> None:
@@ -42,7 +42,7 @@ class SecurityFilePermissionDetector(DetectorMixin):
         target_val = int(DataFlow(q).solved_constant_data_in_invocation(cl, 1), 16)
         if target_val & 3:
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='certain',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -53,17 +53,17 @@ class SecurityFilePermissionDetector(DetectorMixin):
         pass
 
 
-class SecurityTlsInterceptionDetector(DetectorMixin):
+class SecurityTlsInterceptionDetector(SignatureMixin):
   _id = 'security-tls-interception'
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:C/C:L/I:L/A:L/'
   _cvss_info = 'CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'insecure TLS connection'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return SecurityTlsInterceptionDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects certificate (non-)pinning')}
 
   async def detect(self) -> None:
@@ -79,7 +79,7 @@ class SecurityTlsInterceptionDetector(DetectorMixin):
           if e.attrib.get('src') == 'user':
             pin_nsc = False
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='firm',
               cvss3_vector=self._cvss,
               summary=self._summary,
@@ -90,7 +90,7 @@ class SecurityTlsInterceptionDetector(DetectorMixin):
             dig: str
             algo, dig = pin.attrib('digest', '(unknown)'), pin.text
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='firm',
               cvss3_vector=self._cvss_info,
               summary='explicit ceritifcate pinning',
@@ -100,7 +100,7 @@ class SecurityTlsInterceptionDetector(DetectorMixin):
       if not self._do_detect_plain_pins_x509():
         if not self._do_detect_plain_pins_hostnameverifier():
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='firm',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -220,7 +220,7 @@ class LayoutSizeGuesser:
     return [set(c.split('-')) for c in path.split(os.sep) if 'layout' in c][0]
 
 
-class SecurityTamperableWebViewDetector(DetectorMixin):
+class SecurityTamperableWebViewDetector(SignatureMixin):
   _id = 'security-tamperable-webview'
   description = 'Detects tamperable WebView'
   _summary1 = 'tamperable webview'
@@ -231,10 +231,10 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
   _xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return SecurityTamperableWebViewDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects tamperable WebView')}
 
   async def detect(self) -> None:
@@ -262,7 +262,7 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
         if size > 0.5:
           try:
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='tentative',
               cvss3_vector=self._cvss1,
               summary=self._summary1,
@@ -281,7 +281,7 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
         v = DataFlow(q).solved_constant_data_in_invocation(op, 0)
         if v.startswith('http://'):
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='firm',
             cvss3_vector=self._cvss2,
             summary=self._summary2,
@@ -292,7 +292,7 @@ class SecurityTamperableWebViewDetector(DetectorMixin):
         pass
 
 
-class SecurityInsecureWebViewDetector(DetectorMixin):
+class SecurityInsecureWebViewDetector(SignatureMixin):
   _id = 'security-insecure-webview'
   _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
   _cvss2 = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L/'
@@ -308,10 +308,10 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
   _xmlns_android = '{http://schemas.android.com/apk/res/android}'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return SecurityInsecureWebViewDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect,d='Detects insecure WebView')}
 
   # FIXME: Come up with something more right
@@ -355,7 +355,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
                 try:
                   if DataFlow(query).solved_constant_data_in_invocation(q, 0):
                     self._helper.raise_issue(Issue(
-                      detector_id=self._id,
+                      sig_id=self._id,
                       confidence='firm',
                       cvss3_vector=self._cvss,
                       summary=self._summary1,
@@ -363,7 +363,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
                     ))
                 except (DataFlow.NoSuchValueError):
                   self._helper.raise_issue(Issue(
-                    detector_id=self._id,
+                    sig_id=self._id,
                     confidence='tentative',
                     cvss3_vector=self._cvss,
                     summary=self._summary1,
@@ -382,7 +382,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
           val = int(DataFlow(query).solved_constant_data_in_invocation(q, 0), 16)
           if val == 0:
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='firm',
               cvss3_vector=self._cvss2,
               summary=self._summary2,
@@ -390,7 +390,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
               source=query.qualname_of(q)))
           elif val == 2:
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='firm',
               cvss3_vector=self._cvss2b,
               summary=self._summary2b,
@@ -402,7 +402,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
       for target in targets:
         for q in query.invocations(InvocationPattern('invoke-virtual', f'{target}->loadUrl')):
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='firm',
             cvss3_vector=self._cvss,
             summary=self._summary2,
@@ -425,7 +425,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
             csp: Optional[str] = None if m is None else m.group(1)
             if csp is None or any([(x in csp.lower()) for x in ('unsafe', 'http:')]):
               self._helper.raise_issue(Issue(
-                detector_id=self._id,
+                sig_id=self._id,
                 confidence='firm',
                 cvss3_vector=self._cvss3,
                 summary=self._summary3,
@@ -435,7 +435,7 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
               ))
             else:
               self._helper.raise_issue(Issue(
-                detector_id=self._id,
+                sig_id=self._id,
                 confidence='firm',
                 cvss3_vector=self._cvss4,
                 summary=self._summary4,
@@ -446,16 +446,16 @@ class SecurityInsecureWebViewDetector(DetectorMixin):
       except DataFlow.NoSuchValueError:
         pass
 
-class FormatStringDetector(DetectorMixin):
+class FormatStringDetector(SignatureMixin):
   _id = 'security-format-string'
   _summary = 'detected format string'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return FormatStringDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects format string usages')}
 
   def _analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
@@ -472,7 +472,7 @@ class FormatStringDetector(DetectorMixin):
         continue
       for t in self._analyzed(cl.p[1].v):
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence=t['confidence'],
           cvss3_vector=self._cvss,
           summary=self._summary,
@@ -482,7 +482,7 @@ class FormatStringDetector(DetectorMixin):
     for name, val in context.string_resources():
       for t in self._analyzed(val):
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence=t['confidence'],
           cvss3_vector=self._cvss,
           summary=self._summary,
@@ -490,16 +490,16 @@ class FormatStringDetector(DetectorMixin):
           source=f'R.string.{name}'
         ))
 
-class LogDetector(DetectorMixin):
+class LogDetector(SignatureMixin):
   _id = 'security-log'
   _summary = 'detected logging'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return LogDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects logging activities')}
 
   async def detect(self) -> None:
@@ -513,7 +513,7 @@ class LogDetector(DetectorMixin):
       if 'print' not in cl.p[1].v:
         try:
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='tentative',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -523,7 +523,7 @@ class LogDetector(DetectorMixin):
           ))
         except (DataFlow.NoSuchValueError):
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='tentative',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -533,7 +533,7 @@ class LogDetector(DetectorMixin):
       elif 'Exception;->' not in cl.p[1].v:
         try:
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='tentative',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -543,7 +543,7 @@ class LogDetector(DetectorMixin):
           ))
         except (DataFlow.NoSuchValueError):
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='tentative',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -552,7 +552,7 @@ class LogDetector(DetectorMixin):
           ))
       else:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='tentative',
           cvss3_vector=self._cvss,
           summary=self._summary,
@@ -560,17 +560,17 @@ class LogDetector(DetectorMixin):
           source=q.qualname_of(cl)
         ))
 
-class ADBProbeDetector(DetectorMixin):
+class ADBProbeDetector(SignatureMixin):
   _id = 'security-adb-detect'
   _cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'USB debugging detection'
   _synopsis = 'The application is probing for USB debugging (adbd.)'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ADBProbeDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects probe of adbd status.')}
 
   async def detect(self) -> None:
@@ -584,7 +584,7 @@ class ADBProbeDetector(DetectorMixin):
       for found in DataFlow(q).solved_possible_constant_data_in_invocation(cl, 1):
         if found == 'adb_enabled':
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='firm',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -592,17 +592,17 @@ class ADBProbeDetector(DetectorMixin):
             synopsis=self._synopsis,
           ))
 
-class ClientXSSJQDetector(DetectorMixin):
+class ClientXSSJQDetector(SignatureMixin):
   _id = 'security-cxss-jq'
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N/'
   _summary = 'Potential client-side XSS (JQuery)'
   _synopsis = "The application pours literal HTML in JQuery context."
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ClientXSSJQDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects potential client-side XSS vector in JQuery-based apps')}
 
   async def detect(self) -> None:
@@ -612,7 +612,7 @@ class ClientXSSJQDetector(DetectorMixin):
       for l in f:
         for m in re.finditer(r'\.html\(', l):
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='firm',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -620,7 +620,7 @@ class ClientXSSJQDetector(DetectorMixin):
             synopsis=self._synopsis,
           ))
 
-class SecurityFileWriteDetector(DetectorMixin):
+class SecurityFileWriteDetector(SignatureMixin):
   _id = 'security-file-write'
   _cvss1 = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N/'
   _summary1 = 'detected potential logging into file'
@@ -630,10 +630,10 @@ class SecurityFileWriteDetector(DetectorMixin):
   _synopsis2 = 'The application opens files for writing.'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return SecurityFileWriteDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects file creation')}
 
   async def detect(self) -> None:
@@ -651,7 +651,7 @@ class SecurityFileWriteDetector(DetectorMixin):
 
       if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss1,
           summary=self._summary1,
@@ -661,7 +661,7 @@ class SecurityFileWriteDetector(DetectorMixin):
         ))
       else:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss2,
           summary=self._summary2,
@@ -680,7 +680,7 @@ class SecurityFileWriteDetector(DetectorMixin):
         if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
           if not re.search(r'^/proc/|^/sys/', target_val):
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='tentative',
               cvss3_vector=self._cvss1,
               summary=self._summary1,
@@ -691,7 +691,7 @@ class SecurityFileWriteDetector(DetectorMixin):
       except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
-class SecurityInsecureRootedDetector(DetectorMixin):
+class SecurityInsecureRootedDetector(SignatureMixin):
   _id = 'security-insecure-rooted'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
@@ -699,10 +699,10 @@ class SecurityInsecureRootedDetector(DetectorMixin):
   _pat_detect = r'Sup(?!p)|/su(?!pp)|xbin|sbin|root'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return SecurityInsecureRootedDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects insecure rooted device probes')}
 
   async def detect(self) -> None:
@@ -748,10 +748,10 @@ class SecurityInsecureRootedDetector(DetectorMixin):
     # TBD: fussy match
     for qn,vals in path_based_detection_attempt.items():
       if qn not in attestations:
-        self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(vals), source=qn))
+        self._helper.raise_issue(Issue(sig_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(vals), source=qn))
     for qn,verdicts in attestations.items():
       if qn not in path_based_detection_attempt:
-        self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(verdicts), source=qn))
+        self._helper.raise_issue(Issue(sig_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(verdicts), source=qn))
 
   def _get_attempts(self, x: str) -> Set[str]:
     o: Set[str] = set()
@@ -761,17 +761,17 @@ class SecurityInsecureRootedDetector(DetectorMixin):
         o.add(v)
     return o
 
-class SecuritySharedPreferencesDetector(DetectorMixin):
+class SecuritySharedPreferencesDetector(SignatureMixin):
   _id = 'security-sharedpref'
   _cvss = 'CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'detected SharedPreference access'
   _synopsis = 'The application is using SharedPreferences. This is purely informational; Using the subsystem alone does not constitute a security issue.'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return SecuritySharedPreferencesDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects SharedPreferences access')}
 
   async def detect(self) -> None:
@@ -788,7 +788,7 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
         target_val = '(unknown name)'
 
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary=self._summary,
@@ -808,7 +808,7 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
         target_val = '(unknown name)'
 
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary=self._summary,
@@ -828,7 +828,7 @@ class SecuritySharedPreferencesDetector(DetectorMixin):
         target_val = '(unknown name)'
 
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary=self._summary,

@@ -6,7 +6,7 @@ import re
 import math
 from functools import cache
 
-from trueseeing.core.model.sig import DetectorMixin
+from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.issue import Issue
@@ -15,9 +15,9 @@ if TYPE_CHECKING:
   from typing import Dict, Iterable, Optional, Any
   from trueseeing.core.android.model.code import Op
   from trueseeing.core.android.store import Store
-  from trueseeing.api import Detector, DetectorHelper, DetectorMap
+  from trueseeing.api import Signature, SignatureHelper, SignatureMap
 
-class CryptoStaticKeyDetector(DetectorMixin):
+class CryptoStaticKeyDetector(SignatureMixin):
   _id = 'crypto-static-keys'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N/'
   _cvss_nonkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
@@ -25,10 +25,10 @@ class CryptoStaticKeyDetector(DetectorMixin):
   _cvss_privkey = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return CryptoStaticKeyDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id: dict(e=self.detect, d='Detects cryptographic function usage with static keys')}
 
   @classmethod
@@ -90,7 +90,7 @@ class CryptoStaticKeyDetector(DetectorMixin):
 
             if looks_like_real_key(found):
               self._helper.raise_issue(Issue(
-                detector_id=self._id,
+                sig_id=self._id,
                 cvss3_vector=self._cvss,
                 confidence='firm',
                 summary='insecure cryptography: static keys detected',
@@ -107,7 +107,7 @@ Use a device or installation specific information, or obfuscate them.
               ))
             else:
               self._helper.raise_issue(Issue(
-                detector_id=self._id,
+                sig_id=self._id,
                 cvss3_vector=self._cvss_nonkey,
                 confidence='tentative',
                 summary='Cryptographic constants detected',
@@ -143,7 +143,7 @@ Possible cryptographic constants has been found in the application binary.
       typ = self._inspect_value_type(val)
       param = self._build_template_params(val, typ)
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
         confidence='certain' if typ else ('firm' if should_be_secret(store, cl, val) else 'tentative'),
         summary=('insecure cryptography: {key} detected' if not param['nonkey'] else '{key} detected').format(**param),
@@ -162,7 +162,7 @@ Use a device or installation specific information, or obfuscate them.
         typ = self._inspect_value_type(val)
         param = self._build_template_params(val, typ)
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
           confidence='certain' if typ else 'firm',
           summary=('insecure cryptography: {key} detected' if param['nonkey'] else '{key} detected').format(**param),
@@ -251,15 +251,15 @@ Use a device or installation specific information, or obfuscate them.
           return '{}'.format(algo.upper())
 
 
-class CryptoEcbDetector(DetectorMixin):
+class CryptoEcbDetector(SignatureMixin):
   _id = 'crypto-ecb'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return CryptoEcbDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id: dict(e=self.detect, d='Detects ECB mode ciphers')}
 
   async def detect(self) -> None:
@@ -274,7 +274,7 @@ class CryptoEcbDetector(DetectorMixin):
         target_val = DataFlow(q).solved_possible_constant_data_in_invocation(cl, 0)
         if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             cvss3_vector=self._cvss,
             confidence='certain',
             summary='insecure cryptography: cipher might be operating in ECB mode',
@@ -291,15 +291,15 @@ Use CBC or CTR mode.
       except (DataFlow.NoSuchValueError):
         pass
 
-class CryptoNonRandomXorDetector(DetectorMixin):
+class CryptoNonRandomXorDetector(SignatureMixin):
   _id = 'crypto-xor'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return CryptoNonRandomXorDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id: dict(e=self.detect, d='Detects Vernum cipher usage with static keys')}
 
   async def detect(self) -> None:
@@ -313,7 +313,7 @@ class CryptoNonRandomXorDetector(DetectorMixin):
       target_val = int(cl.p[2].v, 16)
       if (cl.p[0].v == cl.p[1].v) and target_val > 1:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           cvss3_vector=self._cvss,
           confidence='firm',
           summary='insecure cryptography: non-random XOR cipher',
