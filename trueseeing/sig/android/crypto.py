@@ -9,7 +9,6 @@ from functools import cache
 from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
-from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Dict, Iterable, Optional, Any
@@ -84,38 +83,37 @@ class CryptoStaticKeyDetector(SignatureMixin):
                 continue
 
               decoded = base64.b64decode(found)
-              info1 = '"{target_val}" [{target_val_len}] (base64; "{decoded_val}" [{decoded_val_len}])'.format(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
+              info0 = '"{target_val}" [{target_val_len}] (base64; "{decoded_val}" [{decoded_val_len}])'.format(target_val=found, target_val_len=len(found), decoded_val=binascii.hexlify(decoded).decode('ascii'), decoded_val_len=len(decoded))
             except (ValueError, binascii.Error):
-              info1 = f'"{found}" [{len(found)}]'
+              info0 = f'"{found}" [{len(found)}]'
 
             if looks_like_real_key(found):
-              self._helper.raise_issue(Issue(
-                sig_id=self._id,
-                cvss3_vector=self._cvss,
-                confidence='firm',
-                summary='insecure cryptography: static keys detected',
-                info1=info1,
-                info2=q.method_call_target_of(cl),
-                source=qn,
-                synopsis='Traces of cryptographic material has been found the application binary.',
-                description='''\
+              self._helper.raise_issue(self._helper.build_issue(
+                sigid=self._id,
+                cvss=self._cvss,
+                title='insecure cryptography: static keys detected',
+                info0=info0,
+                info1=q.method_call_target_of(cl),
+                aff0=qn,
+                summary='Traces of cryptographic material has been found the application binary.',
+                desc='''\
 Traces of cryptographic material has been found in the application binary.  If cryptographic material is hardcoded, attackers can extract or replace them.
 ''',
-                solution='''\
+                sol='''\
 Use a device or installation specific information, or obfuscate them.
 '''
               ))
             else:
-              self._helper.raise_issue(Issue(
-                sig_id=self._id,
-                cvss3_vector=self._cvss_nonkey,
-                confidence='tentative',
-                summary='Cryptographic constants detected',
-                info1=info1,
-                info2=q.method_call_target_of(cl),
-                source=qn,
-                synopsis='Possible cryptographic constants have been found.',
-                description='''\
+              self._helper.raise_issue(self._helper.build_issue(
+                sigid=self._id,
+                cvss=self._cvss_nonkey,
+                cfd='tentative',
+                title='Cryptographic constants detected',
+                info0=info0,
+                info1=q.method_call_target_of(cl),
+                aff0=qn,
+                summary='Possible cryptographic constants have been found.',
+                desc='''\
 Possible cryptographic constants has been found in the application binary.
 '''
               ))
@@ -142,17 +140,17 @@ Possible cryptographic constants has been found in the application binary.
       val = cl.p[1].v
       typ = self._inspect_value_type(val)
       param = self._build_template_params(val, typ)
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
-        confidence='certain' if typ else ('firm' if should_be_secret(store, cl, val) else 'tentative'),
-        summary=('insecure cryptography: {key} detected' if not param['nonkey'] else '{key} detected').format(**param),
-        info1='"{val}" [{len}] ({keytype})'.format(**param),
-        source=qn,
-        synopsis='Traces of {key}s have been found the application binary.'.format(**param),
-        description='''\
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cvss=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
+        cfd='certain' if typ else ('firm' if should_be_secret(store, cl, val) else 'tentative'),
+        title=('insecure cryptography: {key} detected' if not param['nonkey'] else '{key} detected').format(**param),
+        info0='"{val}" [{len}] ({keytype})'.format(**param),
+        aff0=qn,
+        summary='Traces of {key}s have been found the application binary.'.format(**param),
+        desc='''\
 Traces of {key}s have been found in the application binary.  If they are hardcoded, attackers can extract or replace them.'''.format(**param),
-        solution='''\
+        sol='''\
 Use a device or installation specific information, or obfuscate them.
 '''
       ))
@@ -161,17 +159,17 @@ Use a device or installation specific information, or obfuscate them.
       if re.match(pat, val):
         typ = self._inspect_value_type(val)
         param = self._build_template_params(val, typ)
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          cvss3_vector=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
-          confidence='certain' if typ else 'firm',
-          summary=('insecure cryptography: {key} detected' if param['nonkey'] else '{key} detected').format(**param),
-          info1='"{val}" [{len}] ({keytype})'.format(**param),
-          source=f'R.string.{name}',
-          synopsis='Traces of {key}s have been found the application binary.'.format(**param),
-          description='''\
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cvss=self._cvss_nonkey if param['nonkey'] else (self._cvss_pubkey if not param['private'] else self._cvss_privkey),
+          cfd='certain' if typ else 'firm',
+          title=('insecure cryptography: {key} detected' if param['nonkey'] else '{key} detected').format(**param),
+          info0='"{val}" [{len}] ({keytype})'.format(**param),
+          aff0=f'R.string.{name}',
+          summary='Traces of {key}s have been found the application binary.'.format(**param),
+          desc='''\
 Traces of {key}s have been found in the application binary.  If they are hardcoded, attackers can extract or replace them.'''.format(**param),
-          solution='''\
+          sol='''\
 Use a device or installation specific information, or obfuscate them.
 '''
         ))
@@ -273,18 +271,18 @@ class CryptoEcbDetector(SignatureMixin):
       try:
         target_val = DataFlow(q).solved_possible_constant_data_in_invocation(cl, 0)
         if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            cvss3_vector=self._cvss,
-            confidence='certain',
-            summary='insecure cryptography: cipher might be operating in ECB mode',
-            info1=','.join(target_val),
-            source=qn,
-            synopsis='The application might be using ciphers in ECB mode.',
-            description='''\
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss,
+            cfd='certain',
+            title='insecure cryptography: cipher might be operating in ECB mode',
+            info0=','.join(target_val),
+            aff0=qn,
+            summary='The application might be using ciphers in ECB mode.',
+            desc='''\
             The application might be using symmetric ciphers in ECB mode.  ECB mode is the most basic operating mode that independently transform data blocks.  Indepent transformation leaks information about distribution in plaintext.
 ''',
-            solution='''\
+            sol='''\
 Use CBC or CTR mode.
 '''
           ))
@@ -312,11 +310,10 @@ class CryptoNonRandomXorDetector(SignatureMixin):
         continue
       target_val = int(cl.p[2].v, 16)
       if (cl.p[0].v == cl.p[1].v) and target_val > 1:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          cvss3_vector=self._cvss,
-          confidence='firm',
-          summary='insecure cryptography: non-random XOR cipher',
-          info1=f'0x{target_val:02x}',
-          source=q.qualname_of(cl)
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cvss=self._cvss,
+          title='insecure cryptography: non-random XOR cipher',
+          info0=f'0x{target_val:02x}',
+          aff0=q.qualname_of(cl)
         ))

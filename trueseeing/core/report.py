@@ -32,14 +32,14 @@ class ConsoleNoter:
 
   @classmethod
   def _formatted(cls, issue: Issue) -> str:
-    return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [{sig_id}]'.format(
-      source=noneif(issue.source, '(global)'),
-      row=noneif(issue.row, 0),
-      col=noneif(issue.col, 0),
-      severity=issue.severity(),
-      confidence=issue.confidence,
-      description=issue.brief_description(),
-      sig_id=issue.sig_id
+    return '{aff0}:{aff1}:{aff2}:{sev}{{{cfd}}}:{desc} [{sigid}]'.format(
+      aff0=noneif(issue.aff0, '(global)'),
+      aff1=noneif(issue.aff1, 0),
+      aff2=noneif(issue.aff2, 0),
+      sev=issue.sev,
+      cfd=issue.cfd,
+      desc=issue.brief_desc(),
+      sigid=issue.sigid
     )
 
 class CIReportGenerator:
@@ -85,18 +85,18 @@ class HTMLReportGenerator:
 
       for no, row in query.findings_list():
         instances: List[Dict[str, Any]] = []
-        issues.append(dict(no=no, sig=row[0], summary=row[1].title(), synopsis=row[2], description=row[3], seealso=row[4], solution=row[5], cvss3_score=row[6], cvss3_vector=row[7], severity=CVSS3Scoring.severity_of(row[6]).title(), instances=instances, severity_panel_style={'critical':'panel-danger', 'high':'panel-warning', 'medium':'panel-warning', 'low':'panel-success', 'info':'panel-info'}[CVSS3Scoring.severity_of(row[6])]))
-        for issue in query.issues_by_group(sig=row[0], summary=row[1]):
-          instances.append(dict(info=issue.brief_info(), source=issue.source, row=issue.row, col=issue.col))
+        issues.append(dict(no=no, sig=row[0], title=row[1].title(), summary=row[2], desc=row[3], ref=row[4], sol=row[5], score=row[6], cvss=row[7], sev=CVSS3Scoring.severity_of(row[6]).title(), insts=instances, severity_panel_style={'critical':'panel-danger', 'high':'panel-warning', 'medium':'panel-warning', 'low':'panel-success', 'info':'panel-info'}[CVSS3Scoring.severity_of(row[6])]))
+        for issue in query.issues_by_group(sig=row[0], title=row[1]):
+          instances.append(dict(info=issue.brief_info(), aff0=issue.aff0, aff1=issue.aff1, aff2=issue.aff2))
 
       app.update(dict(
         fp=self._context.fingerprint_of(),
         issues=len(issues),
-        issues_critical=len([_ for _ in issues if _['severity'] == 'Critical']),
-        issues_high=len([_ for _ in issues if _['severity'] == 'High']),
-        issues_medium=len([_ for _ in issues if _['severity'] == 'Medium']),
-        issues_low=len([_ for _ in issues if _['severity'] == 'Low']),
-        issues_info=len([_ for _ in issues if _['severity'] == 'Info']),
+        issues_critical=len([_ for _ in issues if _['sev'] == 'Critical']),
+        issues_high=len([_ for _ in issues if _['sev'] == 'High']),
+        issues_medium=len([_ for _ in issues if _['sev'] == 'Medium']),
+        issues_low=len([_ for _ in issues if _['sev'] == 'Low']),
+        issues_info=len([_ for _ in issues if _['sev'] == 'Info']),
       ))
 
       from importlib.resources import as_file, files
@@ -158,12 +158,12 @@ class JSONReportGenerator:
           severity=CVSS3Scoring.severity_of(row[6]).title(),
           instances=instances
           ))
-        for issue in query.issues_by_group(sig=row[0], summary=row[1]):
+        for issue in query.issues_by_group(sig=row[0], title=row[1]):
           instances.append(dict(
             info=issue.brief_info(),
-            source=issue.source,
-            row=issue.row,
-            col=issue.col))
+            source=issue.aff0,
+            row=issue.aff1,
+            col=issue.aff2))
 
       app.update(dict(
         fp=self._context.fingerprint_of(),

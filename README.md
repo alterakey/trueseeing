@@ -249,10 +249,9 @@ class MySignature(Signature):
   async def _detect(self) -> None:
 	self._helper.raise_issue(
 	  self._helper.build_issue(
-		sig_id='my-sig',
-		summary='hello world',
-		confidence='firm',
-		cvss_vector='CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/',
+		sigid='my-sig',
+		title='hello world',
+		cvss='CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/',
 	  )
 	)
 ```

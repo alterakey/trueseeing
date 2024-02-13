@@ -6,7 +6,7 @@ create table ops_method (op integer primary key, method integer not null);
 create table ops_class (op integer primary key, class integer not null);
 
 -- analytic reports
-create table analysis_issues (issue integer primary key, sig varchar not null, summary varchar not null, synopsis varchar not null, description varchar not null, seealso varchar not null, solution varchar not null, info1 varchar not null, info2 varchar not null, info3 varchar not null, confidence integer not null, cvss3_score float not null, cvss3_vector varchar not null, source varchar not null, row varchar not null, col varchar not null, unique (sig, summary, info1, info2, info3, cvss3_score, confidence, source, row, col));
+create table analysis_issues (issue integer primary key, sig varchar not null, title varchar not null, score float not null, cfd integer not null, info0 varchar not null, info1 varchar not null, info2 varchar not null, aff0 varchar not null, aff1 varchar not null, aff2 varchar not null, cvss varchar not null, summary varchar not null, descr varchar not null, ref varchar not null, sol varchar not null, unique (sig, title, score, cfd, info0, info1, info2, aff0, aff1, aff2));
 
 
 commit;

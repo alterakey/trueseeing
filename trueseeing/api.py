@@ -90,19 +90,20 @@ if TYPE_CHECKING:
     def raise_issue(self, issue: Issue) -> None: ...
     def build_issue(
         self,
-        sig_id: str,
-        cvss_vector: str,
-        confidence: IssueConfidence,
-        summary: str,
-        description: Optional[str] = None,
-        seealso: Optional[str] = None,
-        synopsis: Optional[str] = None,
+        sigid: str,
+        cvss: str,
+        title: str,
+        cfd: IssueConfidence = 'firm',
+        summary: Optional[str] = None,
+        desc: Optional[str] = None,
+        ref: Optional[str] = None,
+        sol: Optional[str] = None,
+        info0: Optional[str] = None,
         info1: Optional[str] = None,
         info2: Optional[str] = None,
-        info3: Optional[str] = None,
-        source: Optional[str] = None,
-        row: Optional[str] = None,
-        col: Optional[str] = None,
+        aff0: Optional[str] = None,
+        aff1: Optional[str] = None,
+        aff2: Optional[str] = None,
     ) -> Issue: ...
 
 

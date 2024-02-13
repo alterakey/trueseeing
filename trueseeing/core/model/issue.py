@@ -12,30 +12,31 @@ if TYPE_CHECKING:
 
 @attr.s(auto_attribs=True, frozen=True)
 class Issue:
-  sig_id: str
-  confidence: IssueConfidence
-  cvss3_vector: str
-  summary: str
-  source: Optional[str] = None
-  synopsis: Optional[str] = None
-  description: Optional[str] = None
-  seealso: Optional[str] = None
-  solution: Optional[str] = None
+  sigid: str
+  cvss: str
+  title: str
+  cfd: IssueConfidence = 'firm'
+  summary: Optional[str] = None
+  desc: Optional[str] = None
+  ref: Optional[str] = None
+  sol: Optional[str] = None
+  info0: Optional[str] = None
   info1: Optional[str] = None
   info2: Optional[str] = None
-  info3: Optional[str] = None
-  row: Optional[str] = None
-  col: Optional[str] = None
-
-  def severity(self) -> IssueSeverity:
-    return CVSS3Scoring.severity_of(self.cvss3_score)
+  aff0: Optional[str] = None
+  aff1: Optional[str] = None
+  aff2: Optional[str] = None
 
   @property
-  def cvss3_score(self) -> float:
-    return CVSS3Scoring.score_of(self.cvss3_vector)
+  def sev(self) -> IssueSeverity:
+    return CVSS3Scoring.severity_of(self.score)
 
-  def brief_description(self) -> str:
-    return ': '.join(filter(None, (self.summary, self.brief_info())))
+  @property
+  def score(self) -> float:
+    return CVSS3Scoring.score_of(self.cvss)
+
+  def brief_desc(self) -> str:
+    return ': '.join(filter(None, (self.title, self.brief_info())))
 
   def brief_info(self) -> str:
-    return ': '.join(filter(None, (self.info1, self.info2, self.info3)))
+    return ': '.join(filter(None, (self.info0, self.info1, self.info2)))

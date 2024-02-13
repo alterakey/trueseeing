@@ -5,7 +5,6 @@ import itertools
 import re
 
 from trueseeing.core.model.sig import SignatureMixin
-from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from trueseeing.api import Signature, SignatureHelper, SignatureMap
@@ -26,15 +25,15 @@ class ManifestOpenPermissionDetector(SignatureMixin):
 
     # TBD: compare with actual permission needs
     for p in context.permissions_declared():
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='certain',
-        cvss3_vector=self._cvss,
-        summary='open permissions',
-        info1=p,
-        source='AndroidManifest.xml',
-        synopsis="Application is requesting one or more permissions.",
-        description="Application is requesting one or more permissions.  Permissions are an important security system of Android.  They control accesses to sensitive information (e.g. GPS, IMEI/IMSI, process stats, accounts, contacts, SMSs) or possibly dangerous/costly operation (e.g. SMSs, internet access, controlling system services, obstructing screens.)  Requesting ones are vital for proper functioning of application, though abusage leads to hurt privacy or device availability.  This issue is just an observation; requesting permissions alone does not constitute an security issue.",
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cfd='certain',
+        cvss=self._cvss,
+        title='open permissions',
+        info0=p,
+        aff0='AndroidManifest.xml',
+        summary="Application is requesting one or more permissions.",
+        desc="Application is requesting one or more permissions.  Permissions are an important security system of Android.  They control accesses to sensitive information (e.g. GPS, IMEI/IMSI, process stats, accounts, contacts, SMSs) or possibly dangerous/costly operation (e.g. SMSs, internet access, controlling system services, obstructing screens.)  Requesting ones are vital for proper functioning of application, though abusage leads to hurt privacy or device availability.  This issue is just an observation; requesting permissions alone does not constitute an security issue.",
       ))
 
 class ComponentNamePolicy:
@@ -74,29 +73,29 @@ class ManifestManipActivity(SignatureMixin):
     )):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss1,
-          summary='manipulatable Activity',
-          info1=name,
-          source='AndroidManifest.xml',
-          synopsis="Application is exporting one or more activities.",
-          description="Application is exporting one or more activities.  Activities are entrypoints to the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.  This issue is just an observation; exporting activities alone does not constitute an security issue.",
-          solution="Review them, and restrict access with application-specific permissions if necessary."
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss1,
+          title='manipulatable Activity',
+          info0=name,
+          aff0='AndroidManifest.xml',
+          summary="Application is exporting one or more activities.",
+          desc="Application is exporting one or more activities.  Activities are entrypoints to the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.  This issue is just an observation; exporting activities alone does not constitute an security issue.",
+          sol="Review them, and restrict access with application-specific permissions if necessary."
         ))
       else:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss2,
-          summary='manipulatable Activity with private action names',
-          info1=name,
-          info2=', '.join(filter_),
-          source='AndroidManifest.xml',
-          synopsis="Application is exporting one or more activities using seemingly private action names, suggesting inadvent export.",
-          description="Application is exporting one or more activities using seemingly private action names, suggesting inadvent export.  Activities are entrypoints to the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.",
-          solution="Review them, and restrict access with application-specific permissions if necessary."
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss2,
+          title='manipulatable Activity with private action names',
+          info0=name,
+          info1=', '.join(filter_),
+          aff0='AndroidManifest.xml',
+          summary="Application is exporting one or more activities using seemingly private action names, suggesting inadvent export.",
+          desc="Application is exporting one or more activities using seemingly private action names, suggesting inadvent export.  Activities are entrypoints to the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.",
+          sol="Review them, and restrict access with application-specific permissions if necessary."
         ))
 
 class ManifestManipBroadcastReceiver(SignatureMixin):
@@ -123,29 +122,29 @@ class ManifestManipBroadcastReceiver(SignatureMixin):
     )):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss1,
-          summary='manipulatable BroadcastReceiver',
-          info1=name,
-          source='AndroidManifest.xml',
-          synopsis="Application is exporting one or more broadcast receivers.",
-          description="Application is exporting one or more broadcast receivers.  Broadcast receivers are system-wide event listeners of the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.  This issue is just an observation; exporting broadcast receivers alone does not constitute an security issue.",
-          solution="Review them and restrict access with application-specific permissions if necessary.  Consider the use of LocalBroadcastReceiver for ones that system-wide reachability is not needed."
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss1,
+          title='manipulatable BroadcastReceiver',
+          info0=name,
+          aff0='AndroidManifest.xml',
+          summary="Application is exporting one or more broadcast receivers.",
+          desc="Application is exporting one or more broadcast receivers.  Broadcast receivers are system-wide event listeners of the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.  This issue is just an observation; exporting broadcast receivers alone does not constitute an security issue.",
+          sol="Review them and restrict access with application-specific permissions if necessary.  Consider the use of LocalBroadcastReceiver for ones that system-wide reachability is not needed."
         ))
       else:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss2,
-          summary='manipulatable BroadcastReceiver with private action names',
-          info1=name,
-          info2=', '.join(filter_),
-          source='AndroidManifest.xml',
-          synopsis="Application is exporting one or more broadcast receivers using seemingly private action names, suggesting inadvent export.",
-          description="Application is exporting one or more broadcast receivers using seemingly private action names, suggesting inadvent export.  Broadcast receivers are system-wide event listeners of the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.",
-          solution="Review them, and restrict access with application-specific permissions if necessary."
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss2,
+          title='manipulatable BroadcastReceiver with private action names',
+          info0=name,
+          info1=', '.join(filter_),
+          aff0='AndroidManifest.xml',
+          summary="Application is exporting one or more broadcast receivers using seemingly private action names, suggesting inadvent export.",
+          desc="Application is exporting one or more broadcast receivers using seemingly private action names, suggesting inadvent export.  Broadcast receivers are system-wide event listeners of the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports ones with IntentFilter defined in the manifest.",
+          sol="Review them, and restrict access with application-specific permissions if necessary."
         ))
 
 class ManifestManipContentProvider(SignatureMixin):
@@ -171,33 +170,33 @@ class ManifestManipContentProvider(SignatureMixin):
     )):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss1,
-          summary='manipulatable ContentProvider',
-          info1=name,
-          source='AndroidManifest.xml',
-          synopsis="Application is exporting one or more content providers.",
-          description="Application is exporting one or more content providers.  Content providers defines REST/RDBMS-like IPC mechanism for the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports them (API 8 or ealier) or ones with IntentFilter defined in the manifest (API level 9 or later).  This issue is just an observation; exporting content providers alone does not constitute an security issue.",
-          solution='''\
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss1,
+          title='manipulatable ContentProvider',
+          info0=name,
+          aff0='AndroidManifest.xml',
+          summary="Application is exporting one or more content providers.",
+          desc="Application is exporting one or more content providers.  Content providers defines REST/RDBMS-like IPC mechanism for the application.  Exporting enables them to be invoked from other applications or system.  Unnecessary export increases attack surfaces.  Please note that Android automatically exports them (API 8 or ealier) or ones with IntentFilter defined in the manifest (API level 9 or later).  This issue is just an observation; exporting content providers alone does not constitute an security issue.",
+          sol='''\
   Review them and explicitly unexport or restrict access with application-specific permissions if necessary.  To explicitly unexporting an content provider, define the following attribute to the <provider> tag in the manifest:
 
   android:export="false"
   '''
         ))
       else:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss2,
-          summary='manipulatable ContentProvider with private action names',
-          info1=name,
-          info2=', '.join(filter_),
-          source='AndroidManifest.xml',
-          synopsis="Application is exporting one or more content providers using seemingly private action names, suggesting inadvent export.",
-          description="Application is exporting one or more content providers using seemingly private action names, suggesting inadvent export.  Content providers defines REST/RDBMS-like IPC mechanism for the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports them (API 8 or ealier) or ones with IntentFilter defined in the manifest (API level 9 or later).",
-          solution='''\
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss2,
+          title='manipulatable ContentProvider with private action names',
+          info0=name,
+          info1=', '.join(filter_),
+          aff0='AndroidManifest.xml',
+          summary="Application is exporting one or more content providers using seemingly private action names, suggesting inadvent export.",
+          desc="Application is exporting one or more content providers using seemingly private action names, suggesting inadvent export.  Content providers defines REST/RDBMS-like IPC mechanism for the application.  Exporting enables them to be invoked from other applications or system.  Inadvent exporting enables malwares or malicious users to manipulate the application.  Please note that Android automatically exports them (API 8 or ealier) or ones with IntentFilter defined in the manifest (API level 9 or later).",
+          sol='''\
   Review them and explicitly unexport or restrict access with application-specific permissions if necessary.  To explicitly unexporting an content provider, define the following attribute to the <provider> tag in the manifest:
 
   android:export="false"
@@ -221,15 +220,15 @@ class ManifestManipBackup(SignatureMixin):
     for e in manif.xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       if min(context.get_target_sdk_version(), context.get_min_sdk_version()) < 31:
         fbc_exists = (e.attrib.get('{{{ns}}}fullBackupContent'.format(ns='http://schemas.android.com/apk/res/android')) is not None)
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain' if not fbc_exists else 'tentative',
-          cvss3_vector=self._cvss,
-          summary='manipulatable backups',
-          source='AndroidManifest.xml',
-          synopsis="Application data can be backed up and restored with the Auto Backup feature.",
-          description="Application data can be backed up and restored with the Auto Backup feature, thusly making it subjectible to the backup attack.",
-          solution='''\
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain' if not fbc_exists else 'tentative',
+          cvss=self._cvss,
+          title='manipulatable backups',
+          aff0='AndroidManifest.xml',
+          summary="Application data can be backed up and restored with the Auto Backup feature.",
+          desc="Application data can be backed up and restored with the Auto Backup feature, thusly making it subjectible to the backup attack.",
+          sol='''\
 Review them, and consider controlling backupable data with the Auto Backup feature or completely opt-out from it if necessary.  To control backupable data, associate XML with the following attribute to the <application> tag.
 
 android:fullBackupContent="@xml/fbc"
@@ -256,15 +255,15 @@ class ManifestDebuggable(SignatureMixin):
   async def detect(self) -> None:
     context = self._helper.get_context('apk')
     if context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='certain',
-        cvss3_vector=self._cvss,
-        summary='app is debuggable',
-        source='AndroidManifest.xml',
-        synopsis="Application can be debugged.",
-        description="Application can be debugged (the debuggable bit is set.)  Debugging it gives attackers complete control of its process memory and control flow.",
-        solution='''\
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cfd='certain',
+        cvss=self._cvss,
+        title='app is debuggable',
+        aff0='AndroidManifest.xml',
+        summary="Application can be debugged.",
+        desc="Application can be debugged (the debuggable bit is set.)  Debugging it gives attackers complete control of its process memory and control flow.",
+        sol='''\
 Disable the debuggable bit.  To disable it, define the following attribute to the <application> tag in the manifest:
 
 android:debuggable="false"
@@ -305,15 +304,15 @@ class ManifestCleartextPermitted(SignatureMixin):
               self._raise(context.source_name_of_disassembled_resource(fn))
 
   def _raise(self, path: str) -> None:
-    self._helper.raise_issue(Issue(
-      sig_id=self._id,
-      confidence='certain',
-      cvss3_vector=self._cvss,
-      summary='cleartext traffic is permitted',
-      source=path,
-      synopsis="Application can use cleartext traffic.",
-      description="Application can use cleartext traffic.  Cleartext traffic are prone to be intercept and/or manipulated by an active attacker on the wire.",
-      solution='''\
+    self._helper.raise_issue(self._helper.build_issue(
+      sigid=self._id,
+      cfd='certain',
+      cvss=self._cvss,
+      title='cleartext traffic is permitted',
+      aff0=path,
+      summary="Application can use cleartext traffic.",
+      desc="Application can use cleartext traffic.  Cleartext traffic are prone to be intercept and/or manipulated by an active attacker on the wire.",
+      sol='''\
 Consider migrating all the servers on TLS and disable use of cleartext traffic.  To disable one, associate an Network Security Config disallowing one (API > 24), or discourage ones use in <application> tag as follows (API > 23):
 
 <application android:useCleartextTraffic="false">

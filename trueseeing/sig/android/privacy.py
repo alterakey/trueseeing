@@ -6,7 +6,6 @@ import re
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.sig import SignatureMixin
-from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Optional
@@ -59,13 +58,13 @@ class PrivacyDeviceIdDetector(SignatureMixin):
         continue
       val_type = self.analyzed(q, op)
       if val_type is not None:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss,
-          summary=self._summary,
-          info1=f'getting {val_type}',
-          source=q.qualname_of(op)
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss,
+          title=self._summary,
+          info0=f'getting {val_type}',
+          aff0=q.qualname_of(op)
         ))
 
 class PrivacySMSDetector(SignatureMixin):
@@ -90,13 +89,13 @@ class PrivacySMSDetector(SignatureMixin):
         continue
       try:
         if DataFlow(q).solved_constant_data_in_invocation(op, 0).startswith('content://sms/'):
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='certain',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1='accessing SMS',
-            source=q.qualname_of(op)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cfd='certain',
+            cvss=self._cvss,
+            title=self._summary,
+            info0='accessing SMS',
+            aff0=q.qualname_of(op)
           ))
       except DataFlow.NoSuchValueError:
         pass
@@ -105,24 +104,23 @@ class PrivacySMSDetector(SignatureMixin):
       qn = q.qualname_of(op)
       if context.is_qualname_excluded(qn):
         continue
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='certain',
-        cvss3_vector=self._cvss,
-        summary=self._summary,
-        info1='sending SMS',
-        source=q.qualname_of(op)
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cfd='certain',
+        cvss=self._cvss,
+        title=self._summary,
+        info0='sending SMS',
+        aff0=q.qualname_of(op)
       ))
 
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsMessage;->createFromPdu\(')):
       qn = q.qualname_of(op)
       if context.is_qualname_excluded(qn):
         continue
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='firm',
-        cvss3_vector=self._cvss,
-        summary=self._summary,
-        info1='intercepting incoming SMS',
-        source=q.qualname_of(op)
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cvss=self._cvss,
+        title=self._summary,
+        info0='intercepting incoming SMS',
+        aff0=q.qualname_of(op)
       ))
