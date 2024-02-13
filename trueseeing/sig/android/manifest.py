@@ -4,21 +4,21 @@ from typing import TYPE_CHECKING
 import itertools
 import re
 
-from trueseeing.core.model.sig import DetectorMixin
+from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
-  from trueseeing.api import Detector, DetectorHelper, DetectorMap
+  from trueseeing.api import Signature, SignatureHelper, SignatureMap
 
-class ManifestOpenPermissionDetector(DetectorMixin):
+class ManifestOpenPermissionDetector(SignatureMixin):
   _id = 'manifest-open-permission'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ManifestOpenPermissionDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects declarated permissions')}
 
   async def detect(self) -> None:
@@ -27,7 +27,7 @@ class ManifestOpenPermissionDetector(DetectorMixin):
     # TBD: compare with actual permission needs
     for p in context.permissions_declared():
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary='open permissions',
@@ -50,17 +50,17 @@ class ComponentNamePolicy:
     else:
       return False
 
-class ManifestManipActivity(DetectorMixin):
+class ManifestManipActivity(SignatureMixin):
   _id = 'manifest-manip-activity'
   description = 'Detects exported Activity'
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ManifestManipActivity(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects exported Activity')}
 
   async def detect(self) -> None:
@@ -75,7 +75,7 @@ class ManifestManipActivity(DetectorMixin):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss1,
           summary='manipulatable Activity',
@@ -87,7 +87,7 @@ class ManifestManipActivity(DetectorMixin):
         ))
       else:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss2,
           summary='manipulatable Activity with private action names',
@@ -99,16 +99,16 @@ class ManifestManipActivity(DetectorMixin):
           solution="Review them, and restrict access with application-specific permissions if necessary."
         ))
 
-class ManifestManipBroadcastReceiver(DetectorMixin):
+class ManifestManipBroadcastReceiver(SignatureMixin):
   _id = 'manifest-manip-broadcastreceiver'
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ManifestManipBroadcastReceiver(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects exported BroadcastReceiver')}
 
   async def detect(self) -> None:
@@ -124,7 +124,7 @@ class ManifestManipBroadcastReceiver(DetectorMixin):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss1,
           summary='manipulatable BroadcastReceiver',
@@ -136,7 +136,7 @@ class ManifestManipBroadcastReceiver(DetectorMixin):
         ))
       else:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss2,
           summary='manipulatable BroadcastReceiver with private action names',
@@ -148,16 +148,16 @@ class ManifestManipBroadcastReceiver(DetectorMixin):
           solution="Review them, and restrict access with application-specific permissions if necessary."
         ))
 
-class ManifestManipContentProvider(DetectorMixin):
+class ManifestManipContentProvider(SignatureMixin):
   _id = 'manifest-manip-contentprovider'
   _cvss1 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss2 = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ManifestManipContentProvider(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects exported ContentProvider')}
 
   async def detect(self) -> None:
@@ -172,7 +172,7 @@ class ManifestManipContentProvider(DetectorMixin):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss1,
           summary='manipulatable ContentProvider',
@@ -188,7 +188,7 @@ class ManifestManipContentProvider(DetectorMixin):
         ))
       else:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss2,
           summary='manipulatable ContentProvider with private action names',
@@ -204,15 +204,15 @@ class ManifestManipContentProvider(DetectorMixin):
   '''
         ))
 
-class ManifestManipBackup(DetectorMixin):
+class ManifestManipBackup(SignatureMixin):
   _id = 'manifest-manip-backup'
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ManifestManipBackup(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects enabled backup bit')}
 
   async def detect(self) -> None:
@@ -222,7 +222,7 @@ class ManifestManipBackup(DetectorMixin):
       if min(context.get_target_sdk_version(), context.get_min_sdk_version()) < 31:
         fbc_exists = (e.attrib.get('{{{ns}}}fullBackupContent'.format(ns='http://schemas.android.com/apk/res/android')) is not None)
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain' if not fbc_exists else 'tentative',
           cvss3_vector=self._cvss,
           summary='manipulatable backups',
@@ -242,22 +242,22 @@ android:allowBackup="false"
 '''
         ))
 
-class ManifestDebuggable(DetectorMixin):
+class ManifestDebuggable(SignatureMixin):
   _id = 'manifest-debuggable'
   _cvss = 'CVSS:3.0/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ManifestDebuggable(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects enabled debug bits')}
 
   async def detect(self) -> None:
     context = self._helper.get_context('apk')
     if context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary='app is debuggable',
@@ -271,15 +271,15 @@ android:debuggable="false"
 '''
       ))
 
-class ManifestCleartextPermitted(DetectorMixin):
+class ManifestCleartextPermitted(SignatureMixin):
   _id = 'manifest-cleartext-permitted'
   _cvss = 'CVSS:3.0/AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N/'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ManifestCleartextPermitted(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects usesCleartextTraffic flag')}
 
   async def detect(self) -> None:
@@ -306,7 +306,7 @@ class ManifestCleartextPermitted(DetectorMixin):
 
   def _raise(self, path: str) -> None:
     self._helper.raise_issue(Issue(
-      detector_id=self._id,
+      sig_id=self._id,
       confidence='certain',
       cvss3_vector=self._cvss,
       summary='cleartext traffic is permitted',

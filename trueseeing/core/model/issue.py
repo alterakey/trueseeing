@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 @attr.s(auto_attribs=True, frozen=True)
 class Issue:
-  detector_id: str
+  sig_id: str
   confidence: IssueConfidence
   cvss3_vector: str
   summary: str

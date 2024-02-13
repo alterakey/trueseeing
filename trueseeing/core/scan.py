@@ -5,14 +5,14 @@ from contextlib import contextmanager
 
 if TYPE_CHECKING:
   from typing import List, Optional, Iterator, Dict, Any
-  from trueseeing.api import DetectorEntry, DetectorHelper, DetectorMap
+  from trueseeing.api import SignatureEntry, SignatureHelper, SignatureMap
   from trueseeing.core.context import Context, ContextType
   from trueseeing.core.android.db import Query
   from trueseeing.core.model.issue import Issue, IssueConfidence
 
 class Scanner:
-  _helper: DetectorHelper
-  _sigs: Dict[str, DetectorEntry]
+  _helper: SignatureHelper
+  _sigs: Dict[str, SignatureEntry]
 
   def __init__(self, context: Context, *, sigsels: List[str] = [], excludes: List[str] = [], max_graph_size: Optional[int] = None) -> None:
     from trueseeing.core.config import Configs
@@ -21,15 +21,15 @@ class Scanner:
     self._excludes = excludes
     self._max_graph_size = max_graph_size
     self._confbag = Configs.get().bag
-    self._helper = DetectorHelperImpl(self)
+    self._helper = SignatureHelperImpl(self)
 
     self._init_sigs(['all'] + sigsels)
 
-  def get_active_signatures(self) -> DetectorMap:
+  def get_active_signatures(self) -> SignatureMap:
     return self._sigs
 
   @classmethod
-  def get_all_signatures(cls) -> DetectorMap:
+  def get_all_signatures(cls) -> SignatureMap:
     return Scanner(context=None).get_active_signatures()  # type: ignore[arg-type]
 
   async def scan(self, q: Query) -> int:
@@ -43,7 +43,7 @@ class Scanner:
         def _detected(issue: Issue) -> None:
           q.issue_raise(issue)
 
-        async def _call(id_: str, ent: DetectorEntry) -> None:
+        async def _call(id_: str, ent: SignatureEntry) -> None:
           try:
             await ent['e']()
           except InvalidContextError:
@@ -91,14 +91,14 @@ class Scanner:
     for clazz in chain(discover(), Extension.get().get_signatures()):
       matched = False
       t = clazz.create(self._helper)
-      for k,v in t.get_descriptor().items():
+      for k,v in t.get_sigs().items():
         if self._sigsel_matches(k, sigsels):
           self._sigs[k] = v
           matched = True
       if matched:
         self._confbag.update(t.get_configs())
 
-class DetectorHelperImpl:
+class SignatureHelperImpl:
   def __init__(self, scanner: Scanner) -> None:
     self._s = scanner
     self._confbag = self._s._confbag
@@ -111,7 +111,7 @@ class DetectorHelperImpl:
     pub.sendMessage('issue', issue=issue)
   def build_issue(
       self,
-      detector_id: str,
+      sig_id: str,
       cvss_vector: str,
       confidence: IssueConfidence,
       summary: str,
@@ -127,7 +127,7 @@ class DetectorHelperImpl:
   ) -> Issue:
     from trueseeing.core.model.issue import Issue
     return Issue(
-      detector_id=detector_id,
+      sig_id=sig_id,
       cvss3_vector=cvss_vector,
       confidence=confidence,
       summary=summary,

@@ -10,7 +10,7 @@ from trueseeing.core.env import get_extension_dir, get_extension_dir_v0, get_ext
 if TYPE_CHECKING:
   from typing import Any, Dict, ClassVar, Optional, Iterable, Iterator, Type, TypeVar
   from typing_extensions import Final
-  from trueseeing.api import Command, Detector, FileFormatHandler
+  from trueseeing.api import Command, Signature, FileFormatHandler
 
   T = TypeVar('T')
 
@@ -77,11 +77,11 @@ class Extension:
       ui.warn('Uncaught exception during invocation', exc=e)
       return {}
 
-  def get_signatures(self) -> Iterator[Type[Detector]]:
-    from trueseeing.api import Detector
+  def get_signatures(self) -> Iterator[Type[Signature]]:
+    from trueseeing.api import Signature
     from trueseeing.core.tools import get_public_subclasses, get_missing_methods
     for _, m in self._ns.items():
-      for clazz in get_public_subclasses(m, Detector):  # type: ignore[type-abstract]
+      for clazz in get_public_subclasses(m, Signature):  # type: ignore[type-abstract]
         missing = get_missing_methods(clazz)
         if missing:
           from trueseeing.core.tools import get_fully_qualified_classname

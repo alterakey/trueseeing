@@ -12,7 +12,7 @@ if TYPE_CHECKING:
   CommandEntrypoint = Callable[[deque[str]], Coroutine[Any, Any, None]]
   CommandlineEntrypoint = Callable[[str], Coroutine[Any, Any, None]]
   CommandPatternEntrypoints = Union[CommandEntrypoint, CommandlineEntrypoint]
-  DetectorEntrypoint = Callable[[], Coroutine[Any, Any, None]]
+  SignatureEntrypoint = Callable[[], Coroutine[Any, Any, None]]
   FormatHandlerEntrypoint = Callable[[str], Optional[Context]]
   ConfigGetterEntrypoint = Callable[[], Any]
   ConfigSetterEntrypoint = Callable[[Any], None]
@@ -41,8 +41,8 @@ if TYPE_CHECKING:
     n: str
     d: str
 
-  class DetectorEntry(TypedDict):
-    e: DetectorEntrypoint
+  class SignatureEntry(TypedDict):
+    e: SignatureEntrypoint
     d: str
 
   class FormatEntry(TypedDict):
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
   OptionMap = Mapping[str, OptionEntry]
   ModifierMap = Mapping[str, ModifierEntry]
   ConfigMap = Mapping[str, ConfigEntry]
-  DetectorMap = Mapping[str, DetectorEntry]
+  SignatureMap = Mapping[str, SignatureEntry]
   FormatMap = Mapping[str, FormatEntry]
 
   class CommandHelper(Protocol):
@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     def get_config(self, k: str) -> Any: ...
     def set_config(self, k: str, v: Any) -> None: ...
 
-  class DetectorHelper(Protocol):
+  class SignatureHelper(Protocol):
     @overload
     def get_context(self) -> Context: ...
     @overload
@@ -90,7 +90,7 @@ if TYPE_CHECKING:
     def raise_issue(self, issue: Issue) -> None: ...
     def build_issue(
         self,
-        detector_id: str,
+        sig_id: str,
         cvss_vector: str,
         confidence: IssueConfidence,
         summary: str,
@@ -222,22 +222,22 @@ class Command(ABC):
     """
     ...
 
-class Detector(ABC):
+class Signature(ABC):
   """Signatures; they provides one or more signatures for scanner."""
 
   @staticmethod
   @abstractmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     """Creates and return itself; This is because Python checks classes of concreteness only in their instantiation. e.g.
 
     return FooDetector(helper)
     """
     ...
   @abstractmethod
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     """Creates and return signature descriptor. Signature descriptors are dicts comprise of:
 
-    {"<detector id>": dict(e=<entrypoint>, d="<description>")}
+    {"<signature id>": dict(e=<entrypoint>, d="<description>")}
 
     e.g.:
 

@@ -32,14 +32,14 @@ class ConsoleNoter:
 
   @classmethod
   def _formatted(cls, issue: Issue) -> str:
-    return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [{detector_id}]'.format(
+    return '{source}:{row}:{col}:{severity}{{{confidence}}}:{description} [{sig_id}]'.format(
       source=noneif(issue.source, '(global)'),
       row=noneif(issue.row, 0),
       col=noneif(issue.col, 0),
       severity=issue.severity(),
       confidence=issue.confidence,
       description=issue.brief_description(),
-      detector_id=issue.detector_id
+      sig_id=issue.sig_id
     )
 
 class CIReportGenerator:
@@ -85,8 +85,8 @@ class HTMLReportGenerator:
 
       for no, row in query.findings_list():
         instances: List[Dict[str, Any]] = []
-        issues.append(dict(no=no, detector=row[0], summary=row[1].title(), synopsis=row[2], description=row[3], seealso=row[4], solution=row[5], cvss3_score=row[6], cvss3_vector=row[7], severity=CVSS3Scoring.severity_of(row[6]).title(), instances=instances, severity_panel_style={'critical':'panel-danger', 'high':'panel-warning', 'medium':'panel-warning', 'low':'panel-success', 'info':'panel-info'}[CVSS3Scoring.severity_of(row[6])]))
-        for issue in query.issues_by_group(detector=row[0], summary=row[1]):
+        issues.append(dict(no=no, sig=row[0], summary=row[1].title(), synopsis=row[2], description=row[3], seealso=row[4], solution=row[5], cvss3_score=row[6], cvss3_vector=row[7], severity=CVSS3Scoring.severity_of(row[6]).title(), instances=instances, severity_panel_style={'critical':'panel-danger', 'high':'panel-warning', 'medium':'panel-warning', 'low':'panel-success', 'info':'panel-info'}[CVSS3Scoring.severity_of(row[6])]))
+        for issue in query.issues_by_group(sig=row[0], summary=row[1]):
           instances.append(dict(info=issue.brief_info(), source=issue.source, row=issue.row, col=issue.col))
 
       app.update(dict(
@@ -147,7 +147,7 @@ class JSONReportGenerator:
         instances: List[Dict[str, Any]] = []
         issues.append(dict(
           no=no,
-          detector=row[0],
+          sig=row[0],
           summary=row[1].title(),
           synopsis=row[2],
           description=row[3],
@@ -158,7 +158,7 @@ class JSONReportGenerator:
           severity=CVSS3Scoring.severity_of(row[6]).title(),
           instances=instances
           ))
-        for issue in query.issues_by_group(detector=row[0], summary=row[1]):
+        for issue in query.issues_by_group(sig=row[0], summary=row[1]):
           instances.append(dict(
             info=issue.brief_info(),
             source=issue.source,

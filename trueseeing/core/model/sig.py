@@ -1,13 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from trueseeing.api import Detector
+from trueseeing.api import Signature
 
 if TYPE_CHECKING:
-  from trueseeing.api import DetectorHelper, ConfigMap
+  from trueseeing.api import SignatureHelper, ConfigMap
 
-class DetectorMixin(Detector):
-  def __init__(self, helper: DetectorHelper) -> None:
+class SignatureMixin(Signature):
+  def __init__(self, helper: SignatureHelper) -> None:
     self._helper = helper
 
   def get_configs(self) -> ConfigMap:

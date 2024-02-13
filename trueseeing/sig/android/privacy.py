@@ -5,26 +5,26 @@ import re
 
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
-from trueseeing.core.model.sig import DetectorMixin
+from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Optional
   from trueseeing.core.android.db import Query
   from trueseeing.core.android.model.code import Op
-  from trueseeing.api import Detector, DetectorHelper, DetectorMap
+  from trueseeing.api import Signature, SignatureHelper, SignatureMap
 
-class PrivacyDeviceIdDetector(DetectorMixin):
+class PrivacyDeviceIdDetector(SignatureMixin):
   _id = 'privacy-device-id'
   description = 'Detects device fingerprinting behavior'
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:N/A:N/'
   _summary = 'privacy concerns'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return PrivacyDeviceIdDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects device fingerprinting behavior')}
 
   def analyzed(self, q: Query, op: Op) -> Optional[str]:
@@ -60,7 +60,7 @@ class PrivacyDeviceIdDetector(DetectorMixin):
       val_type = self.analyzed(q, op)
       if val_type is not None:
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='certain',
           cvss3_vector=self._cvss,
           summary=self._summary,
@@ -68,16 +68,16 @@ class PrivacyDeviceIdDetector(DetectorMixin):
           source=q.qualname_of(op)
         ))
 
-class PrivacySMSDetector(DetectorMixin):
+class PrivacySMSDetector(SignatureMixin):
   _id = 'privacy-sms'
   _cvss = 'CVSS:3.0/AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:N/A:N/'
   _summary = 'privacy concerns'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return PrivacySMSDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects SMS-related behavior')}
 
   async def detect(self) -> None:
@@ -91,7 +91,7 @@ class PrivacySMSDetector(DetectorMixin):
       try:
         if DataFlow(q).solved_constant_data_in_invocation(op, 0).startswith('content://sms/'):
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             confidence='certain',
             cvss3_vector=self._cvss,
             summary=self._summary,
@@ -106,7 +106,7 @@ class PrivacySMSDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='certain',
         cvss3_vector=self._cvss,
         summary=self._summary,
@@ -119,7 +119,7 @@ class PrivacySMSDetector(DetectorMixin):
       if context.is_qualname_excluded(qn):
         continue
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='firm',
         cvss3_vector=self._cvss,
         summary=self._summary,

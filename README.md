@@ -225,23 +225,23 @@ class MyCommand(Command):
 
 #### Signatures
 
-To define a new signature, implement `trueseeing.api.Detector` and advertise the detector you provide.
+To define a new signature, implement `trueseeing.api.Signature` and advertise the signature you provide.
 
-The following class will provide a sample detector as `my-detector`, for example:
+The following class will provide a sample detector as `my-sig`, for example:
 
 ```python
 from typing import TYPE_CHECKING
-from trueseeing.api import Detector
+from trueseeing.api import Signature
 if TYPE_CHECKING:
-  from trueseeing.api import DetectorMap, ConfigMap
+  from trueseeing.api import SignatureMap, ConfigMap
 
-class MySignature(Detector):
+class MySignature(Signature):
   @staticmethod
-  def create() -> Detector:
+  def create() -> Signature:
 	return MySignature()
 
-  def get_descriptor(self) -> DetetorMap:
-	return {'my-detector':dict(e=self._detect, d='sample detector ')}
+  def get_sigs(self) -> SignatureMap:
+	return {'my-sig':dict(e=self._detect, d='sample signature')}
 
   def get_configs(self) -> ConfigMap:
 	return dict()
@@ -249,7 +249,7 @@ class MySignature(Detector):
   async def _detect(self) -> None:
 	self._helper.raise_issue(
 	  self._helper.build_issue(
-		detector_id='my-detector',
+		sig_id='my-sig',
 		summary='hello world',
 		confidence='firm',
 		cvss_vector='CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/',

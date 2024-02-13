@@ -4,14 +4,14 @@ import io
 import os
 import re
 
-from trueseeing.core.model.sig import DetectorMixin
+from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any, Set
-  from trueseeing.api import Detector, DetectorHelper, DetectorMap
+  from trueseeing.api import Signature, SignatureHelper, SignatureMap
   from trueseeing.core.model.issue import IssueConfidence
 
 # XXX huge duplication
@@ -40,7 +40,7 @@ class PublicSuffixes:
     suf = '.'.join(reversed(names))
     return suf in self._suffixes
 
-class LibraryDetector(DetectorMixin):
+class LibraryDetector(SignatureMixin):
   _id = 'detect-library'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
@@ -48,10 +48,10 @@ class LibraryDetector(DetectorMixin):
   _suffixes_public: PublicSuffixes = PublicSuffixes()
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return LibraryDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id: dict(e=self.detect, d='Detects libraries')}
 
   @classmethod
@@ -123,7 +123,7 @@ class LibraryDetector(DetectorMixin):
 
     for p in sorted(packages.keys()):
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='firm',
         cvss3_vector=self._cvss,
         summary='detected library',
@@ -140,7 +140,7 @@ class LibraryDetector(DetectorMixin):
           if ' and ' not in ver and re.match('^[0-9]|^v[0-9]', ver):
             if len(comps) < 4 or self._comp4_looks_like_version(comps):
               self._helper.raise_issue(Issue(
-                detector_id=self._id,
+                sig_id=self._id,
                 confidence='firm',
                 cvss3_vector=self._cvss,
                 summary='detected library version',
@@ -148,7 +148,7 @@ class LibraryDetector(DetectorMixin):
               ))
             else:
               self._helper.raise_issue(Issue(
-                detector_id=self._id,
+                sig_id=self._id,
                 confidence='tentative',
                 cvss3_vector=self._cvss,
                 summary='potential library version',
@@ -156,7 +156,7 @@ class LibraryDetector(DetectorMixin):
               ))
           else:
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='tentative',
               cvss3_vector=self._cvss,
               summary='potential version/dated reference in library',
@@ -170,7 +170,7 @@ class LibraryDetector(DetectorMixin):
           ver = l
           if not re.search(r'^/|:[0-9]+|\\|://|[\x00-\x1f]', ver):
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               confidence='tentative',
               cvss3_vector=self._cvss,
               summary='potential version/dated reference in library',
@@ -193,7 +193,7 @@ class LibraryDetector(DetectorMixin):
     else:
       return False
 
-class ProGuardDetector(DetectorMixin):
+class ProGuardDetector(SignatureMixin):
   _id = 'detect-obfuscator'
   _cvss_true = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _cvss_false = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/'
@@ -201,10 +201,10 @@ class ProGuardDetector(DetectorMixin):
   _whitelist = ['R']
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ProGuardDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects obfuscators')}
 
   @classmethod
@@ -216,22 +216,22 @@ class ProGuardDetector(DetectorMixin):
     for c in (self._class_name_of(context.source_name_of_disassembled_class(r)) for r in context.disassembled_classes()):
       m = re.search(r'(?:^|\.)(.)$', c)
       if m and m.group(1) not in self._whitelist:
-        self._helper.raise_issue(Issue(detector_id=self._id, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
+        self._helper.raise_issue(Issue(sig_id=self._id, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
         break
     else:
-      self._helper.raise_issue(Issue(detector_id=self._id, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation'))
+      self._helper.raise_issue(Issue(sig_id=self._id, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation'))
 
-class UrlLikeDetector(DetectorMixin):
+class UrlLikeDetector(SignatureMixin):
   _id = 'detect-url'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
 
   _re_tlds: Optional[re.Pattern[str]] = None
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return UrlLikeDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {'detect-url':dict(e=self.detect, d='Detects URL-like strings')}
 
   def _analyzed(self, x: str, qn: Optional[str] = None) -> Iterable[Dict[str, Any]]:
@@ -270,13 +270,13 @@ class UrlLikeDetector(DetectorMixin):
         continue
       for match in self._analyzed(cl.p[1].v, qn):
         for v in match['value']:
-          self._helper.raise_issue(Issue(detector_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
+          self._helper.raise_issue(Issue(sig_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
     for name, val in context.string_resources():
       for match in self._analyzed(val):
         for v in match['value']:
-          self._helper.raise_issue(Issue(detector_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
+          self._helper.raise_issue(Issue(sig_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
 
-class NativeMethodDetector(DetectorMixin):
+class NativeMethodDetector(SignatureMixin):
   _id = 'detect-native-method'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'Natively defined methods'
@@ -284,10 +284,10 @@ class NativeMethodDetector(DetectorMixin):
   _detailed_description = None
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return NativeMethodDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects natively defined methods')}
 
   async def detect(self) -> None:
@@ -296,7 +296,7 @@ class NativeMethodDetector(DetectorMixin):
     q = store.query()
     for op in q.methods_with_modifier('native'):
       self._helper.raise_issue(Issue(
-        detector_id=self._id,
+        sig_id=self._id,
         confidence='firm',
         cvss3_vector=self._cvss,
         summary=self._summary,
@@ -304,17 +304,17 @@ class NativeMethodDetector(DetectorMixin):
         source=q.qualname_of(op)
       ))
 
-class NativeArchDetector(DetectorMixin):
+class NativeArchDetector(SignatureMixin):
   _id = 'detect-native-arch'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary = 'Supported architectures'
   _synopsis = "The application has native codes for some architectures."
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return NativeArchDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects supported architectures')}
 
   async def detect(self) -> None:
@@ -322,7 +322,7 @@ class NativeArchDetector(DetectorMixin):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[2]
         self._helper.raise_issue(Issue(
-          detector_id=self._id,
+          sig_id=self._id,
           confidence='firm',
           cvss3_vector=self._cvss,
           summary=self._summary,
@@ -331,7 +331,7 @@ class NativeArchDetector(DetectorMixin):
           synopsis=self._synopsis,
         ))
 
-class ReflectionDetector(DetectorMixin):
+class ReflectionDetector(SignatureMixin):
   _id = 'detect-reflection'
   _cvss = 'CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
   _summary0 = 'Use of reflection'
@@ -360,10 +360,10 @@ class ReflectionDetector(DetectorMixin):
   _masker = '(unknown)'
 
   @staticmethod
-  def create(helper: DetectorHelper) -> Detector:
+  def create(helper: SignatureHelper) -> Signature:
     return ReflectionDetector(helper)
 
-  def get_descriptor(self) -> DetectorMap:
+  def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects reflections')}
 
   async def detect(self) -> None:
@@ -391,7 +391,7 @@ class ReflectionDetector(DetectorMixin):
             if any(re.match(p, x) for p in self._blacklist_val):
               x = self._masker
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               cvss3_vector=self._cvss,
               confidence='firm',
               summary=self._summary1,
@@ -403,7 +403,7 @@ class ReflectionDetector(DetectorMixin):
             ))
         except IndexError:
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             cvss3_vector=self._cvss,
             confidence='firm',
             summary=self._summary1,
@@ -421,7 +421,7 @@ class ReflectionDetector(DetectorMixin):
             if any(re.match(p, x) for p in self._blacklist_val):
               x = self._masker
             self._helper.raise_issue(Issue(
-              detector_id=self._id,
+              sig_id=self._id,
               cvss3_vector=self._cvss,
               confidence='firm',
               summary=self._summary0,
@@ -433,7 +433,7 @@ class ReflectionDetector(DetectorMixin):
             ))
         except IndexError:
           self._helper.raise_issue(Issue(
-            detector_id=self._id,
+            sig_id=self._id,
             cvss3_vector=self._cvss,
             confidence='firm',
             summary=self._summary0,
