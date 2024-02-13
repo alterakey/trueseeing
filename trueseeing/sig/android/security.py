@@ -9,7 +9,6 @@ import os
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
 from trueseeing.core.model.sig import SignatureMixin
-from trueseeing.core.model.issue import Issue
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -41,13 +40,13 @@ class SecurityFilePermissionDetector(SignatureMixin):
       try:
         target_val = int(DataFlow(q).solved_constant_data_in_invocation(cl, 1), 16)
         if target_val & 3:
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='certain',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
-            source=q.qualname_of(cl)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cfd='certain',
+            cvss=self._cvss,
+            title=self._summary,
+            info0={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
+            aff0=q.qualname_of(cl)
           ))
       except (DataFlow.NoSuchValueError):
         pass
@@ -78,33 +77,30 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
         for e in xp.xpath('.//certificates'):
           if e.attrib.get('src') == 'user':
             pin_nsc = False
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='firm',
-              cvss3_vector=self._cvss,
-              summary=self._summary,
-              info1='user-trusting network security config detected'
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss,
+              title=self._summary,
+              info0='user-trusting network security config detected'
             ))
           for pin in e.xpath('.//pins'):
             algo: str
             dig: str
             algo, dig = pin.attrib('digest', '(unknown)'), pin.text
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='firm',
-              cvss3_vector=self._cvss_info,
-              summary='explicit ceritifcate pinning',
-              info1=f'{algo}:{dig}',
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss_info,
+              title='explicit ceritifcate pinning',
+              info0=f'{algo}:{dig}',
             ))
     if not pin_nsc:
       if not self._do_detect_plain_pins_x509():
         if not self._do_detect_plain_pins_hostnameverifier():
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='firm',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1='no pinning detected'
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss,
+            title=self._summary,
+            info0='no pinning detected'
           ))
 
   def _do_detect_plain_pins_x509(self) -> Set[str]:
@@ -261,13 +257,13 @@ class SecurityTamperableWebViewDetector(SignatureMixin):
         size = LayoutSizeGuesser().guessed_size(t, fn)
         if size > 0.5:
           try:
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='tentative',
-              cvss3_vector=self._cvss1,
-              summary=self._summary1,
-              info1='{0} (score: {1:.02f})'.format(t.attrib[f'{self._xmlns_android}id'], size),
-              source=context.source_name_of_disassembled_resource(fn)
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cfd='tentative',
+              cvss=self._cvss1,
+              title=self._summary1,
+              info0='{0} (score: {1:.02f})'.format(t.attrib[f'{self._xmlns_android}id'], size),
+              aff0=context.source_name_of_disassembled_resource(fn)
             ))
           except KeyError as e:
             ui.warn(f'SecurityTamperableWebViewDetector.do_detect: missing key {e}')
@@ -280,13 +276,12 @@ class SecurityTamperableWebViewDetector(SignatureMixin):
       try:
         v = DataFlow(q).solved_constant_data_in_invocation(op, 0)
         if v.startswith('http://'):
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='firm',
-            cvss3_vector=self._cvss2,
-            summary=self._summary2,
-            info1=v,
-            source=q.qualname_of(op)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss2,
+            title=self._summary2,
+            info0=v,
+            aff0=q.qualname_of(op)
           ))
       except DataFlow.NoSuchValueError:
         pass
@@ -354,20 +349,19 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
               for q in query.invocations_in_class(p, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
                 try:
                   if DataFlow(query).solved_constant_data_in_invocation(q, 0):
-                    self._helper.raise_issue(Issue(
-                      sig_id=self._id,
-                      confidence='firm',
-                      cvss3_vector=self._cvss,
-                      summary=self._summary1,
-                      source=query.qualname_of(q)
+                    self._helper.raise_issue(self._helper.build_issue(
+                      sigid=self._id,
+                      cvss=self._cvss,
+                      title=self._summary1,
+                      aff0=query.qualname_of(q)
                     ))
                 except (DataFlow.NoSuchValueError):
-                  self._helper.raise_issue(Issue(
-                    sig_id=self._id,
-                    confidence='tentative',
-                    cvss3_vector=self._cvss,
-                    summary=self._summary1,
-                    source=query.qualname_of(q)
+                  self._helper.raise_issue(self._helper.build_issue(
+                    sigid=self._id,
+                    cfd='tentative',
+                    cvss=self._cvss,
+                    title=self._summary1,
+                    aff0=query.qualname_of(q)
                   ))
         except (DataFlow.NoSuchValueError):
           pass
@@ -381,33 +375,30 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
         try:
           val = int(DataFlow(query).solved_constant_data_in_invocation(q, 0), 16)
           if val == 0:
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='firm',
-              cvss3_vector=self._cvss2,
-              summary=self._summary2,
-              info1='MIXED_CONTENT_ALWAYS_ALLOW',
-              source=query.qualname_of(q)))
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss2,
+              title=self._summary2,
+              info0='MIXED_CONTENT_ALWAYS_ALLOW',
+              aff0=query.qualname_of(q)))
           elif val == 2:
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='firm',
-              cvss3_vector=self._cvss2b,
-              summary=self._summary2b,
-              info1='MIXED_CONTENT_COMPATIBILITY_MODE',
-              source=query.qualname_of(q)))
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss2b,
+              title=self._summary2b,
+              info0='MIXED_CONTENT_COMPATIBILITY_MODE',
+              aff0=query.qualname_of(q)))
         except (DataFlow.NoSuchValueError):
           pass
     else:
       for target in targets:
         for q in query.invocations(InvocationPattern('invoke-virtual', f'{target}->loadUrl')):
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='firm',
-            cvss3_vector=self._cvss,
-            summary=self._summary2,
-            info1='mixed mode always enabled in API < 21',
-            source=query.qualname_of(q)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss,
+            title=self._summary2,
+            info0='mixed mode always enabled in API < 21',
+            aff0=query.qualname_of(q)
           ))
 
     for op in query.invocations(InvocationPattern('invoke-', ';->loadUrl')):
@@ -424,24 +415,22 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
             m = re.search('<meta .*Content-Security-Policy.*content="(.*)?">', content, flags=re.IGNORECASE)
             csp: Optional[str] = None if m is None else m.group(1)
             if csp is None or any([(x in csp.lower()) for x in ('unsafe', 'http:')]):
-              self._helper.raise_issue(Issue(
-                sig_id=self._id,
-                confidence='firm',
-                cvss3_vector=self._cvss3,
-                summary=self._summary3,
-                info1=path,
-                info2='default' if csp is None else csp,
-                source=query.qualname_of(op)
+              self._helper.raise_issue(self._helper.build_issue(
+                sigid=self._id,
+                cvss=self._cvss3,
+                title=self._summary3,
+                info0=path,
+                info1='default' if csp is None else csp,
+                aff0=query.qualname_of(op)
               ))
             else:
-              self._helper.raise_issue(Issue(
-                sig_id=self._id,
-                confidence='firm',
-                cvss3_vector=self._cvss4,
-                summary=self._summary4,
-                info1=path,
-                info2=csp,
-                source=query.qualname_of(op)
+              self._helper.raise_issue(self._helper.build_issue(
+                sigid=self._id,
+                cvss=self._cvss4,
+                title=self._summary4,
+                info0=path,
+                info1=csp,
+                aff0=query.qualname_of(op)
               ))
       except DataFlow.NoSuchValueError:
         pass
@@ -461,7 +450,7 @@ class FormatStringDetector(SignatureMixin):
   def _analyzed(self, x: str) -> Iterable[Dict[str, Any]]:
     if re.search(r'%s', x):
       if re.search(r'(://|[<>/&?])', x):
-        yield dict(confidence='firm', value=x)
+        yield dict(cfd='firm', value=x)
 
   async def detect(self) -> None:
     context = self._helper.get_context('apk')
@@ -471,23 +460,23 @@ class FormatStringDetector(SignatureMixin):
       if context.is_qualname_excluded(qn):
         continue
       for t in self._analyzed(cl.p[1].v):
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence=t['confidence'],
-          cvss3_vector=self._cvss,
-          summary=self._summary,
-          info1=t['value'],
-          source=q.qualname_of(cl)
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd=t['cfd'],
+          cvss=self._cvss,
+          title=self._summary,
+          info0=t['value'],
+          aff0=q.qualname_of(cl)
         ))
     for name, val in context.string_resources():
       for t in self._analyzed(val):
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence=t['confidence'],
-          cvss3_vector=self._cvss,
-          summary=self._summary,
-          info1=t['value'],
-          source=f'R.string.{name}'
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd=t['cfd'],
+          cvss=self._cvss,
+          title=self._summary,
+          info0=t['value'],
+          aff0=f'R.string.{name}'
         ))
 
 class LogDetector(SignatureMixin):
@@ -512,52 +501,52 @@ class LogDetector(SignatureMixin):
         continue
       if 'print' not in cl.p[1].v:
         try:
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='tentative',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1=cl.p[1].v,
-            info2=DataFlow(q).solved_constant_data_in_invocation(cl, 1),
-            source=q.qualname_of(cl)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cfd='tentative',
+            cvss=self._cvss,
+            title=self._summary,
+            info0=cl.p[1].v,
+            info1=DataFlow(q).solved_constant_data_in_invocation(cl, 1),
+            aff0=q.qualname_of(cl)
           ))
         except (DataFlow.NoSuchValueError):
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='tentative',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1=cl.p[1].v,
-            source=q.qualname_of(cl)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cfd='tentative',
+            cvss=self._cvss,
+            title=self._summary,
+            info0=cl.p[1].v,
+            aff0=q.qualname_of(cl)
           ))
       elif 'Exception;->' not in cl.p[1].v:
         try:
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='tentative',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1=cl.p[1].v,
-            info2=DataFlow(q).solved_constant_data_in_invocation(cl, 0),
-            source=q.qualname_of(cl)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cfd='tentative',
+            cvss=self._cvss,
+            title=self._summary,
+            info0=cl.p[1].v,
+            info1=DataFlow(q).solved_constant_data_in_invocation(cl, 0),
+            aff0=q.qualname_of(cl)
           ))
         except (DataFlow.NoSuchValueError):
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='tentative',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1=cl.p[1].v,
-            source=q.qualname_of(cl)
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cfd='tentative',
+            cvss=self._cvss,
+            title=self._summary,
+            info0=cl.p[1].v,
+            aff0=q.qualname_of(cl)
           ))
       else:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='tentative',
-          cvss3_vector=self._cvss,
-          summary=self._summary,
-          info1=cl.p[1].v,
-          source=q.qualname_of(cl)
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='tentative',
+          cvss=self._cvss,
+          title=self._summary,
+          info0=cl.p[1].v,
+          aff0=q.qualname_of(cl)
         ))
 
 class ADBProbeDetector(SignatureMixin):
@@ -583,13 +572,12 @@ class ADBProbeDetector(SignatureMixin):
         continue
       for found in DataFlow(q).solved_possible_constant_data_in_invocation(cl, 1):
         if found == 'adb_enabled':
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='firm',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            source=q.qualname_of(cl),
-            synopsis=self._synopsis,
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss,
+            title=self._summary,
+            aff0=q.qualname_of(cl),
+            summary=self._synopsis,
           ))
 
 class ClientXSSJQDetector(SignatureMixin):
@@ -611,13 +599,12 @@ class ClientXSSJQDetector(SignatureMixin):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
         for m in re.finditer(r'\.html\(', l):
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            confidence='firm',
-            cvss3_vector=self._cvss,
-            summary=self._summary,
-            info1='{match} ({rfn})'.format(rfn=fn, match=l),
-            synopsis=self._synopsis,
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss,
+            title=self._summary,
+            info0='{match} ({rfn})'.format(rfn=fn, match=l),
+            summary=self._synopsis,
           ))
 
 class SecurityFileWriteDetector(SignatureMixin):
@@ -650,24 +637,24 @@ class SecurityFileWriteDetector(SignatureMixin):
         target_val = '(unknown name)'
 
       if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss1,
-          summary=self._summary1,
-          synopsis=self._synopsis1,
-          info1=target_val,
-          source=q.qualname_of(cl)
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss1,
+          title=self._summary1,
+          summary=self._synopsis1,
+          info0=target_val,
+          aff0=q.qualname_of(cl)
         ))
       else:
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='certain',
-          cvss3_vector=self._cvss2,
-          summary=self._summary2,
-          synopsis=self._synopsis2,
-          info1=target_val,
-          source=q.qualname_of(cl)
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cfd='certain',
+          cvss=self._cvss2,
+          title=self._summary2,
+          summary=self._synopsis2,
+          info0=target_val,
+          aff0=q.qualname_of(cl)
         ))
 
     for cl in q.invocations(InvocationPattern('invoke-direct', r'java/io/File(Writer|OutputStream)?;-><init>\(Ljava/lang/String;\)')):
@@ -679,14 +666,14 @@ class SecurityFileWriteDetector(SignatureMixin):
 
         if re.search(r'debug|log|info|report|screen|err|tomb|drop', target_val):
           if not re.search(r'^/proc/|^/sys/', target_val):
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='tentative',
-              cvss3_vector=self._cvss1,
-              summary=self._summary1,
-              synopsis=self._synopsis1,
-              info1=target_val,
-              source=q.qualname_of(cl)
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cfd='tentative',
+              cvss=self._cvss1,
+              title=self._summary1,
+              summary=self._synopsis1,
+              info0=target_val,
+              aff0=q.qualname_of(cl)
             ))
       except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
@@ -748,10 +735,10 @@ class SecurityInsecureRootedDetector(SignatureMixin):
     # TBD: fussy match
     for qn,vals in path_based_detection_attempt.items():
       if qn not in attestations:
-        self._helper.raise_issue(Issue(sig_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='manual root detections without remote attestations', info1=','.join(vals), source=qn))
+        self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cvss=self._cvss, title='manual root detections without remote attestations', info0=','.join(vals), aff0=qn))
     for qn,verdicts in attestations.items():
       if qn not in path_based_detection_attempt:
-        self._helper.raise_issue(Issue(sig_id=self._id, confidence='firm', cvss3_vector=self._cvss, summary='remote attestations without manual root detections', info1=','.join(verdicts), source=qn))
+        self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cvss=self._cvss, title='remote attestations without manual root detections', info0=','.join(verdicts), aff0=qn))
 
   def _get_attempts(self, x: str) -> Set[str]:
     o: Set[str] = set()
@@ -787,15 +774,15 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
       except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='certain',
-        cvss3_vector=self._cvss,
-        summary=self._summary,
-        synopsis=self._synopsis,
-        info1=target_val,
-        info2='read',
-        source=q.qualname_of(cl)
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cfd='certain',
+        cvss=self._cvss,
+        title=self._summary,
+        summary=self._synopsis,
+        info0=target_val,
+        info1='read',
+        aff0=q.qualname_of(cl)
       ))
 
     for cl in q.invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences\$Editor;->put(Boolean|Float|Int|String|StringSet)\(Ljava/lang/String;')):
@@ -807,15 +794,15 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
       except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='certain',
-        cvss3_vector=self._cvss,
-        summary=self._summary,
-        synopsis=self._synopsis,
-        info1=target_val,
-        info2='write',
-        source=q.qualname_of(cl)
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cfd='certain',
+        cvss=self._cvss,
+        title=self._summary,
+        summary=self._synopsis,
+        info0=target_val,
+        info1='write',
+        aff0=q.qualname_of(cl)
       ))
 
     for cl in q.invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences/Editor;->remove\(Ljava/lang/String;')):
@@ -827,13 +814,13 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
       except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
 
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='certain',
-        cvss3_vector=self._cvss,
-        summary=self._summary,
-        synopsis=self._synopsis,
-        info1=target_val,
-        info2='delete',
-        source=q.qualname_of(cl)
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cfd='certain',
+        cvss=self._cvss,
+        title=self._summary,
+        summary=self._synopsis,
+        info0=target_val,
+        info1='delete',
+        aff0=q.qualname_of(cl)
       ))

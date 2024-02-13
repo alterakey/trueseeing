@@ -57,4 +57,4 @@ def get_extension_package_prefix() -> str:
 
 @cache
 def get_cache_schema_id() -> int:
-  return 0x35a32250  # FIXME: remember to randomize this whenever incompatible changes occur on cache file structure, or DB schema
+  return 0x0c032834  # FIXME: remember to randomize this whenever incompatible changes occur on cache file structure, or DB schema

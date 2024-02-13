@@ -265,36 +265,36 @@ class Query:
       return 0
 
   def issue_raise(self, i: Issue) -> None:
-    assert i.cvss3_score is not None
+    assert i.score is not None
     self.db.execute(
-      'insert or ignore into analysis_issues (sig, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col) values (:sig_id, :summary, :synopsis, :description, :seealso, :solution, :info1, :info2, :info3, :confidence, :cvss3_score, :cvss3_vector, :source, :row, :col)',
+      'insert or ignore into analysis_issues (sig, title, summary, descr, ref, sol, info0, info1, info2, cfd, score, cvss, aff0, aff1, aff2) values (:sigid, :title, :summary, :desc, :ref, :sol, :info0, :info1, :info2, :cfd, :score, :cvss, :aff0, :aff1, :aff2)',
       dict(
-        sig_id=i.sig_id,
-        summary=i.summary,
-        confidence=self._issue_confidence_to_int(i.confidence),
-        cvss3_vector=i.cvss3_vector,
-        cvss3_score=i.cvss3_score,
-        synopsis=noneif(i.synopsis, ''),
-        description=noneif(i.description, ''),
-        seealso=noneif(i.seealso, ''),
-        solution=noneif(i.solution, ''),
+        sigid=i.sigid,
+        title=i.title,
+        cfd=self._issue_confidence_to_int(i.cfd),
+        cvss=i.cvss,
+        score=i.score,
+        summary=noneif(i.summary, ''),
+        desc=noneif(i.desc, ''),
+        ref=noneif(i.ref, ''),
+        sol=noneif(i.sol, ''),
+        info0=noneif(i.info0, ''),
         info1=noneif(i.info1, ''),
         info2=noneif(i.info2, ''),
-        info3=noneif(i.info3, ''),
-        source=noneif(i.source, ''),
-        row=noneif(i.row, ''),
-        col=noneif(i.col, ''),
+        aff0=noneif(i.aff0, ''),
+        aff1=noneif(i.aff1, ''),
+        aff2=noneif(i.aff2, ''),
       ))
 
   def issue_clear(self) -> None:
     self.db.execute('delete from analysis_issues')
 
   def issues(self) -> Iterable[Issue]:
-    for m in self.db.execute('select sig, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues'):
+    for m in self.db.execute('select sig, title, summary, descr, ref, sol, info0, info1, info2, cfd, score, cvss, aff0, aff1, aff2 from analysis_issues'):
       yield self._issue_from_row(m)
 
   def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, Optional[str], Optional[str], Optional[str], Optional[str], float, str]]]:
-    for no, r in enumerate(self.db.execute('select distinct sig, summary, synopsis, description, seealso, solution, cvss3_score, cvss3_vector from analysis_issues order by cvss3_score desc')):
+    for no, r in enumerate(self.db.execute('select distinct sig, title, summary, descr, ref, sol, score, cvss from analysis_issues order by score desc')):
       yield no, (
         r[0],
         r[1],
@@ -306,8 +306,8 @@ class Query:
         r[7],
       )
 
-  def issues_by_group(self, *, sig: str, summary: str) -> Iterable[Issue]:
-    for m in self.db.execute('select sig, summary, synopsis, description, seealso, solution, info1, info2, info3, confidence, cvss3_score, cvss3_vector, source, row, col from analysis_issues where sig=:sig and summary=:summary order by cvss3_score desc, confidence desc', dict(sig=sig, summary=summary)):
+  def issues_by_group(self, *, sig: str, title: str) -> Iterable[Issue]:
+    for m in self.db.execute('select sig, title, summary, descr, ref, sol, info0, info1, info2, cfd, score, cvss, aff0, aff1, aff2 from analysis_issues where sig=:sig and title=:title order by score desc, cfd desc', dict(sig=sig, title=title)):
       yield self._issue_from_row(m)
 
   def op_get(self, k: int) -> Optional[Op]:
@@ -360,18 +360,18 @@ class Query:
   @classmethod
   def _issue_from_row(cls, r: Tuple[Any, ...]) -> Issue:
     return Issue(
-      sig_id=r[0],
-      summary=r[1],
-      confidence=cls._issue_confidence_from_int(r[9]),
-      cvss3_vector=r[11],
-      synopsis=r[2] if r[2] else None,
-      description=r[3] if r[3] else None,
-      seealso=r[4] if r[4] else None,
-      solution=r[5] if r[5] else None,
-      info1=r[6] if r[6] else None,
-      info2=r[7] if r[7] else None,
-      info3=r[8] if r[8] else None,
-      source=r[12] if r[12] else None,
-      row=r[13] if r[13] else None,
-      col=r[14] if r[14] else None,
+      sigid=r[0],
+      title=r[1],
+      cfd=cls._issue_confidence_from_int(r[9]),
+      cvss=r[11],
+      summary=r[2] if r[2] else None,
+      desc=r[3] if r[3] else None,
+      ref=r[4] if r[4] else None,
+      sol=r[5] if r[5] else None,
+      info0=r[6] if r[6] else None,
+      info1=r[7] if r[7] else None,
+      info2=r[8] if r[8] else None,
+      aff0=r[12] if r[12] else None,
+      aff1=r[13] if r[13] else None,
+      aff2=r[14] if r[14] else None,
     )

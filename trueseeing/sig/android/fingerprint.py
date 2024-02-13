@@ -7,7 +7,6 @@ import re
 from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.android.model.code import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
-from trueseeing.core.model.issue import Issue
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any, Set
@@ -122,12 +121,11 @@ class LibraryDetector(SignatureMixin):
     packages = {k:v for k,v in packages.items() if not self._is_kind_of(k, package) and re.search(r'\.[a-zA-Z0-9]{4,}(?:\.|$)', k)}
 
     for p in sorted(packages.keys()):
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='firm',
-        cvss3_vector=self._cvss,
-        summary='detected library',
-        info1=f'{p} (score: {len(packages[p])})',
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cvss=self._cvss,
+        title='detected library',
+        info0=f'{p} (score: {len(packages[p])})',
       ))
 
     for p in reversed(sorted(packages.keys(), key=len)):
@@ -139,28 +137,27 @@ class LibraryDetector(SignatureMixin):
             continue
           if ' and ' not in ver and re.match('^[0-9]|^v[0-9]', ver):
             if len(comps) < 4 or self._comp4_looks_like_version(comps):
-              self._helper.raise_issue(Issue(
-                sig_id=self._id,
-                confidence='firm',
-                cvss3_vector=self._cvss,
-                summary='detected library version',
-                info1=f'{ver} ({p})',
+              self._helper.raise_issue(self._helper.build_issue(
+                sigid=self._id,
+                cvss=self._cvss,
+                title='detected library version',
+                info0=f'{ver} ({p})',
               ))
             else:
-              self._helper.raise_issue(Issue(
-                sig_id=self._id,
-                confidence='tentative',
-                cvss3_vector=self._cvss,
-                summary='potential library version',
-                info1=f'{ver} ({p})',
+              self._helper.raise_issue(self._helper.build_issue(
+                sigid=self._id,
+                cfd='tentative',
+                cvss=self._cvss,
+                title='potential library version',
+                info0=f'{ver} ({p})',
               ))
           else:
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='tentative',
-              cvss3_vector=self._cvss,
-              summary='potential version/dated reference in library',
-              info1=f'{ver} ({p})',
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cfd='tentative',
+              cvss=self._cvss,
+              title='potential version/dated reference in library',
+              info0=f'{ver} ({p})',
             ))
 
     for fn, blob in q.file_enum('root/assets/%.js'):
@@ -169,12 +166,12 @@ class LibraryDetector(SignatureMixin):
         for m in re.finditer(r'[0-9]+\.[0-9]+|(19|20)[0-9]{2}[ /-]', l):
           ver = l
           if not re.search(r'^/|:[0-9]+|\\|://|[\x00-\x1f]', ver):
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              confidence='tentative',
-              cvss3_vector=self._cvss,
-              summary='potential version/dated reference in library',
-              info1='{match} ({rfn})'.format(rfn=fn, match=ver),
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cfd='tentative',
+              cvss=self._cvss,
+              title='potential version/dated reference in library',
+              info0='{match} ({rfn})'.format(rfn=fn, match=ver),
             ))
 
   def _comp4_looks_like_version(self, xs: List[str]) -> bool:
@@ -216,10 +213,10 @@ class ProGuardDetector(SignatureMixin):
     for c in (self._class_name_of(context.source_name_of_disassembled_class(r)) for r in context.disassembled_classes()):
       m = re.search(r'(?:^|\.)(.)$', c)
       if m and m.group(1) not in self._whitelist:
-        self._helper.raise_issue(Issue(sig_id=self._id, confidence='certain', cvss3_vector=self._cvss_true, summary='detected obfuscator', info1='ProGuard'))
+        self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd='certain', cvss=self._cvss_true, title='detected obfuscator', info0='ProGuard'))
         break
     else:
-      self._helper.raise_issue(Issue(sig_id=self._id, confidence='firm', cvss3_vector=self._cvss_false, summary='lack of obfuscation'))
+      self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cvss=self._cvss_false, title='lack of obfuscation'))
 
 class UrlLikeDetector(SignatureMixin):
   _id = 'detect-url'
@@ -237,9 +234,9 @@ class UrlLikeDetector(SignatureMixin):
   def _analyzed(self, x: str, qn: Optional[str] = None) -> Iterable[Dict[str, Any]]:
     assert self._re_tlds is not None
     if '://' in x:
-      yield dict(type_='URL', value=re.findall(r'\S+://\S+', x), confidence='firm')
+      yield dict(type_='URL', value=re.findall(r'\S+://\S+', x), cfd='firm')
     elif re.search(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x):
-      yield dict(type_='path component', value=re.findall(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x), confidence='firm')
+      yield dict(type_='path component', value=re.findall(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x), cfd='firm')
     elif re.search(r'^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$', x):
       m = re.search(r'^([^:/]+)', x)
       if m:
@@ -249,13 +246,13 @@ class UrlLikeDetector(SignatureMixin):
           if re.match(r'1\.[239]\.|2\.(1|5|160)\.|3\.1\.', hostlike) and qn is not None and re.search(r'asn1|ASN1|x509|X509|KeyUsage', qn):
             pass
           else:
-            yield dict(type_='possible IPv4 address', value=[hostlike], confidence='firm')
+            yield dict(type_='possible IPv4 address', value=[hostlike], cfd='firm')
         elif self._re_tlds.search(components[-1]):
           if not re.search(r'^android\.(intent|media)\.|^os\.name$|^java\.vm\.name|^[A-Z]+.*\.(java|EC|name|secure)$|^Dispatchers\.IO', hostlike):
             confidence: IssueConfidence = 'firm'
             if re.search(r'^(java|os|kotlin|google\.[a-z]+?)\.|^(com|cn)\.google|\.(date|time|host|help|prof|name|top|link|id|icu|app|[a-z]{5,})$', hostlike, flags=re.IGNORECASE):
               confidence = 'tentative'
-            yield dict(type_='possible FQDN', value=[hostlike], confidence=confidence)
+            yield dict(type_='possible FQDN', value=[hostlike], cfd=confidence)
 
   async def detect(self) -> None:
     from importlib.resources import files
@@ -270,11 +267,11 @@ class UrlLikeDetector(SignatureMixin):
         continue
       for match in self._analyzed(cl.p[1].v, qn):
         for v in match['value']:
-          self._helper.raise_issue(Issue(sig_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=qn))
+          self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd=match['cfd'], cvss=self._cvss, title=f'detected {match["type_"]}', info0=v, aff0=qn))
     for name, val in context.string_resources():
       for match in self._analyzed(val):
         for v in match['value']:
-          self._helper.raise_issue(Issue(sig_id=self._id, confidence=match['confidence'], cvss3_vector=self._cvss, summary=f'detected {match["type_"]}', info1=v, source=f'R.string.{name}'))
+          self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd=match['cfd'], cvss=self._cvss, title=f'detected {match["type_"]}', info0=v, aff0=f'R.string.{name}'))
 
 class NativeMethodDetector(SignatureMixin):
   _id = 'detect-native-method'
@@ -295,13 +292,12 @@ class NativeMethodDetector(SignatureMixin):
     store = context.store()
     q = store.query()
     for op in q.methods_with_modifier('native'):
-      self._helper.raise_issue(Issue(
-        sig_id=self._id,
-        confidence='firm',
-        cvss3_vector=self._cvss,
-        summary=self._summary,
-        synopsis=self._synopsis,
-        source=q.qualname_of(op)
+      self._helper.raise_issue(self._helper.build_issue(
+        sigid=self._id,
+        cvss=self._cvss,
+        title=self._summary,
+        summary=self._synopsis,
+        aff0=q.qualname_of(op)
       ))
 
 class NativeArchDetector(SignatureMixin):
@@ -321,14 +317,13 @@ class NativeArchDetector(SignatureMixin):
     for d in self._helper.get_context().store().query().file_find('root/lib/%'):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[2]
-        self._helper.raise_issue(Issue(
-          sig_id=self._id,
-          confidence='firm',
-          cvss3_vector=self._cvss,
-          summary=self._summary,
-          info1=arch,
-          info2=os.path.basename(d),
-          synopsis=self._synopsis,
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid=self._id,
+          cvss=self._cvss,
+          title=self._summary,
+          info0=arch,
+          info1=os.path.basename(d),
+          summary=self._synopsis,
         ))
 
 class ReflectionDetector(SignatureMixin):
@@ -390,27 +385,25 @@ class ReflectionDetector(SignatureMixin):
           for x in xs:
             if any(re.match(p, x) for p in self._blacklist_val):
               x = self._masker
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              cvss3_vector=self._cvss,
-              confidence='firm',
-              summary=self._summary1,
-              info1=ct,
-              info2=x,
-              source=qn,
-              synopsis=self._synopsis1,
-              description=self._synopsis1,
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss,
+              title=self._summary1,
+              info0=ct,
+              info1=x,
+              aff0=qn,
+              summary=self._synopsis1,
+              desc=self._synopsis1,
             ))
         except IndexError:
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            cvss3_vector=self._cvss,
-            confidence='firm',
-            summary=self._summary1,
-            info1=ct,
-            source=qn,
-            synopsis=self._synopsis1,
-            description=self._synopsis1,
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss,
+            title=self._summary1,
+            info0=ct,
+            aff0=qn,
+            summary=self._synopsis1,
+            desc=self._synopsis1,
           ))
       else:
         try:
@@ -420,25 +413,23 @@ class ReflectionDetector(SignatureMixin):
           for x in xs:
             if any(re.match(p, x) for p in self._blacklist_val):
               x = self._masker
-            self._helper.raise_issue(Issue(
-              sig_id=self._id,
-              cvss3_vector=self._cvss,
-              confidence='firm',
-              summary=self._summary0,
-              info1=ct,
-              info2=x,
-              source=qn,
-              synopsis=self._synopsis0,
-              description=self._synopsis0,
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss,
+              title=self._summary0,
+              info0=ct,
+              info1=x,
+              aff0=qn,
+              summary=self._synopsis0,
+              desc=self._synopsis0,
             ))
         except IndexError:
-          self._helper.raise_issue(Issue(
-            sig_id=self._id,
-            cvss3_vector=self._cvss,
-            confidence='firm',
-            summary=self._summary0,
-            info1=ct,
-            source=qn,
-            synopsis=self._synopsis0,
-            description=self._synopsis0,
+          self._helper.raise_issue(self._helper.build_issue(
+            sigid=self._id,
+            cvss=self._cvss,
+            title=self._summary0,
+            info0=ct,
+            aff0=qn,
+            summary=self._synopsis0,
+            desc=self._synopsis0,
           ))
