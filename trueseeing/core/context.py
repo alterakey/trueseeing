@@ -36,6 +36,8 @@ class FileOpener:
   _formats: Dict[str, FormatEntry]
 
   def __init__(self) -> None:
+    from trueseeing.core.config import Configs
+    self._confbag = Configs.get().bag
     self._formats = dict()
     self._init_formats()
 
@@ -59,6 +61,7 @@ class FileOpener:
     for clazz in Extension.get().get_fileformathandlers():
       t = clazz.create()
       self._formats.update(t.get_formats())
+      self._confbag.update(t.get_configs())
 
   def _handle_apk(self, path: str) -> Optional[Context]:
     from trueseeing.core.android.context import APKContext

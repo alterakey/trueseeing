@@ -14,12 +14,14 @@ class Scanner:
   _helper: DetectorHelper
   _sigs: Dict[str, DetectorEntry]
 
-  def __init__(self, context: Context, sigsels: List[str] = [], excludes: List[str] = [], max_graph_size: Optional[int] = None) -> None:
-    self._helper = DetectorHelperImpl(self)
+  def __init__(self, context: Context, *, sigsels: List[str] = [], excludes: List[str] = [], max_graph_size: Optional[int] = None) -> None:
+    from trueseeing.core.config import Configs
     self._context = context
     self._sigs = dict()
     self._excludes = excludes
     self._max_graph_size = max_graph_size
+    self._confbag = Configs.get().bag
+    self._helper = DetectorHelperImpl(self)
 
     self._init_sigs(['all'] + sigsels)
 
@@ -87,14 +89,19 @@ class Scanner:
     from trueseeing.sig import discover
     from trueseeing.core.ext import Extension
     for clazz in chain(discover(), Extension.get().get_signatures()):
+      matched = False
       t = clazz.create(self._helper)
       for k,v in t.get_descriptor().items():
         if self._sigsel_matches(k, sigsels):
           self._sigs[k] = v
+          matched = True
+      if matched:
+        self._confbag.update(t.get_configs())
 
 class DetectorHelperImpl:
   def __init__(self, scanner: Scanner) -> None:
     self._s = scanner
+    self._confbag = self._s._confbag
   def get_context(self, typ: Optional[ContextType] = None) -> Any:
     if typ:
       self._s._context.require_type(typ)
@@ -134,3 +141,9 @@ class DetectorHelperImpl:
       row=row,
       col=col,
     )
+  def get_config(self, k: str) -> Any:
+    e = self._confbag[k]
+    return e['g']()
+  def set_config(self, k: str, v: Any) -> None:
+    e = self._confbag[k]
+    e['s'](v)
