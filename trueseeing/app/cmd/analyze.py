@@ -26,11 +26,11 @@ class AnalyzeCommand(CommandMixin):
     }
 
   async def _analyze(self, args: deque[str], level: int = 2) -> None:
-    apk = self._helper.require_target()
+    target = self._helper.require_target()
 
     cmd = args.popleft()
 
-    ui.info(f"analyzing {apk}")
+    ui.info(f"analyzing {target}")
 
     context = self._helper.get_context()
     if cmd.endswith('!'):

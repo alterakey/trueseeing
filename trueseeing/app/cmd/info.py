@@ -26,7 +26,7 @@ class InfoCommand(CommandMixin):
 
   async def _info(self, args: deque[str], level: int = 0) -> None:
     from trueseeing.core.android.context import APKContext
-    apk = self._helper.require_target()
+    target = self._helper.require_target()
 
     _ = args.popleft()
 
@@ -37,12 +37,12 @@ class InfoCommand(CommandMixin):
 
     context = self._helper.get_context()
 
-    ui.info(f'info on {apk}')
+    ui.info(f'info on {target}')
 
-    ui.info('path         {}'.format(apk))
+    ui.info('path         {}'.format(target))
 
     if context.type == 'apk':  # XXX
-      ui.info('size         {}'.format(os.stat(apk).st_size))
+      ui.info('size         {}'.format(os.stat(target).st_size))
 
     ui.info('fp           {}'.format(context.fingerprint_of()))
     ui.info('ctx          {}'.format(context.wd))
