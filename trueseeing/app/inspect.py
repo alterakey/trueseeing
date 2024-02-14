@@ -119,7 +119,7 @@ class Runner:
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
       '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
       '!':dict(e=self._shell, n='!', d='shell'),
-      'o':dict(e=self._set_target, n='o target.apk', d='set target APK'),
+      'o':dict(e=self._set_target, n='o /path/to/target', d='set target file'),
       'q':dict(e=self._quit, n='q', d='quit'),
     }
     self._cmdpats = {}
