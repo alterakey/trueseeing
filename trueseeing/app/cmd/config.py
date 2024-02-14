@@ -39,6 +39,7 @@ class ConfigCommand(CommandMixin):
           )
 
   async def _manip(self, args: deque[str]) -> None:
+    from trueseeing.core.exc import InvalidConfigKeyError
     _ = args.popleft()
     if not args:
       ui.fatal('need a config key')
@@ -52,10 +53,10 @@ class ConfigCommand(CommandMixin):
 
       try:
         self._helper.set_config(key, value)
-      except KeyError:
+      except InvalidConfigKeyError:
         ui.fatal(f'unknown key: {key}')
     else:
       try:
         ui.info('{}: {}'.format(key, self._helper.get_config(key)))
-      except KeyError:
+      except InvalidConfigKeyError:
         ui.fatal(f'unknown key: {key}')
