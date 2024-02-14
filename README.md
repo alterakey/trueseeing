@@ -51,7 +51,7 @@ You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice
 
 	$ trueseeing --inspect target.apk
 	warning: --inspect is deprecated; ignored as default
-	[+] trueseeing 2.1.9
+	[+] trueseeing 2.2.0
 	ts[target.apk]> ?
 	...
 	ts[target.apk]> i                      # show generic information
