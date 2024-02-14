@@ -5,7 +5,7 @@
 ![Main branch deploy status](https://github.com/alterakey/trueseeing/workflows/deploy/badge.svg)
 ![Main branch last commit](https://img.shields.io/github/last-commit/alterakey/trueseeing/main)
 
-trueseeing is a fast, accurate and resillient vulnerabilities scanner for Android apps.  We operate on the Dalvik VM level -- i.e. we don't care if the target app is obfuscated or not.
+trueseeing is a fast, accurate and resillient vulnerability scanner for Android apps.  We operate on the Dalvik VM level -- i.e. we don't care if the target app is obfuscated or not.
 
 ## Capability
 
@@ -38,7 +38,7 @@ If you want to run statelessly you omit mounting volume onto /cache (not recomme
 
 ### With pip
 
-Alternatively, you can install it with pip as follows. This might be useful for extensions, as it allows us the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
+Alternatively, you can install our package with pip as follows. This form of installation might be useful for extensions, as it grants them the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
 
 	$ pip install --user trueseeing
 	$ trueseeing
@@ -73,20 +73,20 @@ We accept an inline command (`-c`) or script file (`-i`) to run before giving yo
 
 You can use the features to conduct a batch scan, as follows e.g. to dump findings right onto the stderr:
 
-	$ trueseeing -qc 'as' target.apk
+	$ trueseeing -eqc 'as' target.apk
 
 To generate a report file in HTML format:
 
-	$ trueseeing -qc 'as;gh report.html' target.apk
+	$ trueseeing -eqc 'as;gh report.html' target.apk
 
 To generate a report file in JSON format:
 
-	$ trueseeing -qc 'as;gj report.json' target.apk
+	$ trueseeing -eqc 'as;gj report.json' target.apk
 
 To get report generated in stdout, omit filename from final `g*` command:
 
-	$ trueseeing -qc 'as;gh' target.apk > report.html
-	$ trueseeing -qc 'as;gj' target.apk > report.json
+	$ trueseeing -eqc 'as;gh' target.apk > report.html
+	$ trueseeing -eqc 'as;gj' target.apk > report.json
 
 ### Non-interactive scan mode (deprecated)
 
@@ -184,11 +184,11 @@ Currently we can detect the following class of vulnerabilities, largely ones cov
 
 ### Extension API
 
-Extension API lays under the `trueseeing.api` package. We provide type information for these classes, your IDE will assist you.
+Our extension API lays under the `trueseeing.api` package. As we provide type information with it, your IDE will assist you when writing your extensions.
 
 #### Commands
 
-To define a new command, implement `trueseeing.api.Command` and advertise the command you provide.
+To define new commands, implement `trueseeing.api.Command` and advertise them.
 
 The following class will provide a sample command as `t`, for example:
 
@@ -225,7 +225,7 @@ class MyCommand(Command):
 
 #### Signatures
 
-To define a new signature, implement `trueseeing.api.Signature` and advertise the signature you provide.
+To define new signatures, implement `trueseeing.api.Signature` and advertise them.
 
 The following class will provide a sample detector as `my-sig`, for example:
 
@@ -259,7 +259,7 @@ class MySignature(Signature):
 
 #### File Formats
 
-To define a new file format, implement `trueseeing.api.FileFormatHandler` and advertise the format you support.
+To define new file formats, implement `trueseeing.api.FileFormatHandler` and advertise them.
 
 The following class will provide APK file support, for example:
 
@@ -295,7 +295,7 @@ context = self._helper.get_context('apk')
 
 #### Package requirements
 
-Extensions can be either: any package placed under `/ext` (container) or `~/.truseeing2/extensions` (pip), or any installed module named with prefix of `trueseeing_ext0_`.
+Extensions can be either: a) any package placed under `/ext` (container) or `~/.truseeing2/extensions` (pip), or b) any installed module named with the prefix of `trueseeing_ext0_`.
 
 ### Origin of Project Name?
 
