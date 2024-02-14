@@ -144,8 +144,19 @@ class SignatureHelperImpl:
       aff2=aff2,
     )
   def get_config(self, k: str) -> Any:
-    e = self._confbag[k]
-    return e['g']()
+    from trueseeing.core.exc import InvalidConfigKeyError
+    try:
+      e = self._confbag[k]
+    except KeyError:
+      raise InvalidConfigKeyError()
+    else:
+      return e['g']()
+
   def set_config(self, k: str, v: Any) -> None:
-    e = self._confbag[k]
-    e['s'](v)
+    from trueseeing.core.exc import InvalidConfigKeyError
+    try:
+      e = self._confbag[k]
+    except KeyError:
+      raise InvalidConfigKeyError()
+    else:
+      e['s'](v)

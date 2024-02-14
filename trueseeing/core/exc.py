@@ -15,3 +15,6 @@ class InvalidContextError(Exception):
 
 class InvalidFileFormatError(Exception):
     pass
+
+class InvalidConfigKeyError(Exception):
+    pass
