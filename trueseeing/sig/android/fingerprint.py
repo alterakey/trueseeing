@@ -288,7 +288,7 @@ class NativeMethodDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects natively defined methods')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     store = context.store()
     q = store.query()
     for op in q.methods_with_modifier('native'):
@@ -314,7 +314,7 @@ class NativeArchDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects supported architectures')}
 
   async def detect(self) -> None:
-    for d in self._helper.get_context().store().query().file_find('root/lib/%'):
+    for d in self._helper.get_context('apk').store().query().file_find('root/lib/%'):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[2]
         self._helper.raise_issue(self._helper.build_issue(

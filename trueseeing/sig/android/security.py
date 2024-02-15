@@ -104,7 +104,7 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
           ))
 
   def _do_detect_plain_pins_x509(self) -> Set[str]:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     pins: Set[str] = set()
     store = context.store()
     q = store.query()
@@ -133,7 +133,7 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
       return pins
 
   def _do_detect_plain_pins_hostnameverifier(self) -> Set[str]:
-    context = self._helper.get_context()
+    context = self._helper.get_context('apk')
     pins: Set[str] = set()
     q = context.store().query()
     for m in itertools.chain(q.methods_in_class('verify(Ljava/lang/String;Ljavax/net/ssl/SSLSession;)Z', 'HostnameVerifier')):
