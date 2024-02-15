@@ -41,7 +41,7 @@ class InfoCommand(CommandMixin):
 
     ui.info('path         {}'.format(target))
 
-    if context.type == 'apk':  # XXX
+    if 'apk' in context.type:  # XXX
       ui.info('size         {}'.format(os.stat(target).st_size))
 
     ui.info('fp           {}'.format(context.fingerprint_of()))

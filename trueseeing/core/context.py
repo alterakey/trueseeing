@@ -2,12 +2,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-  from typing import Protocol, List, Literal, overload, Any, Dict, Optional
+  from typing import Protocol, List, Literal, overload, Any, Dict, Optional, Set
   from trueseeing.api import FormatEntry
   from trueseeing.core.android.store import Store
   from trueseeing.core.android.context import APKContext
 
-  ContextType = Literal['apk']
+  ContextType = Literal['apk', 'file']
 
   class Context(Protocol):
     @property
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     @property
     def target(self) -> str: ...
     @property
-    def type(self) -> ContextType: ...
+    def type(self) -> Set[ContextType]: ...
     @property
     def excludes(self) -> List[str]: ...
     @excludes.setter
@@ -28,8 +28,10 @@ if TYPE_CHECKING:
     def has_patches(self) -> bool: ...
     def get_analysis_level(self) -> int: ...
     async def analyze(self, level: int = 3) -> None: ...
-    @overload                                                        # type: ignore[misc]
+    @overload
     def require_type(self, typ: Literal['apk']) -> APKContext: ...
+    @overload
+    def require_type(self, typ: ContextType) -> Context: ...
     def require_type(self, typ: ContextType) -> Any: ...
 
 class FileOpener:

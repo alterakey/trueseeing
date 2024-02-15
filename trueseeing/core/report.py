@@ -70,7 +70,7 @@ class HTMLReportGenerator:
 
       ts = datetime.now(tz=ZoneInfo('UTC')).isoformat(timespec='seconds')
 
-      if self._context.type == 'apk':
+      if 'apk' in self._context.type:
         ctx = self._context.require_type('apk')
         apk = ctx.target
         manif = ctx.parsed_manifest()
@@ -130,7 +130,7 @@ class JSONReportGenerator:
         path=self._context.target,
       )
 
-      if self._context.type == 'apk':
+      if 'apk' in self._context.type:
         ctx = self._context.require_type('apk')
         apk = ctx.target
         manif = ctx.parsed_manifest()

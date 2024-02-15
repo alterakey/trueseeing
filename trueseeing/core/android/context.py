@@ -14,7 +14,7 @@ from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v
 from trueseeing.core.exc import InvalidContextError
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Tuple, Optional, Final
+  from typing import List, Any, Iterable, Tuple, Optional, Final, Set
   from trueseeing.core.context import ContextType
   from trueseeing.core.android.store import Store
 
@@ -23,7 +23,7 @@ class APKContext:
   excludes: List[str]
   _apk: str
   _store: Optional[Store] = None
-  _type: Final[ContextType] = 'apk'
+  _type: Final[Set[ContextType]] = {'apk', 'file'}
 
   def __init__(self, path: str, excludes: List[str]) -> None:
     self._apk = path
@@ -31,11 +31,11 @@ class APKContext:
     self.excludes = excludes
 
   @property
-  def type(self) -> ContextType:
+  def type(self) -> Set[ContextType]:
     return self._type
 
   def require_type(self, typ: ContextType) -> APKContext:
-    if typ == self._type:
+    if typ in self._type:
       return self
     raise InvalidContextError()
 
