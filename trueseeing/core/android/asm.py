@@ -12,7 +12,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import Tuple
   from trueseeing.core.context import Context
-  from trueseeing.core.android.db import FileEntry
+  from trueseeing.core.db import FileEntry
 
 class APKDisassembler:
   _context: Context

@@ -10,12 +10,12 @@ from trueseeing.core.android.model.code import Op
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict, Iterator
   from typing_extensions import Final
-  from trueseeing.core.android.db import Query
+  from trueseeing.core.android.db import APKQuery
 
   DataGraph = Union[Op, Mapping[Op, Any]]
 
 class CodeFlow:
-  def __init__(self, q: Query) -> None:
+  def __init__(self, q: APKQuery) -> None:
     self._q = q
 
   def callers_of(self, method: Op) -> Iterable[Op]:
@@ -28,7 +28,7 @@ class CodeFlow:
     return o
 
 class DataFlow:
-  _q: Query
+  _q: APKQuery
   _default_max_graph_size: Final[int] = 2 * 1048576
 
   _max_graph_size: int = _default_max_graph_size
@@ -42,7 +42,7 @@ class DataFlow:
   class GraphSizeError(Exception):
     pass
 
-  def __init__(self, q: Query) -> None:
+  def __init__(self, q: APKQuery) -> None:
     self._q = q
 
   @classmethod
