@@ -21,7 +21,7 @@ class SearchCommand(CommandMixin):
   def get_commands(self) -> CommandMap:
     return {
       '/f':dict(e=self._search_file, n='/f [pat]', d='search files those names matching pattern'),
-      '/s':dict(e=self._search_string, n='/s pat', d='search files for string'),
+      '/s':dict(e=self._search_string, n='/s pat [filepat]', d='search files for string'),
     }
 
   async def _search_file(self, args: deque[str]) -> None:
