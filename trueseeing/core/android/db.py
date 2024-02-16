@@ -7,10 +7,15 @@ from trueseeing.core.model.issue import Issue
 from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
-  from typing import Any, Iterable, Tuple, Dict, Optional, Iterator, List, Set
+  from typing import Any, Iterable, Tuple, Dict, Optional, Iterator, List, Set, TypedDict
   from trueseeing.core.android.store import Store
   from trueseeing.core.android.model.code import InvocationPattern
   from trueseeing.core.model.issue import IssueConfidence
+
+  class FileEntry(TypedDict):
+    path: str
+    blob: bytes
+    z: bool
 
 class StorePrep:
   def __init__(self, c: Any) -> None:
@@ -186,13 +191,14 @@ class Query:
     for f, in self.db.execute('select path from files where path {op} :pat'.format(op=('like' if not regex else 'regexp')), dict(pat=pat)):
       yield f
 
-  def file_search(self, pat: bytes, regex: bool = False) -> Iterable[str]:
-    for f, in self.db.execute('select path from files where blob {op} :pat'.format(op=('like' if not regex else 'regexp')), dict(pat=pat)):
+  def file_search(self, pat: bytes, regex: bool = True) -> Iterable[str]:
+    assert regex, 'content needs to be matched with regex'
+    for f, in self.db.execute('select path from files where zmatch(z,:pat,blob)', dict(pat=pat)):
       yield f
 
   def file_get(self, path: str, default: Optional[bytes] = None, patched: bool = False) -> Optional[bytes]:
-    stmt0 = 'select blob from files where path=:path'
-    stmt1 = 'select coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path=:path'
+    stmt0 = 'select mzd(z,blob) as blob from files where path=:path'
+    stmt1 = 'select mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path) where path=:path'
     for b, in self.db.execute(stmt1 if patched else stmt0, dict(path=path)):
       return b # type:ignore[no-any-return]
     else:
@@ -208,13 +214,13 @@ class Query:
 
   def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
-      stmt0 = 'select path, blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select path, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt0 = 'select path, mzd(z,blob) as blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt1 = 'select path, mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
       for n, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
         yield n, o
     else:
-      stmt2 = 'select path, blob from files'
-      stmt3 = 'select path, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path)'
+      stmt2 = 'select path, mzd(z,blob) as blob from files'
+      stmt3 = 'select path, mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path)'
       for n, o in self.db.execute(stmt3 if patched else stmt2):
         yield n, o
 
@@ -231,21 +237,21 @@ class Query:
         return nr # type:ignore[no-any-return]
     return 0
 
-  def file_put_batch(self, gen: Iterable[Tuple[str, bytes]]) -> None:
-    self.db.executemany('insert into files (path, blob) values (?,?)', gen)
+  def file_put_batch(self, gen: Iterable[FileEntry]) -> None:
+    self.db.executemany('insert into files (path, blob, z) values (:path,mze(:z,:blob),:z)', gen)
 
   def patch_enum(self, pat: Optional[str]) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
-      stmt0 = 'select path, blob from patches where path like :pat'
+      stmt0 = 'select path, mzd(z,blob) from patches where path like :pat'
       for n, o in self.db.execute(stmt0, dict(pat=pat)):
         yield n, o
     else:
-      stmt1 = 'select path, blob from patches'
+      stmt1 = 'select path, mzd(z,blob) from patches'
       for n, o in self.db.execute(stmt1):
         yield n, o
 
-  def patch_put(self, path: str, blob: bytes) -> None:
-    self.db.execute('replace into patches (path, blob) values (:path,:blob)', dict(path=path, blob=blob))
+  def patch_put(self, path: str, blob: bytes, z: bool) -> None:
+    self.db.execute('replace into patches (path, blob, z) values (:path,mze(:z,:blob),:z)', dict(path=path, blob=blob, z=z))
 
   def patch_exists(self, path: Optional[str]) -> bool:
     stmt0 = 'select 1 from patches where path=:path'

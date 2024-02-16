@@ -12,6 +12,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import Tuple
   from trueseeing.core.context import Context
+  from trueseeing.core.android.db import FileEntry
 
 class APKDisassembler:
   _context: Context
@@ -48,10 +49,10 @@ class APKDisassembler:
 
           os.chdir('files')
 
-        def read_as_row(fn: str) -> Tuple[str, bytes]:
+        def read_as_row(fn: str) -> FileEntry:
           pub.sendMessage('progress.core.asm.lift.update')
           with open(fn, 'rb') as f:
-            return fn, f.read()
+            return dict(path=fn, blob=f.read(), z=True)
 
         def should_cache(fn: str) -> bool:
           if not os.path.isfile(fn):
