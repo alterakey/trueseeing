@@ -13,7 +13,7 @@ from trueseeing.core.android.analysis.flow import DataFlow
 if TYPE_CHECKING:
   from typing import Dict, Iterable, Optional, Any
   from trueseeing.core.android.model.code import Op
-  from trueseeing.core.android.store import Store
+  from trueseeing.core.android.store import APKStore
   from trueseeing.api import Signature, SignatureHelper, SignatureMap
 
 class CryptoStaticKeyDetector(SignatureMixin):
@@ -122,7 +122,7 @@ Possible cryptographic constants has been found in the application binary.
 
   async def _do_detect_case2(self) -> None:
     # XXX: Crude detection
-    def should_be_secret(store: Store, k: Op, val: str) -> bool:
+    def should_be_secret(store: APKStore, k: Op, val: str) -> bool:
       name = store.query().qualname_of(k)
       if name:
         return name.lower() in ['inapp','billing','iab','sku','store','key']

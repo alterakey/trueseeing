@@ -1,71 +1,37 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import re
-import zstandard as zstd
-from trueseeing.core.android.db import Query
+from trueseeing.core.store import Store
+from trueseeing.core.android.db import APKQuery
 
 if TYPE_CHECKING:
-  import sqlite3
-  from typing import Any, AnyStr
+  from sqlite3 import Connection
 
-class Store:
-  db: sqlite3.Connection
-
-  def __init__(self, path: str) -> None:
-    self._path = path
-    self.db = self._open_db()
-
-  def _open_db(self) -> sqlite3.Connection:
-    import os.path
-    import sqlite3
-    from trueseeing.core.android.db import StorePrep, FileTablePrep
-    store_path = os.path.join(self._path, 'store.db')
-    is_creating = not os.path.exists(store_path)
-    o = sqlite3.connect(store_path)
-    o.create_function("REGEXP", 2, Store._re_fn, deterministic=True)
-    o.create_function("MZD", 2, Store._mzd_fn, deterministic=True)
-    o.create_function("MZE", 2, Store._mze_fn, deterministic=True)
-    StorePrep(o).stage0()
+class APKStore(Store):
+  def _prep_schema(self, o: Connection, is_creating: bool) -> None:
+    from trueseeing.core.db import FileTablePrep
+    from trueseeing.core.android.db import APKStorePrep
+    APKStorePrep(o).stage0()
     if is_creating:
       FileTablePrep(o).prepare()
-      StorePrep(o).stage1()
-    StorePrep(o).require_valid_schema()
-    return o
+      APKStorePrep(o).stage1()
 
-  @staticmethod
-  def require_valid_schema_on(path: str) -> None:
+  def _check_schema(self) -> None:
+    from trueseeing.core.android.db import APKStorePrep
+    APKStorePrep(self.db).require_valid_schema()
+
+  @classmethod
+  def require_valid_schema_on(cls, path: str) -> None:
     import os.path
-    import sqlite3
-    from trueseeing.core.android.db import StorePrep
-    store_path = os.path.join(path, 'store.db')
+    store_path = os.path.join(path, cls._fn)
     if not os.path.exists(store_path):
       from trueseeing.core.exc import InvalidSchemaError
       raise InvalidSchemaError()
     else:
+      import sqlite3
+      from trueseeing.core.android.db import APKStorePrep
       o = sqlite3.connect(store_path)
-      StorePrep(o).require_valid_schema()
+      APKStorePrep(o).require_valid_schema()
 
-  @staticmethod
-  def _re_fn(expr: AnyStr, item: Any) -> bool:
-    if item is not None:
-      return re.compile(expr).search(item) is not None
-    else:
-      return False
-
-  @staticmethod
-  def _mzd_fn(z: bool, item: bytes) -> bytes:
-    if not z:
-      return item
-    else:
-      return zstd.ZstdDecompressor().decompress(item)
-
-  @staticmethod
-  def _mze_fn(z: bool, item: bytes) -> bytes:
-    if not z:
-      return item
-    else:
-      return zstd.ZstdCompressor(threads=-1).compress(item)
-
-  def query(self) -> Query:
-    return Query(store=self)
+  def query(self) -> APKQuery:
+    return APKQuery(store=self)

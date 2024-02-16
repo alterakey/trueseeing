@@ -9,7 +9,7 @@ from trueseeing.core.model.sig import SignatureMixin
 
 if TYPE_CHECKING:
   from typing import Optional
-  from trueseeing.core.android.db import Query
+  from trueseeing.core.android.db import APKQuery
   from trueseeing.core.android.model.code import Op
   from trueseeing.api import Signature, SignatureHelper, SignatureMap
 
@@ -26,7 +26,7 @@ class PrivacyDeviceIdDetector(SignatureMixin):
   def get_sigs(self) -> SignatureMap:
     return {self._id:dict(e=self.detect, d='Detects device fingerprinting behavior')}
 
-  def analyzed(self, q: Query, op: Op) -> Optional[str]:
+  def analyzed(self, q: APKQuery, op: Op) -> Optional[str]:
     x = op.p[1].v
     if re.search(r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
       try:

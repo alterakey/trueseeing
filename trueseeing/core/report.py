@@ -61,8 +61,8 @@ class HTMLReportGenerator:
       from datetime import datetime
       from zoneinfo import ZoneInfo
 
-      from trueseeing.core.android.db import Query
-      query = Query(c=db)
+      from trueseeing.core.android.db import APKQuery
+      query = APKQuery(c=db)
       app: Dict[str, Any] = dict(
         path=self._context.target,
       )
@@ -123,8 +123,8 @@ class JSONReportGenerator:
   def generate(self, f: TextIO) -> None:
     from json import dumps
     with self._context.store().db as db:
-      from trueseeing.core.android.db import Query
-      query = Query(c=db)
+      from trueseeing.core.android.db import APKQuery
+      query = APKQuery(c=db)
       issues = []
       app: Dict[str, Any] = dict(
         path=self._context.target,

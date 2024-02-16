@@ -5,7 +5,7 @@ if TYPE_CHECKING:
   from typing import Protocol, List, Literal, overload, Any, Dict, Optional, Set
   from trueseeing.api import FormatEntry
   from trueseeing.core.android.context import APKContext
-  from trueseeing.core.android.store import Store # XXX
+  from trueseeing.core.store import Store
 
   ContextType = Literal['apk', 'file']
 

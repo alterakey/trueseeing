@@ -10,18 +10,18 @@ from trueseeing.core.android.model.code import Op, Annotation, Param
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Tuple, TypeVar, Set
-  from trueseeing.core.android.store import Store
+  from trueseeing.core.android.store import APKStore
 
   T = TypeVar('T')
 
 class SmaliAnalyzer:
-  _store: Store
-  def __init__(self, store: Store) -> None:
+  _store: APKStore
+  def __init__(self, store: APKStore) -> None:
     self._store = store
 
   def analyze(self) -> None:
     import time
-    from trueseeing.core.android.db import Query
+    from trueseeing.core.android.db import APKQuery
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0
@@ -31,7 +31,7 @@ class SmaliAnalyzer:
 
     with self._store.db as c:
       c.execute('begin exclusive')
-      q = Query(c=c)
+      q = APKQuery(c=c)
       base_id = 1
       analyzed_ops = 0
 

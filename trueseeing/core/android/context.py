@@ -16,13 +16,13 @@ from trueseeing.core.exc import InvalidContextError
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional, Final, Set
   from trueseeing.core.context import ContextType
-  from trueseeing.core.android.store import Store
+  from trueseeing.core.android.store import APKStore
 
 class APKContext:
   wd: str
   excludes: List[str]
   _apk: str
-  _store: Optional[Store] = None
+  _store: Optional[APKStore] = None
   _type: Final[Set[ContextType]] = {'apk', 'file'}
 
   def __init__(self, path: str, excludes: List[str]) -> None:
@@ -69,11 +69,11 @@ class APKContext:
   def target(self) -> str:
     return self._apk
 
-  def store(self) -> Store:
+  def store(self) -> APKStore:
     if self._store is None:
       assert self.wd is not None
-      from trueseeing.core.android.store import Store
-      self._store = Store(self.wd)
+      from trueseeing.core.android.store import APKStore
+      self._store = APKStore(self.wd)
     return self._store
 
   def fingerprint_of(self) -> str:
@@ -110,8 +110,8 @@ class APKContext:
 
   async def analyze(self, level: int = 3) -> None:
     if self.get_analysis_level() >= level:
-      from trueseeing.core.android.store import Store
-      Store.require_valid_schema_on(self.wd)
+      from trueseeing.core.android.store import APKStore
+      APKStore.require_valid_schema_on(self.wd)
       ui.debug('analyzed once')
     else:
       flagfn = self._get_analysis_flag_name(level)

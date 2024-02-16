@@ -1,68 +1,31 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from contextlib import contextmanager
+from trueseeing.core.db import Query, StorePrep
 from trueseeing.core.android.model.code import Op
-from trueseeing.core.model.issue import Issue
-from trueseeing.core.tools import noneif
 
 if TYPE_CHECKING:
-  from typing import Any, Iterable, Tuple, Dict, Optional, Iterator, List, Set, TypedDict
-  from trueseeing.core.android.store import Store
+  from typing import Any, Iterable, Tuple, Dict, Optional, Set
+  from sqlite3 import Connection
+  from trueseeing.core.store import Store
   from trueseeing.core.android.model.code import InvocationPattern
-  from trueseeing.core.model.issue import IssueConfidence
 
-  class FileEntry(TypedDict):
-    path: str
-    blob: bytes
-    z: bool
-
-class StorePrep:
-  def __init__(self, c: Any) -> None:
-    self.c = c
-
-  def stage0(self) -> None:
-    from importlib.resources import files
-    self.c.executescript((files('trueseeing')/'libs'/'android'/'store.s.sql').read_text())
-
+class APKStorePrep(StorePrep):
   def stage1(self) -> None:
+    super().stage1()
     from importlib.resources import files
-    from trueseeing.core.env import get_cache_schema_id
-    self.c.execute('pragma user_version={}'.format(get_cache_schema_id()))
     self.c.executescript((files('trueseeing')/'libs'/'android'/'store.0.sql').read_text())
 
   def stage2(self) -> None:
     from importlib.resources import files
     self.c.executescript((files('trueseeing')/'libs'/'android'/'store.1.sql').read_text())
 
-  def require_valid_schema(self) -> None:
-    from trueseeing.core.env import get_cache_schema_id
-    v, = self.c.execute('pragma user_version').fetchone()
-    if v != get_cache_schema_id():
-      from trueseeing.core.exc import InvalidSchemaError
-      raise InvalidSchemaError()
-
-class FileTablePrep:
-  def __init__(self, c: Any) -> None:
-    self.c = c
-
-  def prepare(self) -> None:
-    from importlib.resources import files
-    self.c.executescript((files('trueseeing')/'libs'/'files.0.sql').read_text())
-
-class Query:
-  def __init__(self, *, store: Optional[Store] = None, c: Any = None) -> None:
-    if c is not None:
-      self.db = c
-    elif store is not None:
-      self.db = store.db
-    else:
-      raise RuntimeError('store or c is required')
-
-  @contextmanager
-  def scoped(self) -> Iterator[Query]:
-    with self.db:
-      yield self
+class APKQuery(Query):
+  def __init__(self, *, store: Optional[Store] = None, c: Optional[Connection] = None) -> None:
+    super().__init__(store=store, c=c)
+    if store:
+      from trueseeing.core.android.store import APKStore
+      assert isinstance(store, APKStore)
 
   @staticmethod
   def _op_from_row(r: Tuple[Any, ...]) -> Op:
@@ -185,136 +148,7 @@ class Query:
 
   def methods_with_modifier(self, pattern: str) -> Iterable[Op]:
     for r in self.db.execute('select op_vecs.op as _0, t as _1, v as _2, op1 as _3, t1 as _4, v1 as _5, op2 as _6, t2 as _7, v2 as _8, op3 as _9, t3 as _10, v3 as _11, op4 as _12, t4 as _13, v4 as _14, op5 as _15, t5 as _16, v5 as _17, op6 as _18, t6 as _19, v6 as _20, op7 as _21, t7 as _22, v7 as _23, op8 as _24, t8 as _25, v8 as _26, op9 as _27, t9 as _28, v9 as _29 from ops_method join op_vecs on (method=ops_method.op and method=op_vecs.op) where v=:pat or v2=:pat or v3=:pat or v4=:pat or v5=:pat or v6=:pat or v7=:pat or v8=:pat or v9=:pat', dict(pat=pattern)):
-      yield Query._op_from_row(r)
-
-  def file_find(self, pat: str, regex: bool = False) -> Iterable[str]:
-    for f, in self.db.execute('select path from files where path {op} :pat'.format(op=('like' if not regex else 'regexp')), dict(pat=pat)):
-      yield f
-
-  def file_search(self, pat: bytes, regex: bool = True) -> Iterable[str]:
-    assert regex, 'content needs to be matched with regex'
-    for f, in self.db.execute('select path from files where zmatch(z,:pat,blob)', dict(pat=pat)):
-      yield f
-
-  def file_get(self, path: str, default: Optional[bytes] = None, patched: bool = False) -> Optional[bytes]:
-    stmt0 = 'select mzd(z,blob) as blob from files where path=:path'
-    stmt1 = 'select mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path) where path=:path'
-    for b, in self.db.execute(stmt1 if patched else stmt0, dict(path=path)):
-      return b # type:ignore[no-any-return]
-    else:
-      return default
-
-  def file_get_xml(self, path: str, default: Any = None, patched: bool = False) -> Any:
-    import lxml.etree as ET
-    r = self.file_get(path, patched=patched)
-    if r is not None:
-      return ET.fromstring(r, parser=ET.XMLParser(recover=True))
-    else:
-      return default
-
-  def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> Iterable[Tuple[str, bytes]]:
-    if pat is not None:
-      stmt0 = 'select path, mzd(z,blob) as blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select path, mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      for n, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
-        yield n, o
-    else:
-      stmt2 = 'select path, mzd(z,blob) as blob from files'
-      stmt3 = 'select path, mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path)'
-      for n, o in self.db.execute(stmt3 if patched else stmt2):
-        yield n, o
-
-  def file_count(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> int:
-    if pat is not None:
-      stmt0 = 'select count(1) from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select conut(1) from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      for nr, in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
-        return nr # type:ignore[no-any-return]
-    else:
-      stmt2 = 'select count(1) from files'
-      stmt3 = 'select count(1) from files as A full outer join patches as B using (path)'
-      for nr, in self.db.execute(stmt3 if patched else stmt2):
-        return nr # type:ignore[no-any-return]
-    return 0
-
-  def file_put_batch(self, gen: Iterable[FileEntry]) -> None:
-    self.db.executemany('insert into files (path, blob, z) values (:path,mze(:z,:blob),:z)', gen)
-
-  def patch_enum(self, pat: Optional[str]) -> Iterable[Tuple[str, bytes]]:
-    if pat is not None:
-      stmt0 = 'select path, mzd(z,blob) from patches where path like :pat'
-      for n, o in self.db.execute(stmt0, dict(pat=pat)):
-        yield n, o
-    else:
-      stmt1 = 'select path, mzd(z,blob) from patches'
-      for n, o in self.db.execute(stmt1):
-        yield n, o
-
-  def patch_put(self, path: str, blob: bytes, z: bool) -> None:
-    self.db.execute('replace into patches (path, blob, z) values (:path,mze(:z,:blob),:z)', dict(path=path, blob=blob, z=z))
-
-  def patch_exists(self, path: Optional[str]) -> bool:
-    stmt0 = 'select 1 from patches where path=:path'
-    stmt1 = 'select 1 from patches'
-    for r, in self.db.execute(stmt0 if path is not None else stmt1, dict(path=path)):
-      return True
-    else:
-      return False
-
-  def patch_clear(self) -> None:
-    self.db.execute('delete from patches')
-
-  def issue_count(self) -> int:
-    for nr, in self.db.execute('select count(1) from analysis_issues'):
-      return int(nr)
-    else:
-      return 0
-
-  def issue_raise(self, i: Issue) -> None:
-    assert i.score is not None
-    self.db.execute(
-      'insert or ignore into analysis_issues (sig, title, summary, descr, ref, sol, info0, info1, info2, cfd, score, cvss, aff0, aff1, aff2) values (:sigid, :title, :summary, :desc, :ref, :sol, :info0, :info1, :info2, :cfd, :score, :cvss, :aff0, :aff1, :aff2)',
-      dict(
-        sigid=i.sigid,
-        title=i.title,
-        cfd=self._issue_confidence_to_int(i.cfd),
-        cvss=i.cvss,
-        score=i.score,
-        summary=noneif(i.summary, ''),
-        desc=noneif(i.desc, ''),
-        ref=noneif(i.ref, ''),
-        sol=noneif(i.sol, ''),
-        info0=noneif(i.info0, ''),
-        info1=noneif(i.info1, ''),
-        info2=noneif(i.info2, ''),
-        aff0=noneif(i.aff0, ''),
-        aff1=noneif(i.aff1, ''),
-        aff2=noneif(i.aff2, ''),
-      ))
-
-  def issue_clear(self) -> None:
-    self.db.execute('delete from analysis_issues')
-
-  def issues(self) -> Iterable[Issue]:
-    for m in self.db.execute('select sig, title, summary, descr, ref, sol, info0, info1, info2, cfd, score, cvss, aff0, aff1, aff2 from analysis_issues'):
-      yield self._issue_from_row(m)
-
-  def findings_list(self) -> Iterable[Tuple[int, Tuple[str, str, Optional[str], Optional[str], Optional[str], Optional[str], float, str]]]:
-    for no, r in enumerate(self.db.execute('select distinct sig, title, summary, descr, ref, sol, score, cvss from analysis_issues order by score desc')):
-      yield no, (
-        r[0],
-        r[1],
-        r[2] if r[2] else None,
-        r[3] if r[3] else None,
-        r[4] if r[4] else None,
-        r[5] if r[5] else None,
-        r[6],
-        r[7],
-      )
-
-  def issues_by_group(self, *, sig: str, title: str) -> Iterable[Issue]:
-    for m in self.db.execute('select sig, title, summary, descr, ref, sol, info0, info1, info2, cfd, score, cvss, aff0, aff1, aff2 from analysis_issues where sig=:sig and title=:title order by score desc, cfd desc', dict(sig=sig, title=title)):
-      yield self._issue_from_row(m)
+      yield self._op_from_row(r)
 
   def op_get(self, k: int) -> Optional[Op]:
     for t,v in self.db.execute('select t,v from ops where op=?', (k, )):
@@ -351,33 +185,4 @@ class Query:
     return detected_methods
 
   def op_finalize(self) -> None:
-    from trueseeing.core.android.db import StorePrep
-    StorePrep(self.db).stage2()
-
-  @classmethod
-  def _issue_confidence_to_int(cls, c: IssueConfidence) -> int:
-    return dict(certain=2, firm=1, tentative=0)[c]
-
-  @classmethod
-  def _issue_confidence_from_int(cls, c: int) -> IssueConfidence:
-    m: List[IssueConfidence] = ['tentative', 'firm', 'certain']
-    return m[c]
-
-  @classmethod
-  def _issue_from_row(cls, r: Tuple[Any, ...]) -> Issue:
-    return Issue(
-      sigid=r[0],
-      title=r[1],
-      cfd=cls._issue_confidence_from_int(r[9]),
-      cvss=r[11],
-      summary=r[2] if r[2] else None,
-      desc=r[3] if r[3] else None,
-      ref=r[4] if r[4] else None,
-      sol=r[5] if r[5] else None,
-      info0=r[6] if r[6] else None,
-      info1=r[7] if r[7] else None,
-      info2=r[8] if r[8] else None,
-      aff0=r[12] if r[12] else None,
-      aff1=r[13] if r[13] else None,
-      aff2=r[14] if r[14] else None,
-    )
+    APKStorePrep(self.db).stage2()
