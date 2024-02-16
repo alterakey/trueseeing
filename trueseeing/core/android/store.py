@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import re
+import zstandard as zstd
 from trueseeing.core.android.db import Query
 
 if TYPE_CHECKING:
@@ -23,6 +24,8 @@ class Store:
     is_creating = not os.path.exists(store_path)
     o = sqlite3.connect(store_path)
     o.create_function("REGEXP", 2, Store._re_fn, deterministic=True)
+    o.create_function("MZD", 2, Store._mzd_fn, deterministic=True)
+    o.create_function("MZE", 2, Store._mze_fn, deterministic=True)
     StorePrep(o).stage0()
     if is_creating:
       FileTablePrep(o).prepare()
@@ -49,6 +52,20 @@ class Store:
       return re.compile(expr).search(item) is not None
     else:
       return False
+
+  @staticmethod
+  def _mzd_fn(z: bool, item: bytes) -> bytes:
+    if not z:
+      return item
+    else:
+      return zstd.ZstdDecompressor().decompress(item)
+
+  @staticmethod
+  def _mze_fn(z: bool, item: bytes) -> bytes:
+    if not z:
+      return item
+    else:
+      return zstd.ZstdCompressor(threads=-1).compress(item)
 
   def query(self) -> Query:
     return Query(store=self)
