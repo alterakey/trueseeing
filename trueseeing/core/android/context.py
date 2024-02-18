@@ -11,40 +11,23 @@ from pubsub import pub
 
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v1
-from trueseeing.core.exc import InvalidContextError
+from trueseeing.core.context import Context
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Tuple, Optional, Final, Set
+  from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set
+  from typing_extensions import override
   from trueseeing.core.context import ContextType
   from trueseeing.core.android.store import APKStore
 
-class APKContext:
-  wd: str
-  excludes: List[str]
-  _apk: str
+class APKContext(Context):
   _store: Optional[APKStore] = None
-  _type: Final[Set[ContextType]] = {'apk', 'file'}
+  _type: ClassVar[Set[ContextType]] = {'apk', 'file'}
 
-  def __init__(self, path: str, excludes: List[str]) -> None:
-    self._apk = path
-    self.wd = self._workdir_of()
-    self.excludes = excludes
-
-  @property
-  def type(self) -> Set[ContextType]:
-    return self._type
-
-  def require_type(self, typ: ContextType) -> APKContext:
-    if typ in self._type:
-      return self
-    raise InvalidContextError()
-
+  @override
   def _workdir_of(self) -> str:
-    hashed = self.fingerprint_of()
-    return self._find_workdir(hashed)
+    fp = self.fingerprint_of()
 
-  def _find_workdir(self, fp: str) -> str:
-    path = self._get_workdir(fp)
+    path = self._get_workdir_v2(fp)
     if os.path.isdir(path):
       return path
     else:
@@ -56,18 +39,18 @@ class APKContext:
       else:
         return path
 
-  def _get_workdir(self, fp: str) -> str:
+  def _get_workdir_v2(self, fp: str) -> str:
     return os.path.join(get_cache_dir(), fp)
 
   def _get_workdir_v1(self, fp: str) -> str:
-    return os.path.join(get_cache_dir_v1(self._apk), f'.trueseeing2-{fp}')
+    return os.path.join(get_cache_dir_v1(self._path), f'.trueseeing2-{fp}')
 
   def _get_workdir_v0(self, fp: str) -> str:
     return os.path.join(get_cache_dir_v0(), fp)
 
-  @property
-  def target(self) -> str:
-    return self._apk
+  def create(self, exist_ok: bool = False) -> None:
+    super().create(exist_ok=exist_ok)
+    self._copy_target()
 
   def store(self) -> APKStore:
     if self._store is None:
@@ -76,67 +59,32 @@ class APKContext:
       self._store = APKStore(self.wd)
     return self._store
 
-  def fingerprint_of(self) -> str:
+  def _get_type(self) -> Set[ContextType]:
+    return self._type
+
+  def _get_fingerprint(self) -> str:
     from hashlib import sha256
-    with open(self._apk, 'rb') as f:
+    with open(self._path, 'rb') as f:
       return sha256(f.read()).hexdigest()
 
-  def remove(self) -> None:
-    if os.path.exists(self.wd):
-      shutil.rmtree(self.wd)
-    self._store = None
+  async def _recheck_schema(self) -> None:
+    from trueseeing.core.android.store import APKStore
+    APKStore.require_valid_schema_on(self.wd)
 
-  def exists(self) -> bool:
-    return os.path.isdir(self.wd)
+  async def _analyze(self, level: int) -> None:
+    from trueseeing.core.android.asm import APKDisassembler
+    from trueseeing.core.android.analysis.smali import SmaliAnalyzer
+    pub.sendMessage('progress.core.context.disasm.begin')
+    disasm = APKDisassembler(self)
+    await disasm.disassemble(level)
+    pub.sendMessage('progress.core.context.disasm.done')
 
-  def create(self, exist_ok: bool = False) -> None:
-    os.makedirs(self.wd, mode=0o700, exist_ok=exist_ok)
-    self._copy_target()
-
-  def has_patches(self) -> bool:
-    if self.exists():
-      return self.store().query().patch_exists(None)
-    else:
-      return False
-
-  def _get_analysis_flag_name(self, level: int) -> str:
-    return f'.done{level}' if level < 3 else '.done'
-
-  def get_analysis_level(self) -> int:
-    for level in range(3, 0, -1):
-      if os.path.exists(os.path.join(self.wd, self._get_analysis_flag_name(level))):
-        return level
-    return 0
-
-  async def analyze(self, level: int = 3) -> None:
-    if self.get_analysis_level() >= level:
-      from trueseeing.core.android.store import APKStore
-      APKStore.require_valid_schema_on(self.wd)
-      ui.debug('analyzed once')
-    else:
-      flagfn = self._get_analysis_flag_name(level)
-      from trueseeing.core.android.asm import APKDisassembler
-      from trueseeing.core.android.analysis.smali import SmaliAnalyzer
-      if os.path.exists(self.wd):
-        ui.info('analyze: removing leftover')
-        self.remove()
-
-      if level > 0:
-        pub.sendMessage('progress.core.context.disasm.begin')
-        self.create()
-        disasm = APKDisassembler(self)
-        await disasm.disassemble(level)
-        pub.sendMessage('progress.core.context.disasm.done')
-
-        if level > 2:
-          SmaliAnalyzer(self.store()).analyze()
-
-      with open(os.path.join(self.wd, flagfn), 'w'):
-        pass
+    if level > 2:
+      SmaliAnalyzer(self.store()).analyze()
 
   def _copy_target(self) -> None:
     if not os.path.exists(os.path.join(self.wd, 'target.apk')):
-      shutil.copyfile(self._apk, os.path.join(self.wd, 'target.apk'))
+      shutil.copyfile(self._path, os.path.join(self.wd, 'target.apk'))
 
   def parsed_manifest(self, patched: bool = False) -> Any:
     return self.store().query().file_get_xml('AndroidManifest.xml', patched=patched)
