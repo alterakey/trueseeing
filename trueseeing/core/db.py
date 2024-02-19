@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from contextlib import contextmanager
 from trueseeing.core.model.issue import Issue
 from trueseeing.core.tools import noneif
+from trueseeing.core.z import ze
 
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Optional, Iterator, List, TypedDict
@@ -110,7 +111,10 @@ class Query:
     return 0
 
   def file_put_batch(self, gen: Iterable[FileEntry]) -> None:
-    self.db.executemany('insert into files (path, blob, z) values (:path,mze(:z,:blob),:z)', gen)
+    self.db.executemany(
+      'insert into files (path, blob, z) values (:path,:blob,:z)',
+      (dict(path=e['path'], blob=ze(e['blob']) if e['z'] else e['blob'], z=e['z']) for e in gen)
+    )
 
   def patch_enum(self, pat: Optional[str]) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
@@ -123,7 +127,10 @@ class Query:
         yield n, o
 
   def patch_put(self, path: str, blob: bytes, z: bool) -> None:
-    self.db.execute('replace into patches (path, blob, z) values (:path,mze(:z,:blob),:z)', dict(path=path, blob=blob, z=z))
+    self.db.execute(
+      'replace into patches (path, blob, z) values (:path,:blob,:z)',
+      dict(path=path, blob=ze(blob) if z else blob, z=z)
+    )
 
   def patch_exists(self, path: Optional[str]) -> bool:
     stmt0 = 'select 1 from patches where path=:path'

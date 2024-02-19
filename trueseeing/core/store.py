@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 
 import os.path
 import re
-import zstandard as zstd
 from trueseeing.core.db import Query
+from trueseeing.core.z import zd
 
 if TYPE_CHECKING:
   from typing import Any, AnyStr, Final
@@ -26,7 +26,6 @@ class Store:
     o = sqlite3.connect(store_path)
     o.create_function("REGEXP", 2, self._re_fn, deterministic=True)
     o.create_function("MZD", 2, self._mzd_fn, deterministic=True)
-    o.create_function("MZE", 2, self._mze_fn, deterministic=True)
     self._prep_schema(o, is_creating)
     return o
 
@@ -66,14 +65,7 @@ class Store:
     if not z:
       return item
     else:
-      return zstd.ZstdDecompressor().decompress(item)
-
-  @staticmethod
-  def _mze_fn(z: bool, item: bytes) -> bytes:
-    if not z:
-      return item
-    else:
-      return zstd.ZstdCompressor(threads=-1).compress(item)
+      return zd(item)
 
   def query(self) -> Query:
     return Query(store=self)
