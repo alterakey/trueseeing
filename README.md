@@ -29,19 +29,19 @@ NOTE:
 
 We provide containers so you can use right away as follows; now this is also the recommended way, and the only way if you are on Windows, to run:
 
-	$ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing
+    $ docker run --rm -v $(pwd):/out -v ts2:/cache ghcr.io/alterakey/trueseeing
 
 If you want to run statelessly you omit mounting volume onto /cache (not recommended for day-to-day use though; also see [#254](https://github.com/alterakey/trueseeing/issues/254)):
 
-	$ docker run --rm -v $(pwd):/out ghcr.io/alterakey/trueseeing
+    $ docker run --rm -v $(pwd):/out ghcr.io/alterakey/trueseeing
 
 
 ### With pip
 
 Alternatively, you can install our package with pip as follows. This form of installation might be useful for extensions, as it grants them the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
 
-	$ pip install --user trueseeing
-	$ trueseeing
+    $ pip install --user trueseeing
+    $ trueseeing
 
 ## Usage
 
@@ -49,23 +49,22 @@ Alternatively, you can install our package with pip as follows. This form of ins
 
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
-	$ trueseeing --inspect target.apk
-	warning: --inspect is deprecated; ignored as default
-	[+] trueseeing 2.2.0
-	ts[target.apk]> ?
-	...
-	ts[target.apk]> i                      # show generic information
-	...
-	ts[target.apk]> pf AndroidManifest.xml # show manifest file
-	...
-	ts[target.apk]> a                      # analyze resources too
-	...
-	ts[target.apk]> /s something           # search text
-	...
-	ts[target.apk]> as                     # scan
-	...
-	[+] done, found 6403 issues (174.94 sec.)
-	ts[target.apk]> gh report.html
+    $ trueseeing target.apk
+    [+] trueseeing 2.2.1
+    ts[target.apk]> ?
+    ...
+    ts[target.apk]> i                      # show generic information
+    ...
+    ts[target.apk]> pf AndroidManifest.xml # show manifest file
+    ...
+    ts[target.apk]> a                      # analyze resources too
+    ...
+    ts[target.apk]> /s something           # search text
+    ...
+    ts[target.apk]> as                     # scan
+    ...
+    [+] done, found 6403 issues (174.94 sec.)
+    ts[target.apk]> gh report.html
 
 ### Batch mode
 
@@ -73,41 +72,41 @@ We accept an inline command (`-c`) or script file (`-i`) to run before giving yo
 
 You can use the features to conduct a batch scan, as follows e.g. to dump findings right onto the stderr:
 
-	$ trueseeing -eqc 'as' target.apk
+    $ trueseeing -eqc 'as' target.apk
 
 To generate a report file in HTML format:
 
-	$ trueseeing -eqc 'as;gh report.html' target.apk
+    $ trueseeing -eqc 'as;gh report.html' target.apk
 
 To generate a report file in JSON format:
 
-	$ trueseeing -eqc 'as;gj report.json' target.apk
+    $ trueseeing -eqc 'as;gj report.json' target.apk
 
 To get report generated in stdout, omit filename from final `g*` command:
 
-	$ trueseeing -eqc 'as;gh' target.apk > report.html
-	$ trueseeing -eqc 'as;gj' target.apk > report.json
+    $ trueseeing -eqc 'as;gh' target.apk > report.html
+    $ trueseeing -eqc 'as;gj' target.apk > report.json
 
 ### Non-interactive scan mode (deprecated)
 
 Traditionally, you can scan apps with the following command line to get findings listed in stderr:
 
-	$ trueseeing --scan target.apk
+    $ trueseeing --scan target.apk
 
 To generate a report in HTML format:
 
-	$ trueseeing --scan --scan-output report.html target.apk
-	$ trueseeing --scan --scan-report=html --scan-output report.html target.apk
+    $ trueseeing --scan --scan-output report.html target.apk
+    $ trueseeing --scan --scan-report=html --scan-output report.html target.apk
 
 To generate a report in JSON format:
 
-	$ trueseeing --scan --scan-report=json --scan-output report.json target.apk
+    $ trueseeing --scan --scan-report=json --scan-output report.json target.apk
 
 To get report generated in stdout, specify '-' as filename:
 
-	$ trueseeing --scan --scan-output - target.apk > report.html
-	$ trueseeing --scan --scan-report=html --scan-output - target.apk > report.html
-	$ trueseeing --scan --scan-report=json --scan-output - target.apk > report.json
+    $ trueseeing --scan --scan-output - target.apk > report.html
+    $ trueseeing --scan --scan-report=html --scan-output - target.apk > report.html
+    $ trueseeing --scan --scan-report=json --scan-output - target.apk > report.json
 
 ## Advanced Usages
 
@@ -119,25 +118,25 @@ You can write your own commands and signatures as extensions.  Extensions are pl
 
 You can build it as follows:
 
-	$ docker build -t trueseeing https://github.com/alterakey/trueseeing.git#main
+    $ docker build -t trueseeing https://github.com/alterakey/trueseeing.git#main
 
 To build wheels you can do with [flit](https://flit.pypa.io/en/stable/), as follows:
 
-	$ flit build
+    $ flit build
 
 To hack it, you need to create a proper build environment. To create one, set up a venv, install [flit](https://flit.pypa.io/en/stable/) in there, and have it pull dependencies and validating toolchains; esp. [mypy](https://github.com/python/mypy) and [pflake8](https://github.com/csachs/pyproject-flake8).  In short, do something like this:
 
-	$ git clone https://github.com/alterakey/trueseeing.git wc
-	$ python3 -m venv wc/.venv
-	$ source wc/.venv/bin/activate
-	(.venv) $ pip install flit
-	(.venv) $ flit install --deps=develop -s
-	(.venv) $ (... hack ...)
-	(.venv) $ trueseeing ...                         # to run
-	(.venv) $ mypy trueseeing && pflake8 trueseeing  # to validate
-	Success: no issues found in XX source files
-	(.venv) $ flit build                             # to build (wheel)
-	(.venv) $ docker build -t trueseeing .           # to build (container)
+    $ git clone https://github.com/alterakey/trueseeing.git wc
+    $ python3 -m venv wc/.venv
+    $ source wc/.venv/bin/activate
+    (.venv) $ pip install flit
+    (.venv) $ flit install --deps=develop -s
+    (.venv) $ (... hack ...)
+    (.venv) $ trueseeing ...                         # to run
+    (.venv) $ mypy trueseeing && pflake8 trueseeing  # to validate
+    Success: no issues found in XX source files
+    (.venv) $ flit build                             # to build (wheel)
+    (.venv) $ docker build -t trueseeing .           # to build (container)
 
 
 ## Details
@@ -148,39 +147,39 @@ Currently we can detect the following class of vulnerabilities, largely ones cov
 
   * Improper Platform Usage (M1)
 
-	* Debuggable
-	* Inadvent publishing of Activities, Services, ContentProviders, BroadcastReceivers
+    * Debuggable
+    * Inadvent publishing of Activities, Services, ContentProviders, BroadcastReceivers
 
   * Insecure Data (M2)
 
-	* Backupable (i.e. suspectible to the backup attack)
-	* Insecure file permissions
-	* Logging
+    * Backupable (i.e. suspectible to the backup attack)
+    * Insecure file permissions
+    * Logging
 
   * Insecure Commnications (M3)
 
-	* Lack of pinning (i.e. suspictible to the TLS interception attack)
-	* Use of cleartext HTTP
-	* Tamperable WebViews
+    * Lack of pinning (i.e. suspictible to the TLS interception attack)
+    * Use of cleartext HTTP
+    * Tamperable WebViews
 
   * Insufficient Cryptography (M5)
 
-	* Hardcoded passphrase/secret keys
-	* Vernum ciphers with static keys
-	* Use of the ECB mode
+    * Hardcoded passphrase/secret keys
+    * Vernum ciphers with static keys
+    * Use of the ECB mode
 
   * Client Code Quality Issues (M7)
 
-	* Reflectable WebViews (i.e. XSSs in such views should be escalatable to remote code executions via JS reflection)
-	* Usage of insecure policy on mixed contents
+    * Reflectable WebViews (i.e. XSSs in such views should be escalatable to remote code executions via JS reflection)
+    * Usage of insecure policy on mixed contents
 
   * Code Tampering (M8)
 
-	* Hardcoded certificates
+    * Hardcoded certificates
 
   * Reverse Engineering (M9)
 
-	* Lack of obfuscation
+    * Lack of obfuscation
 
 ### Extension API
 
@@ -202,25 +201,25 @@ if TYPE_CHECKING:
 class MyCommand(Command):
   @staticmethod
   def create() -> Command:
-	return MyCommand()
+    return MyCommand()
 
   def get_commands(self) -> CommandMap:
-	return {'t':dict(e=self._test, n='t', d='sample command')}
+    return {'t':dict(e=self._test, n='t', d='sample command')}
 
   def get_command_patterns(self) -> CommandPatternMap:
-	return dict()
+    return dict()
 
   def get_modifiers(self) -> ModifierMap:
-	 return dict()
+     return dict()
 
   def get_options(self) -> OptionMap:
-	return dict()
+    return dict()
 
   def get_configs(self) -> ConfigMap:
-	return dict()
+    return dict()
 
   async def _test(self) -> None:
-	ui.info('hello world')
+    ui.info('hello world')
 ```
 
 #### Signatures
@@ -238,59 +237,73 @@ if TYPE_CHECKING:
 class MySignature(Signature):
   @staticmethod
   def create() -> Signature:
-	return MySignature()
+    return MySignature()
 
   def get_sigs(self) -> SignatureMap:
-	return {'my-sig':dict(e=self._detect, d='sample signature')}
+    return {'my-sig':dict(e=self._detect, d='sample signature')}
 
   def get_configs(self) -> ConfigMap:
-	return dict()
+    return dict()
 
   async def _detect(self) -> None:
-	self._helper.raise_issue(
-	  self._helper.build_issue(
-		sigid='my-sig',
-		title='hello world',
-		cvss='CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/',
-	  )
-	)
+    self._helper.raise_issue(
+      self._helper.build_issue(
+        sigid='my-sig',
+        title='hello world',
+        cvss='CVSS:3.0/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/',
+      )
+    )
 ```
 
 
 #### File Formats
 
-To define new file formats, implement `trueseeing.api.FileFormatHandler` and advertise them.
+To define new file formats, firstly implement `Context`s (ABC) for your formats, then implement `trueseeing.api.FileFormatHandler` to create and return their instances, and advertise them.
 
-The following class will provide APK file support, for example:
+The following class will provide APK file support under the type named `apk2`, for example:
 
 ```python
 from typing import TYPE_CHECKING
 from trueseeing.api import FileFormatHandler
+from trueseeing.core.android.context import APKContext
+
 if TYPE_CHECKING:
-  from typing import Optional
+  from typing import Optional, Set
   from trueseeing.api import FormatMap, ConfigMap
-  from trueseeing.core.comtext import Context
+  from trueseeing.core.context import Context, ContextType
+
+class MyAPKContext(APKContext):
+  # Use a different context type
+  def _get_type(self) -> Set[ContextType]:
+    return {'apk2'}
 
 class APKFileFormatHandler(FileFormatHandler):
   @staticmethod
   def create() -> FileFormatHandler:
-	return APKFileFormatHandler()
+    return APKFileFormatHandler()
 
   def get_formats(self) -> FormatMap:
-	return {r'\.apk$':dict(e=self._handle, d='apk')}
+    return {r'\.apk$':dict(e=self._handle, d='sample file format')}
 
   def get_configs(self) -> ConfigMap:
-	return dict()
+    return dict()
 
   def _handle(self, path: str) -> Optional[Context]:
-	from trueseeing.core.android.context import APKContext
-	return APKContext(path, [])
+    return MyAPKContext(path)
 ```
 
-Then make sure you check for context type from your signatures, making them ignored on unsupported contexts:
+Then make sure you check for the type of the context in your signatures, making them ignored on unsupported contexts:
 
 ```python
-context = self._helper.get_context('apk')
+context = self._helper.get_context().require_type('apk2')
+```
+
+Upon successful check, `require_type(...)` will try to downcast them to appropriate types for your convenience.
+
+But by design it works only for known types (currently, the `apk`).  So if you are defining some detailed interface in your new context classes as we do for the `apk` type, you need to do a downcast here i.e.:
+
+```python
+context: MyAPKContext = self._helper.get_context().require_type('apk2')  # type:ignore[assignment]
 ```
 
 #### Package requirements
