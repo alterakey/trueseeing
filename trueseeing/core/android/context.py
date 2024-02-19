@@ -15,7 +15,6 @@ from trueseeing.core.context import Context
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set
-  from typing_extensions import override
   from trueseeing.core.context import ContextType
   from trueseeing.core.android.store import APKStore
 
@@ -23,7 +22,6 @@ class APKContext(Context):
   _store: Optional[APKStore] = None
   _type: ClassVar[Set[ContextType]] = {'apk', 'file'}
 
-  @override
   def _workdir_of(self) -> str:
     fp = self.fingerprint_of()
 

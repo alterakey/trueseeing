@@ -47,7 +47,7 @@ class ShowCommand(CommandMixin):
 
     from binascii import hexlify
 
-    context = await self._helper.get_context_analyzed('file', level=1)
+    context = await self._helper.get_context().analyze(level=1)
     level = context.get_analysis_level()
     if level < 3:
       ui.warn('detected analysis level: {} ({}) -- try analyzing fully (\'aa\') to maximize coverage'.format(level, self._helper.decode_analysis_level(level)))

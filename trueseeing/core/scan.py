@@ -104,6 +104,8 @@ class SignatureHelperImpl:
     self._confbag = self._s._confbag
   def get_context(self, typ: Optional[ContextType] = None) -> Any:
     if typ:
+      from trueseeing.core.ui import ui
+      ui.warn('get_context(typ): deprecated, use get_context().request_type(...)', onetime=True)
       self._s._context.require_type(typ)
     return self._s._context
   def raise_issue(self, issue: Issue) -> None:

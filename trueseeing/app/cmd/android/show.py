@@ -46,7 +46,7 @@ class ShowCommand(CommandMixin):
       if os.path.exists(outfn) and not cmd.endswith('!'):
         ui.fatal('outfile exists; force (!) to overwrite')
 
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     path = '{}.smali'.format(os.path.join(*(class_.split('.'))))
     for _, d in context.store().query().file_enum(f'smali%/{path}'):
       if outfn is None:
@@ -70,7 +70,7 @@ class ShowCommand(CommandMixin):
 
     from trueseeing.core.android.analysis.flow import DataFlow
     with DataFlow.apply_max_graph_size(limit):
-      context = await self._helper.get_context_analyzed('apk')
+      context = await self._helper.get_context().require_type('apk').analyze()
       store = context.store()
       q = store.query()
       op = q.op_get(opn)
@@ -102,7 +102,7 @@ class ShowCommand(CommandMixin):
 
     from trueseeing.core.android.analysis.flow import DataFlow
     with DataFlow.apply_max_graph_size(limit):
-      context = await self._helper.get_context_analyzed('apk')
+      context = await self._helper.get_context().require_type('apk').analyze()
       store = context.store()
       q = store.query()
       op = q.op_get(opn)

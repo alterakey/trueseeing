@@ -30,7 +30,7 @@ class SecurityFilePermissionDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects insecure file creation')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
@@ -66,7 +66,7 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects certificate (non-)pinning')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     pin_nsc = False
     if context.get_min_sdk_version() > 23:
       if not context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
@@ -104,7 +104,7 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
           ))
 
   def _do_detect_plain_pins_x509(self) -> Set[str]:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     pins: Set[str] = set()
     store = context.store()
     q = store.query()
@@ -133,7 +133,7 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
       return pins
 
   def _do_detect_plain_pins_hostnameverifier(self) -> Set[str]:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     pins: Set[str] = set()
     q = context.store().query()
     for m in itertools.chain(q.methods_in_class('verify(Ljava/lang/String;Ljavax/net/ssl/SSLSession;)Z', 'HostnameVerifier')):
@@ -237,7 +237,7 @@ class SecurityTamperableWebViewDetector(SignatureMixin):
     import lxml.etree as ET
     from functools import reduce
 
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     targets = {'WebView','XWalkView','GeckoView'}
@@ -318,7 +318,7 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
       return default
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     query = store.query()
 
@@ -453,7 +453,7 @@ class FormatStringDetector(SignatureMixin):
         yield dict(cfd='firm', value=x)
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     q = context.store().query()
     for cl in q.consts(InvocationPattern('const-string', r'%s')):
       qn = q.qualname_of(cl)
@@ -492,7 +492,7 @@ class LogDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects logging activities')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', r'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
@@ -563,7 +563,7 @@ class ADBProbeDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects probe of adbd status.')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', r'^Landroid/provider/Settings\$(Global|Secure);->getInt\(')):
@@ -594,7 +594,7 @@ class ClientXSSJQDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects potential client-side XSS vector in JQuery-based apps')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     for fn, blob in context.store().query().file_enum(pat='root/assets/%.js'):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
@@ -624,7 +624,7 @@ class SecurityFileWriteDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects file creation')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
@@ -693,7 +693,7 @@ class SecurityInsecureRootedDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects insecure rooted device probes')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
 
@@ -762,7 +762,7 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects SharedPreferences access')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences;->get(Boolean|Float|Int|String|StringSet)\(Ljava/lang/String;')):

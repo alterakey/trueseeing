@@ -21,7 +21,7 @@ class ManifestOpenPermissionDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects declarated permissions')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
 
     # TBD: compare with actual permission needs
     for p in context.permissions_declared():
@@ -63,7 +63,7 @@ class ManifestManipActivity(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects exported Activity')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -111,7 +111,7 @@ class ManifestManipBroadcastReceiver(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects exported BroadcastReceiver')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -160,7 +160,7 @@ class ManifestManipContentProvider(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects exported ContentProvider')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
 
@@ -215,7 +215,7 @@ class ManifestManipBackup(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects enabled backup bit')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     manif = context.parsed_manifest()
     for e in manif.xpath('//application[not(@android:allowBackup="false")]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       if min(context.get_target_sdk_version(), context.get_min_sdk_version()) < 31:
@@ -253,7 +253,7 @@ class ManifestDebuggable(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects enabled debug bits')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     if context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
       self._helper.raise_issue(self._helper.build_issue(
         sigid=self._id,
@@ -282,7 +282,7 @@ class ManifestCleartextPermitted(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects usesCleartextTraffic flag')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     manif = context.parsed_manifest()
     api_level = context.get_min_sdk_version()
     if api_level < 24:

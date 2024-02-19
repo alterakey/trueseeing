@@ -103,7 +103,7 @@ class LibraryDetector(SignatureMixin):
       return not cls._suffixes_public.looks_public(shared)
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     q = context.store().query()
     package = context.parsed_manifest().xpath('/manifest/@package', namespaces=dict(android='http://schemas.android.com/apk/res/android'))[0]
 
@@ -209,7 +209,7 @@ class ProGuardDetector(SignatureMixin):
     return path.replace('.smali', '').replace('/', '.')
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     for c in (self._class_name_of(context.source_name_of_disassembled_class(r)) for r in context.disassembled_classes()):
       m = re.search(r'(?:^|\.)(.)$', c)
       if m and m.group(1) not in self._whitelist:
@@ -259,7 +259,7 @@ class UrlLikeDetector(SignatureMixin):
     with (files('trueseeing')/'libs'/'tlds.txt').open('r', encoding='utf-8') as f:
       self._re_tlds = re.compile('^(?:{})$'.format('|'.join(re.escape(l.strip()) for l in f if l and not l.startswith('#'))), flags=re.IGNORECASE)
 
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     q = context.store().query()
     for cl in q.consts(InvocationPattern('const-string', r'://|^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+|^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$')):
       qn = q.qualname_of(cl)
@@ -288,7 +288,7 @@ class NativeMethodDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects natively defined methods')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     for op in q.methods_with_modifier('native'):
@@ -314,7 +314,7 @@ class NativeArchDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects supported architectures')}
 
   async def detect(self) -> None:
-    for d in self._helper.get_context('apk').store().query().file_find('root/lib/%'):
+    for d in self._helper.get_context().require_type('apk').store().query().file_find('root/lib/%'):
       if re.search(r'arm|x86|mips', d):
         arch = d.split('/')[2]
         self._helper.raise_issue(self._helper.build_issue(
@@ -362,7 +362,7 @@ class ReflectionDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects reflections')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context('apk')
+    context = self._helper.get_context().require_type('apk')
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(Class|Method|Field);->|^Ljava/lang/[A-Za-z]*?ClassLoader;->')):
