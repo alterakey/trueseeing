@@ -50,7 +50,7 @@ class ScanCommand(CommandMixin):
 
     cmd = args.popleft()
 
-    context = await self._helper.get_context_analyzed(level=3)
+    context = await self._helper.get_context().analyze(level=3)
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
     sigsels = self._get_sigsels(self._helper.get_modifiers(args))
     scanner = Scanner(context, sigsels=sigsels, max_graph_size=limit)

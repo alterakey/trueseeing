@@ -301,13 +301,21 @@ class CommandHelperImpl:
     try:
       c = self._opener.get_context(self.require_target())
       if typ is not None:
+        ui.warn('get_context(typ): deprecated, use get_context().request_type(...)', onetime=True)
         c.require_type(typ)
       return c
     except InvalidFileFormatError:
       ui.fatal('cannot recognize format')
 
   async def get_context_analyzed(self, typ: Optional[ContextType] = None, *, level: int = 3) -> Any:
-    c = self.get_context(typ)
+    if typ is None:
+      ui.warn('get_context_analyzed: deprecated; use get_context().analyze(...)', onetime=True)
+    else:
+      ui.warn('get_context_analyzed(typ): deprecated; use get_context().request_type(...).analyze(...)', onetime=True)
+
+    c = self.get_context()
+    if typ:
+      c.require_type(typ)
     await c.analyze(level=level)
     return c
 

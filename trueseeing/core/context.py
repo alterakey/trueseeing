@@ -1,12 +1,13 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import os.path
 from abc import ABC, abstractmethod
 from trueseeing.core.env import get_cache_dir
 
 if TYPE_CHECKING:
-  from typing import List, Dict, Optional, Set, Literal, Any, overload
+  from typing import List, Dict, Optional, Set, Literal, Any
+  from typing_extensions import Self
   from trueseeing.api import FormatEntry
   from trueseeing.core.store import Store
   from trueseeing.core.android.context import APKContext
@@ -133,7 +134,7 @@ class Context(ABC):
         return level
     return 0
 
-  async def analyze(self, level: int = 3) -> None:
+  async def analyze(self, level: int = 3) -> Self:
     from trueseeing.core.ui import ui
     if self.get_analysis_level() >= level:
       await self._recheck_schema()
@@ -150,6 +151,7 @@ class Context(ABC):
 
       with open(os.path.join(self.wd, flagfn), 'w'):
         pass
+    return self
 
   @abstractmethod
   def _get_fingerprint(self) -> str: ...

@@ -41,7 +41,7 @@ class SearchCommand(CommandMixin):
     pat = args.popleft()
 
     from trueseeing.core.android.model.code import InvocationPattern
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
     for op in q.invocations(InvocationPattern('invoke-', pat)):
       qn = q.qualname_of(op)
@@ -62,7 +62,7 @@ class SearchCommand(CommandMixin):
       pat = '.'
 
     from trueseeing.core.android.model.code import InvocationPattern
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
     for op in q.consts(InvocationPattern(insn, pat)):
       qn = q.qualname_of(op)
@@ -78,7 +78,7 @@ class SearchCommand(CommandMixin):
     else:
       pat = '.'
 
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
     if not cmd.endswith('i'):
       fun = q.sputs
@@ -100,7 +100,7 @@ class SearchCommand(CommandMixin):
       pat = '.'
 
     import os
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     packages = set()
     for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
       if fn.endswith('.smali'):
@@ -119,7 +119,7 @@ class SearchCommand(CommandMixin):
 
     pat = args.popleft()
 
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
     for op in q.classes_in_package_named(pat):
       cn = q.class_name_of(op)
@@ -139,7 +139,7 @@ class SearchCommand(CommandMixin):
     else:
       pat = '.'
 
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
     for op in q.classes_extends_has_method_named(base, pat):
       cn = q.class_name_of(op)
@@ -159,7 +159,7 @@ class SearchCommand(CommandMixin):
     else:
       pat = '.'
 
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
     for op in q.classes_implements_has_method_named(interface, pat):
       cn = q.class_name_of(op)
@@ -175,7 +175,7 @@ class SearchCommand(CommandMixin):
 
     pat = args.popleft()
 
-    context = await self._helper.get_context_analyzed('apk')
+    context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
     for op in q.classes_has_method_named(pat):
       qn = q.qualname_of(op)
