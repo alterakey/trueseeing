@@ -25,7 +25,7 @@ class Store:
     is_creating = not os.path.exists(store_path)
     o = sqlite3.connect(store_path)
     o.create_function("REGEXP", 2, self._re_fn, deterministic=True)
-    o.create_function("MZD", 2, self._mzd_fn, deterministic=True)
+    o.create_function("MZMATCHES", 3, self._mzmatches_fn, deterministic=True)
     self._prep_schema(o, is_creating)
     return o
 
@@ -61,11 +61,11 @@ class Store:
       return False
 
   @staticmethod
-  def _mzd_fn(z: bool, item: bytes) -> bytes:
-    if not z:
-      return item
+  def _mzmatches_fn(z: bool, expr: bytes, item: bytes) -> bool:
+    if item is not None:
+      return re.compile(expr).search(zd(item) if z else item) is not None
     else:
-      return zd(item)
+      return False
 
   def query(self) -> Query:
     return Query(store=self)

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from contextlib import contextmanager
 from trueseeing.core.model.issue import Issue
 from trueseeing.core.tools import noneif
-from trueseeing.core.z import ze
+from trueseeing.core.z import ze, zd
 
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Optional, Iterator, List, TypedDict
@@ -64,16 +64,12 @@ class Query:
     for f, in self.db.execute('select path from files where path {op} :pat'.format(op=('like' if not regex else 'regexp')), dict(pat=pat)):
       yield f
 
-  def file_search(self, pat: bytes, regex: bool = True) -> Iterable[str]:
-    assert regex, 'content needs to be matched with regex'
-    for f, in self.db.execute('select path from files where zmatch(z,:pat,blob)', dict(pat=pat)):
-      yield f
-
   def file_get(self, path: str, default: Optional[bytes] = None, patched: bool = False) -> Optional[bytes]:
-    stmt0 = 'select mzd(z,blob) as blob from files where path=:path'
-    stmt1 = 'select mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path) where path=:path'
-    for b, in self.db.execute(stmt1 if patched else stmt0, dict(path=path)):
-      return b # type:ignore[no-any-return]
+    b: bytes
+    stmt0 = 'select z, blob from files where path=:path'
+    stmt1 = 'select A.z as z,coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path=:path'
+    for z, b in self.db.execute(stmt1 if patched else stmt0, dict(path=path)):
+      return zd(b) if z else b
     else:
       return default
 
@@ -87,15 +83,15 @@ class Query:
 
   def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
-      stmt0 = 'select path, mzd(z,blob) as blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select path, mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      for n, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
-        yield n, o
+      stmt0 = 'select path, z, blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt1 = 'select path, A.z as z, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      for n, z, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
+        yield n, zd(o) if z else o
     else:
-      stmt2 = 'select path, mzd(z,blob) as blob from files'
-      stmt3 = 'select path, mzd(A.z,coalesce(B.blob, A.blob)) as blob from files as A full outer join patches as B using (path)'
-      for n, o in self.db.execute(stmt3 if patched else stmt2):
-        yield n, o
+      stmt2 = 'select path, z, blob from files'
+      stmt3 = 'select path, A.z as z, coalesce(B.blob, A.blob) from files as A full outer join patches as B using (path)'
+      for n, z, o in self.db.execute(stmt3 if patched else stmt2):
+        yield n, zd(o) if z else o
 
   def file_count(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> int:
     if pat is not None:
@@ -118,13 +114,13 @@ class Query:
 
   def patch_enum(self, pat: Optional[str]) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
-      stmt0 = 'select path, mzd(z,blob) from patches where path like :pat'
-      for n, o in self.db.execute(stmt0, dict(pat=pat)):
-        yield n, o
+      stmt0 = 'select path, z, blob from patches where path like :pat'
+      for n, z, o in self.db.execute(stmt0, dict(pat=pat)):
+        yield n, zd(o) if z else o
     else:
-      stmt1 = 'select path, mzd(z,blob) from patches'
-      for n, o in self.db.execute(stmt1):
-        yield n, o
+      stmt1 = 'select path, z, blob from patches'
+      for n, z, o in self.db.execute(stmt1):
+        yield n, zd(o) if z else o
 
   def patch_put(self, path: str, blob: bytes, z: bool) -> None:
     self.db.execute(
