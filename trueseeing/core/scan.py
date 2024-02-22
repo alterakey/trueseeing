@@ -67,7 +67,7 @@ class Scanner:
 
   @classmethod
   def _sigsel_matches(cls, sigid: str, sels: List[str]) -> bool:
-    def _match(sigid: str, sel: str) -> bool:
+    def _match(sigid: str, sel: str) -> Optional[bool]:
       neg = False
       if sel.startswith('no-'):
         sel = sel[3:]
@@ -76,13 +76,21 @@ class Scanner:
         return not neg
       elif sel.endswith('-all'):
         psel = sel[:-4]
-        return neg ^ sigid.startswith(psel)
+        if sigid.startswith(psel):
+          return not neg
+        else:
+          return None
       else:
-        return neg ^ (sigid == sel)
-    o: bool = False
-    for x in sels:
-      o = _match(sigid, x)
-    return o
+        if sigid == sel:
+          return not neg
+        else:
+          return None
+    for o in (_match(sigid, x) for x in reversed(sels)):
+      if o is None:
+        continue
+      return o
+    else:
+      return False
 
   def _init_sigs(self, sigsels: List[str]) -> None:
     from itertools import chain
