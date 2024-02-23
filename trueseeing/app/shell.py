@@ -42,12 +42,14 @@ class Shell:
     parser.add_argument('--version', action='store_true', help='Version information')
     parser.add_argument('--norc', action='store_true', help='Ignore startup file')
     parser.add_argument('--noext', action='store_true', help='Ignore extensions')
+    parser.add_argument('--quiet', action='store_true', help='Be less verbose')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('-e', '--abort-on-errors', action='store_true', help='Abort on errors')
     parser.add_argument('-n', dest='no_target', action='store_true', help='Open empty file')
     args_mut0.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
     args_mut0.add_argument('-c', dest='inline_cmd', metavar='COMMAND', help='Run commands before prompt')
     args_mut1.add_argument('-q', dest='mode', action='store_const', const='batch', help='Batch mode; quit instead of giving prompt')
+    args_mut1.add_argument('-Q', dest='mode', action='store_const', const='batch_quiet', help='same as --quiet -q')
     args_mut1.add_argument('--inspect', dest='mode', action='store_const', const='inspect', help='Inspect mode (deprecated; now default)')
     args_mut1.add_argument('--scan', dest='mode', action='store_const', const='scan', help='Scan mode (deprecated; use -eqc "as;g*"; e.g. gh for HTML)')
 
@@ -62,8 +64,14 @@ class Shell:
     scan_args_mut.add_argument('--scan-no-cache', action='store_true', help='Do not keep codebase cache')
     args = parser.parse_args()
 
+    if args.mode == 'batch_quiet':
+      args.mode = 'batch'
+      args.quiet = True
+
     if args.debug:
       log_level = ui.DEBUG
+    if args.quiet:
+      log_level = ui.WARN
     if args.noext:
       ui.warn('disabling extensions')
       Extension.disabled = True
