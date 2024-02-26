@@ -30,8 +30,6 @@ class InfoCommand(CommandMixin):
 
     _ = args.popleft()
 
-    import os
-
     boolmap = {True:'yes',False:'no','true':'yes','false':'no',1:'yes',0:'no'}
     analysisguidemap = {0: 'try ii for more info', 1: 'try iii for more info', 2: 'try iii for more info'}
 
@@ -41,8 +39,9 @@ class InfoCommand(CommandMixin):
 
     ui.info('path         {}'.format(target))
 
-    if 'apk' in context.type:  # XXX
-      ui.info('size         {}'.format(os.stat(target).st_size))
+    size = context.size_of()
+    if size is not None:
+      ui.info('size         {}'.format(size))
 
     ui.info('fp           {}'.format(context.fingerprint_of()))
     ui.info('ctx          {}'.format(context.wd))

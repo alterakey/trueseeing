@@ -104,6 +104,9 @@ class Context(ABC):
       self._store = Store(self.wd)
     return self._store
 
+  def size_of(self) -> Optional[int]:
+    return self._get_size()
+
   def fingerprint_of(self) -> str:
     return self._get_fingerprint()
 
@@ -152,6 +155,9 @@ class Context(ABC):
       with open(os.path.join(self.wd, flagfn), 'w'):
         pass
     return self
+
+  @abstractmethod
+  def _get_size(self) -> Optional[int]: ...
 
   @abstractmethod
   def _get_fingerprint(self) -> str: ...

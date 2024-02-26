@@ -60,6 +60,9 @@ class APKContext(Context):
   def _get_type(self) -> Set[ContextType]:
     return self._type
 
+  def _get_size(self) -> Optional[int]:
+    return os.stat(self._path).st_size
+
   def _get_fingerprint(self) -> str:
     from hashlib import sha256
     with open(self._path, 'rb') as f:
