@@ -207,10 +207,17 @@ Use a device or installation specific information, or obfuscate them.
 
   @cache
   def _inspect_value_type(self, v: str) -> Optional[Dict[str, Any]]:
+    import binascii
     from base64 import b64decode
     from asn1crypto.x509 import Certificate
     from asn1crypto.keys import PublicKeyInfo, PrivateKeyInfo, RSAPrivateKey
-    r = b64decode(v)
+    try:
+      r = b64decode(v)
+    except binascii.Error as e:
+      from trueseeing.core.ui import ui
+      ui.warn('inspect_value_type: decode failed ({}); marking as unknown type: {}'.format(e, v))
+      return None
+
     try:
       cert = Certificate.load(r)
       return dict(type='cert', algo=self._read_algo(cert.public_key), hashalgo=self._read_algo(cert.hash_algo), bits=cert.public_key.bit_size, subject=cert.subject.native.get('common_name', '(unknown)'), issuer=cert.issuer.native.get('common_name', '(unknown)'), selfsign=cert.self_signed)
