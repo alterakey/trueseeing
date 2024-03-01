@@ -21,7 +21,6 @@ class SmaliAnalyzer:
 
   def analyze(self) -> None:
     import time
-    from trueseeing.core.android.db import APKQuery
     analyzed_ops = 0
     analyzed_methods = 0
     analyzed_classes = 0
@@ -29,9 +28,7 @@ class SmaliAnalyzer:
 
     classmap: Set[Tuple[int, int]] = set()
 
-    with self._store.db as c:
-      c.execute('begin exclusive')
-      q = APKQuery(c=c)
+    with self._store.query().scoped() as q:
       base_id = 1
       analyzed_ops = 0
 
@@ -54,7 +51,7 @@ class SmaliAnalyzer:
         for t in ops:
           t._id = base_id
           base_id += 1
-        q.op_store_ops(ops, c=c)
+        q.op_store_ops(ops)
 
         start = None
         for t in ops:
@@ -69,13 +66,13 @@ class SmaliAnalyzer:
 
       pub.sendMessage('progress.core.analysis.smali.analyzed')
 
-      analyzed_ops = q.op_count_ops(c=c)
+      analyzed_ops = q.op_count_ops()
       pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops)
 
-      analyzed_classes = q.op_store_classmap(classmap, c=c)
+      analyzed_classes = q.op_store_classmap(classmap)
       pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops, classes=analyzed_classes)
 
-      analyzed_methods = q.op_generate_methodmap(c=c)
+      analyzed_methods = q.op_generate_methodmap()
       pub.sendMessage('progress.core.analysis.smali.summary', ops=analyzed_ops, classes=analyzed_classes, methods=analyzed_methods)
 
       pub.sendMessage('progress.core.analysis.smali.finalizing')

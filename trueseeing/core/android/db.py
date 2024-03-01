@@ -6,7 +6,6 @@ from trueseeing.core.android.model.code import Op
 
 if TYPE_CHECKING:
   from typing import Any, Iterable, Tuple, Dict, Optional, Set
-  from sqlite3 import Connection
   from trueseeing.core.store import Store
   from trueseeing.core.android.model.code import InvocationPattern
 
@@ -21,8 +20,8 @@ class APKStorePrep(StorePrep):
     self.c.executescript((files('trueseeing')/'libs'/'android'/'store.1.sql').read_text())
 
 class APKQuery(Query):
-  def __init__(self, *, store: Optional[Store] = None, c: Optional[Connection] = None) -> None:
-    super().__init__(store=store, c=c)
+  def __init__(self, store: Store) -> None:
+    super().__init__(store)
     if store:
       from trueseeing.core.android.store import APKStore
       assert isinstance(store, APKStore)
