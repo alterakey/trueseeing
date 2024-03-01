@@ -14,8 +14,8 @@ from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v
 from trueseeing.core.context import Context
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set
-  from trueseeing.core.context import ContextType
+  from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set, AsyncIterator
+  from trueseeing.core.context import ContextType, ContextInfo
   from trueseeing.core.android.store import APKStore
 
 class APKContext(Context):
@@ -82,6 +82,61 @@ class APKContext(Context):
 
     if level > 2:
       SmaliAnalyzer(self.store()).analyze()
+
+  async def _get_info(self) -> AsyncIterator[ContextInfo]:
+    async for m in super()._get_info():
+      yield m
+
+    level = self.get_analysis_level()
+    if level > 0:
+      store = self.store()
+      manif = self.parsed_manifest()
+      yield dict(
+        pkg=manif.attrib['package'],
+        ver='{} ({})'.format(
+          manif.attrib['{http://schemas.android.com/apk/res/android}versionName'],
+          manif.attrib['{http://schemas.android.com/apk/res/android}versionCode']
+        ),
+        perms=len(list(self.permissions_declared())),
+        activs=len(list(manif.xpath('.//activity'))),
+        servs=len(list(manif.xpath('.//service'))),
+        recvs=len(list(manif.xpath('.//receiver'))),
+        provs=len(list(manif.xpath('.//provider'))),
+      )
+      yield {'int-flts':len(list(manif.xpath('.//intent-filter')))}
+      if level > 2:
+        with store.db as c:
+          for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
+            yield dict(frags=nr)
+      for e in manif.xpath('.//application'):
+        boolmap = {True:'true', False:'false', 'true':'true', 'false':'false'}
+        yield {
+          'debuggable?':boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}debuggable', 'false'), '?'),
+          'backupable?':boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}allowBackup', 'false'), '?'),
+          'netsecconf?':boolmap.get(e.attrib.get('{http://schemas.android.com/apk/res/android}networkSecurityConfig') is not None, '?'),
+        }
+      if manif.xpath('.//uses-sdk'):
+        for e in manif.xpath('.//uses-sdk'):
+          yield {
+            'api min':int(e.attrib.get('{http://schemas.android.com/apk/res/android}minSdkVersion', '1')),
+            'api tgt':int(e.attrib.get('{http://schemas.android.com/apk/res/android}targetSdkVersion', '1')),
+          }
+      else:
+        ui.warn('cannot determine min/target sdk version')
+        yield {
+          'api min':'?',
+          'api tgt':'?',
+        }
+      if level > 2:
+        with store.db as c:
+          for nr, in c.execute('select count(1) from analysis_issues'):
+            yield dict(issues='{}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))
+          for nr, in c.execute('select count(1) from ops where idx=0'):
+            yield dict(ops='{}'.format(nr))
+          for nr, in c.execute('select count(1) from class_class_name'):
+            yield dict(classes='{}'.format(nr))
+          for nr, in c.execute('select count(1) from method_method_name'):
+            yield dict(methods='{}'.format(nr))
 
   def _copy_target(self) -> None:
     if not os.path.exists(os.path.join(self.wd, 'target.apk')):
