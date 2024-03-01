@@ -50,12 +50,8 @@ class FileTablePrep:
     self.c.executescript((files('trueseeing')/'libs'/'files.0.sql').read_text())
 
 class Query:
-  def __init__(self, *, store: Optional[Store] = None, c: Optional[Connection] = None) -> None:
-    assert c or store, 'store or c is required'
-    if c is not None:
-      self.db = c
-    elif store is not None:
-      self.db = store.db
+  def __init__(self, store: Store) -> None:
+    self.db = store.db
 
   @contextmanager
   def scoped(self) -> Iterator[Self]:
