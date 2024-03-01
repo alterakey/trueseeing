@@ -6,13 +6,14 @@ from abc import ABC, abstractmethod
 from trueseeing.core.env import get_cache_dir
 
 if TYPE_CHECKING:
-  from typing import List, Dict, Optional, Set, Literal, Any
+  from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator
   from typing_extensions import Self
   from trueseeing.api import FormatEntry
   from trueseeing.core.store import Store
   from trueseeing.core.android.context import APKContext
 
   ContextType = str
+  ContextInfo = Mapping[str, Any]
 
 class FileOpener:
   _formats: Dict[str, FormatEntry]
@@ -170,3 +171,13 @@ class Context(ABC):
 
   @abstractmethod
   async def _analyze(self, level: int) -> None: ...
+
+  async def _get_info(self) -> AsyncIterator[ContextInfo]:
+    yield dict(path=self._path)
+    size = self.size_of()
+    if size:
+      yield dict(size=size)
+    yield dict(fp=self.fingerprint_of())
+    yield dict(ctx=self.wd)
+    yield dict(_patch=self.has_patches())
+    yield dict(_analysis=self.get_analysis_level())
