@@ -29,8 +29,8 @@ class ShowCommand(CommandMixin):
     return {
       'pd':dict(e=self._show_disasm, n='pd[!] qualname [output.smali]', d='show disassembled class/method'),
       'pd!':dict(e=self._show_disasm),
-      'pk':dict(e=self._show_solved_constant, n='pk op index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
-      'pt':dict(e=self._show_solved_typeset, n='pt op index', d='guess and show what type would flow into the index-th arg of op'),
+      'pk':dict(e=self._show_solved_constant, n='pk 0xop index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
+      'pt':dict(e=self._show_solved_typeset, n='pt 0xop index', d='guess and show what type would flow into the index-th arg of op'),
     }
 
   async def _show_disasm(self, args: deque[str]) -> None:
@@ -104,7 +104,7 @@ class ShowCommand(CommandMixin):
     if len(args) < 2:
       ui.fatal('need op and index')
 
-    opn = int(args.popleft())
+    opn = int(args.popleft(), 16)
     idx = int(args.popleft())
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
@@ -136,7 +136,7 @@ class ShowCommand(CommandMixin):
     if len(args) < 2:
       ui.fatal('need op and index')
 
-    opn = int(args.popleft())
+    opn = int(args.popleft(), 16)
     idx = int(args.popleft())
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
