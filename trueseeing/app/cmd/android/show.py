@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import re
 import sys
 from collections import deque
 
@@ -8,8 +9,13 @@ from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Optional
+  from typing import Optional, TypedDict
   from trueseeing.api import CommandHelper, Command, CommandMap
+  from trueseeing.core.android.context import APKContext
+
+  class QualNameInfo(TypedDict):
+    path: str
+    sig: str
 
 class ShowCommand(CommandMixin):
   def __init__(self, helper: CommandHelper) -> None:
@@ -21,7 +27,7 @@ class ShowCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
-      'pd':dict(e=self._show_disasm, n='pd[!] class [output.smali]', d='show disassembled class'),
+      'pd':dict(e=self._show_disasm, n='pd[!] qualname [output.smali]', d='show disassembled class/method'),
       'pd!':dict(e=self._show_disasm),
       'pk':dict(e=self._show_solved_constant, n='pk op index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
       'pt':dict(e=self._show_solved_typeset, n='pt op index', d='guess and show what type would flow into the index-th arg of op'),
@@ -35,9 +41,9 @@ class ShowCommand(CommandMixin):
     cmd = args.popleft()
 
     if not args:
-      ui.fatal('need class')
+      ui.fatal('need a qualname')
 
-    class_ = args.popleft()
+    qn = args.popleft()
 
     import os
 
@@ -46,14 +52,49 @@ class ShowCommand(CommandMixin):
       if os.path.exists(outfn) and not cmd.endswith('!'):
         ui.fatal('outfile exists; force (!) to overwrite')
 
-    context = await self._helper.get_context().require_type('apk').analyze()
-    path = '{}.smali'.format(os.path.join(*(class_.split('.'))))
-    for _, d in context.store().query().file_enum(f'smali%/{path}'):
-      if outfn is None:
-        sys.stdout.buffer.write(d)
-      else:
-        with open(outfn, 'wb') as f:
-          f.write(d)
+    context: APKContext = self._helper.get_context().require_type('apk')
+
+    try:
+      c = self._parse_qualname(qn)
+    except ValueError:
+      ui.fatal(f'invalid qualname (try quoting): {qn}')
+
+    with context.store().query().scoped() as q:
+      for _, d in q.file_enum('smali%/{}'.format(c['path'])):
+        if outfn is None:
+          f = sys.stdout.buffer
+        else:
+          f = open(outfn, 'wb')
+        try:
+          if not c['sig']:
+            f.write(d)
+          else:
+            from io import BytesIO
+            pat = r'\.method.*? {}$'.format(re.escape(c['sig'])).encode('utf-8')
+            state = 0
+            for l in BytesIO(d):
+              if state == 0:
+                if re.match(pat, l):
+                  f.write(l)
+                  state = 1
+              elif state == 1:
+                f.write(l)
+                if l == b'.end method\n':
+                  state = 2
+              elif state == 2:
+                break
+        finally:
+          if f != sys.stdout.buffer:
+            f.close()
+
+  def _parse_qualname(self, n: str) -> QualNameInfo:
+    m = re.fullmatch('(L[^ ]+?;)(->[^ ]+?)?', n)
+    if m is None:
+      raise ValueError('invalid dalvik name: {n}') # XXX
+    return dict(
+      path='{}.smali'.format(m.group(1)[1:-1]),
+      sig=m.group(2)[2:] if m.group(2) else '',
+    )
 
   async def _show_solved_constant(self, args: deque[str]) -> None:
     self._helper.require_target()
