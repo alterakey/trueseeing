@@ -83,6 +83,9 @@ class APKContext(Context):
     if level > 2:
       SmaliAnalyzer(self.store()).analyze()
 
+  def get_package_name(self) -> str:
+    return self.parsed_manifest().attrib['package']  # type: ignore[no-any-return]
+
   async def _get_info(self) -> AsyncIterator[ContextInfo]:
     async for m in super()._get_info():
       yield m
@@ -92,7 +95,7 @@ class APKContext(Context):
       store = self.store()
       manif = self.parsed_manifest()
       yield dict(
-        pkg=manif.attrib['package'],
+        pkg=self.get_package_name(),
         ver='{} ({})'.format(
           manif.attrib['{http://schemas.android.com/apk/res/android}versionName'],
           manif.attrib['{http://schemas.android.com/apk/res/android}versionCode']
