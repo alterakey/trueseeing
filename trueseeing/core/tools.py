@@ -57,13 +57,22 @@ async def invoke_passthru(as_: str, nocheck: bool = False) -> None:
     _check_return_code(p, as_, None, None)
 
 async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterator[bytes]:
-  from asyncio import create_subprocess_shell
+  import asyncio
   from subprocess import PIPE, STDOUT
-  p = await create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
-  if p.stdout is not None:
-    async for l in p.stdout:
-      yield l
-  _check_return_code(await p.wait(), as_, None, None)
+  p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
+  try:
+    if p.stdout is not None:
+      async for l in p.stdout:
+        yield l
+    _check_return_code(await p.wait(), as_, None, None)
+  finally:
+    if p.returncode is None:
+      try:
+        await asyncio.wait([p.wait()], timeout=3., return_when=asyncio.ALL_COMPLETED)
+      except asyncio.TimeoutError:
+        ui.warn('process does not seem to terminate, killing it')
+        p.kill()
+        await p.wait()
 
 async def try_invoke(as_: str) -> Optional[str]:
   from subprocess import CalledProcessError
