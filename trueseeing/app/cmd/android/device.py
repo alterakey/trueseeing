@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import re
 from collections import deque
 
 from trueseeing.core.model.cmd import CommandMixin
@@ -34,6 +35,7 @@ class DeviceCommand(CommandMixin):
       'dl!':dict(e=self._device_watch_logcat),
       'di':dict(e=self._device_watch_intent, n='di[!] [pat]', d='device: watch intent'),
       'dg':dict(e=self._device_start, n='dg', d='device: start watching'),
+      'du':dict(e=self._device_dump_ui, n='dg', d='device: dump device UI'),
     }
 
   def _get_apk_context(self) -> APKContext:
@@ -77,8 +79,6 @@ class DeviceCommand(CommandMixin):
     if not (self._watch_logcat or self._watch_intent):
       ui.fatal('nothing to watch (try di or dl beforehand)')
 
-    import re
-
     pid: Optional[int] = None
     dev = AndroidDevice()
     ctx = self._get_apk_context()
@@ -116,3 +116,30 @@ class DeviceCommand(CommandMixin):
             ui.info('intent: {}'.format(l.decode('latin1')))
     except KeyboardInterrupt:
       pass
+
+  async def _device_dump_ui(self, args: deque[str]) -> None:
+    outfn: Optional[str] = None
+
+    cmd = args.popleft()
+
+    if args:
+      import os
+      outfn = args.popleft()
+      if os.path.exists(outfn) and not cmd.endswith('!'):
+        ui.fatal('outfile exists; force (!) to overwrite')
+
+    ui.info('dumping UI hierachy')
+
+    dev = AndroidDevice()
+    msg = await dev.invoke_adb('shell uiautomator dump')
+    m = re.search(r'dumped to: (/.*)', msg)
+    if not m:
+      ui.fatal(f'dump failed: {msg}')
+    tmpfn = m.group(1)
+    dom = await dev.invoke_adb(f'shell "cat {tmpfn}; rm {tmpfn}"')
+    if outfn is None:
+      ui.stdout(dom)
+    else:
+      with open(outfn, 'w') as f:
+        f.write(dom)
+    ui.success('done')
