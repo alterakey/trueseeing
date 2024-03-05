@@ -34,8 +34,8 @@ class DeviceCommand(CommandMixin):
       'dl':dict(e=self._device_watch_logcat, n='dl[!] [pat]', d='device: watch logcat (!: system-wide)'),
       'dl!':dict(e=self._device_watch_logcat),
       'di':dict(e=self._device_watch_intent, n='di[!] [pat]', d='device: watch intent'),
-      'dg':dict(e=self._device_start, n='dg', d='device: start watching'),
-      'du':dict(e=self._device_dump_ui, n='dg', d='device: dump device UI'),
+      'dx':dict(e=self._device_start, n='dx', d='device: start watching'),
+      'xi':dict(e=self._exploit_dump_ui, n='xi [output.xml]', d='device: dump device UI'),
     }
 
   def _get_apk_context(self) -> APKContext:
@@ -117,7 +117,7 @@ class DeviceCommand(CommandMixin):
     except KeyboardInterrupt:
       pass
 
-  async def _device_dump_ui(self, args: deque[str]) -> None:
+  async def _exploit_dump_ui(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
 
     cmd = args.popleft()
