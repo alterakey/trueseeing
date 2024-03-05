@@ -43,20 +43,17 @@ class ConfigCommand(CommandMixin):
     _ = args.popleft()
     if not args:
       ui.fatal('need a config key')
-    key = args.popleft()
+    kv = args.popleft()
     if args:
-      if '=' != args.popleft():
-        ui.fatal('got an unexpected token (try e key=value to set)')
-      if not args:
-        ui.fatal('need a value')
-      value = args.popleft()
-
-      try:
-        self._helper.set_config(key, value)
-      except InvalidConfigKeyError:
-        ui.fatal(f'unknown key: {key}')
-    else:
-      try:
+      ui.fatal('got an unexpected token (try e key=value to set)')
+    try:
+      if '=' not in kv:
+        key = kv
         ui.info('{}: {}'.format(key, self._helper.get_config(key)))
-      except InvalidConfigKeyError:
-        ui.fatal(f'unknown key: {key}')
+      else:
+        key, value = kv.split('=')
+        if not value:
+          ui.fatal('need a value')
+        self._helper.set_config(key, value)
+    except InvalidConfigKeyError:
+      ui.fatal(f'unknown key: {key}')

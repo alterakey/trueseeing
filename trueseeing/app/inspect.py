@@ -174,8 +174,8 @@ class Runner:
   async def _run(self, s: str) -> None:
     if not await self._run_raw(s):
       o: deque[str] = deque()
-      lex = shlex(s, posix=True, punctuation_chars=';=')
-      lex.wordchars += '@:,!$'
+      lex = shlex(s, posix=True, punctuation_chars=';')
+      lex.wordchars += '@:,=!$'
       for t in lex:
         if re.fullmatch(';+', t):
           if not await self._run_cmd(o, line=None):
