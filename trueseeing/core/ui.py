@@ -69,40 +69,40 @@ class UI:
       return self.colored('[-] ', color='red', attrs=('bold',))
     assert False, f'invalid type of bullet: {what}'
 
-  def fatal(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> NoReturn:
+  def fatal(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> NoReturn:
     if not self._is_inspecting:
       self.stderr(f'fatal: {msg}', nl=nl, ow=ow, onetime=onetime, exc=exc)
     else:
       self.failure(f'fatal: {msg}', nl=nl, ow=ow, onetime=onetime, exc=exc)
     raise FatalError()
 
-  def critical(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def critical(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     if self.level <= self.CRITICAL:
       self.stderr(self._format_msg(msg, 'critical'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
-  def error(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def error(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     if self.level <= self.ERROR:
       self.stderr(self._format_msg(msg, 'error'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
-  def warn(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def warn(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     if self.level <= self.WARN:
       self.stderr(self._format_msg(msg, 'warn'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
-  def info(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def info(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     if self.level <= self.INFO:
       self.stderr(self._format_msg(msg, 'info'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
-  def debug(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def debug(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     if self.level <= self.DEBUG:
       self.stderr(self._format_msg(msg, 'debug'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
-  def success(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def success(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     self.stderr(self._format_msg(msg, 'success'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
-  def failure(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def failure(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     self.stderr(self._format_msg(msg, 'failure'), nl=nl, ow=ow, onetime=onetime, exc=exc)
 
-  def stdout(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def stdout(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     if onetime:
       if msg in self._seen:
         return
@@ -117,7 +117,7 @@ class UI:
     if exc is not None:
       self._format_exception(sys.stdout, exc, nl=nl, ow=ow)
 
-  def stderr(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[Exception] = None) -> None:
+  def stderr(self, msg: str, nl: bool = True, ow: bool = False, onetime: bool = False, exc: Optional[BaseException] = None) -> None:
     if onetime:
       if msg in self._seen:
         return
@@ -132,7 +132,7 @@ class UI:
     if exc is not None:
       self._format_exception(sys.stderr, exc, nl=nl, ow=ow)
 
-  def _format_exception(self, f: TextIO, exc: Exception, nl: bool = True, ow: bool = False) -> None:
+  def _format_exception(self, f: TextIO, exc: BaseException, nl: bool = True, ow: bool = False) -> None:
     from traceback import format_exception
     if ow:
       f.write('\r')
