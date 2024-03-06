@@ -9,8 +9,8 @@ from trueseeing.core.ui import ui
 from trueseeing.core.android.device import AndroidDevice
 
 if TYPE_CHECKING:
-  from typing import Optional, Tuple, Literal, AsyncIterator
-  from trueseeing.api import CommandHelper, Command, CommandMap
+  from typing import Optional, Tuple, Literal, AsyncIterator, List, Dict, Mapping, Iterator
+  from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
   from trueseeing.core.android.context import APKContext
 
   UIPatternType = Literal['re', 'xpath']
@@ -43,6 +43,15 @@ class DeviceCommand(CommandMixin):
       'di':dict(e=self._device_watch_ui, n='di[!] [pat|xp:xpath] [output.xml]', d='device: watch device UI'),
       'dx':dict(e=self._device_start, n='dx', d='device: start watching'),
       'xi':dict(e=self._exploit_dump_ui, n='xi [output.xml]', d='device: dump device UI'),
+      'xz':dict(e=self._exploit_fuzz_intent, n='xz[!] "am-cmdline-template" [output.txt]', d='device: fuzz intent'),
+      'xz!':dict(e=self._exploit_fuzz_intent),
+      'xzr':dict(e=self._exploit_fuzz_command, n='xzr[!] "cmdline-template" [output.txt]', d='device: fuzz cmdline'),
+      'xzr!':dict(e=self._exploit_fuzz_command),
+    }
+
+  def get_options(self) -> OptionMap:
+    return {
+      'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]'),
     }
 
   def _get_apk_context(self) -> APKContext:
@@ -230,6 +239,101 @@ class DeviceCommand(CommandMixin):
     except CalledProcessError as e:
       raise DumpFailedError(e)
 
+  async def _exploit_fuzz_command(self, args: deque[str], am: bool = False) -> None:
+    outfn: Optional[str] = None
+
+    cmd = args.popleft()
+
+    if not args:
+      if am:
+        ui.fatal('an "am" command line pattern required; try giving whatever you would to "adb shell am" (e.g. {} "start-activity .." ..)'.format(cmd))
+      else:
+        ui.fatal('command line pattern required; try giving you would to "adb shell"')
+
+    pat = args.popleft()
+    if am:
+      pat = f'am {pat}'
+
+    if args and not args[0].startswith('@'):
+      import os
+      outfn = args.popleft()
+      if os.path.exists(outfn) and not cmd.endswith('!'):
+        ui.fatal('outfile exists; force (!) to overwrite')
+
+    wordlist: Dict[str, List[str]] = dict()
+    for name, fn in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
+      if name.startswith('w'):
+        name = name[1:]
+        try:
+          with open(fn, 'r') as f:
+            wordlist[name] = [x.rstrip() for x in f]
+        except OSError as e:
+          ui.fatal(f'cannot open wordlist: {e}')
+
+    if not wordlist:
+      ui.fatal('need a wordlist (try @o:wNAME=FN)')
+
+    ui.info('wordlist built: {} words in {} keys ({})'.format(sum([len(v) for v in wordlist.values()]), len(wordlist), ','.join(wordlist.keys())))
+
+    def _expand(pat: str, wordlist: Mapping[str, List[str]]) -> Iterator[Tuple[int, int, str]]:
+      tries = min(len(v) for v in wordlist.values())
+      for nr in range(tries):
+        d = {k:v[nr] for k,v in wordlist.items()}
+        try:
+          yield nr, tries, pat.format(*[], **d)
+        except KeyError as e:
+          ui.fatal(f'unknown wordlist specified: {e}')
+
+    ui.info('starting fuzzing, opening log system-wide{}'.format(' [{}]'.format(outfn) if outfn else ''))
+
+    dev = AndroidDevice()
+
+    async def _log(outfn: Optional[str]) -> None:
+      import sys
+      nr = 0
+
+      if not outfn:
+        f = sys.stdout.buffer
+      else:
+        f = open(outfn, 'wb')
+
+      try:
+        async for l in dev.invoke_adb_streaming('logcat -T1'):
+          f.write(l)
+          nr += 1
+          if outfn and nr % 256 == 0:
+            ui.info(' ... captured: {}')
+      finally:
+        if outfn:
+          f.close()
+
+    async def _fuzz(pat: str, wordlist: Mapping[str, List[str]]) -> None:
+      from asyncio import sleep
+      from subprocess import CalledProcessError
+      for nr, tries, t in _expand(pat, wordlist):
+        await sleep(.05)
+        prog = dict(nr=nr+1, max=tries, cmd=t)
+        try:
+          await dev.invoke_adb(f'shell {t}')
+          ui.info('[{nr}/{max}] {cmd}'.format(**prog))
+        except CalledProcessError as e:
+          ui.failure('[{nr}/{max}] {cmd}: failed: {code}'.format(code=e.returncode, **prog))
+
+    from asyncio import create_task, wait, FIRST_COMPLETED, ALL_COMPLETED
+    task_log = create_task(_log(outfn))
+    task_fuzz = create_task(_fuzz(pat, wordlist))
+
+    done, pending = await wait([task_log, task_fuzz], return_when=FIRST_COMPLETED)
+    for t in pending:
+      t.cancel()
+    done, _ = await wait([task_log, task_fuzz], return_when=ALL_COMPLETED)
+    for t in done:
+      exc = t.exception()
+      if exc:
+        ui.error('unhandled exception', exc=exc)
+
+  async def _exploit_fuzz_intent(self, args: deque[str]) -> None:
+    await self._exploit_fuzz_command(args, am=True)
 
 class DumpFailedError(Exception):
   pass
