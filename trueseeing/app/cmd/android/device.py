@@ -203,7 +203,8 @@ class DeviceCommand(CommandMixin):
     async def _fs() -> None:
       if self._watch_fs:
         async for mode, path, md in self._watch_fs_mod_cont(delay=2.0):
-          ui.info('fs: {}: {} {}'.format(mode.decode(), md.decode(), path.decode()))
+          if re.search(self._watch_fs, path):
+            ui.info('fs: {}: {} {}'.format(mode.decode(), md.decode(), path.decode()))
 
     try:
       from asyncio import gather
