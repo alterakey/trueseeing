@@ -19,6 +19,7 @@ class DeviceCommand(CommandMixin):
   _target_only: bool
   _watch_logcat: Optional[bytes]
   _watch_intent: Optional[bytes]
+  _watch_fs: Optional[bytes]
   _watch_ui: Optional[Tuple[str, UIPatternType]]
   _watch_ui_outfn: Optional[str]
 
@@ -30,6 +31,7 @@ class DeviceCommand(CommandMixin):
     self._watch_intent = None
     self._watch_ui = None
     self._watch_ui_outfn = None
+    self._watch_fs = None
 
   @staticmethod
   def create(helper: CommandHelper) -> Command:
@@ -39,6 +41,7 @@ class DeviceCommand(CommandMixin):
     return {
       'dl':dict(e=self._device_watch_logcat, n='dl[!] [pat]', d='device: watch logcat (!: system-wide)'),
       'dl!':dict(e=self._device_watch_logcat),
+      'df':dict(e=self._device_watch_fs, n='df', d='device: watch filesystem'),
       'dt':dict(e=self._device_watch_intent, n='dt[!] [pat]', d='device: watch intent'),
       'di':dict(e=self._device_watch_ui, n='di[!] [pat|xp:xpath] [output.xml]', d='device: watch device UI'),
       'dx':dict(e=self._device_start, n='dx', d='device: start watching'),
@@ -91,6 +94,20 @@ class DeviceCommand(CommandMixin):
     else:
       ui.success('intent watch disabled')
 
+  async def _device_watch_fs(self, args: deque[str]) -> None:
+    _ = args.popleft()
+
+    if not args:
+      self._watch_fs = None
+    else:
+      pat = args.popleft()
+      self._watch_fs = pat.encode('latin1')
+
+    if self._watch_fs:
+      ui.success('filesystem watch enabled: {}'.format(self._watch_fs.decode('latin1')))
+    else:
+      ui.success('filesystem watch disabled')
+
   async def _device_watch_ui(self, args: deque[str]) -> None:
     cmd = args.popleft()
 
@@ -116,8 +133,8 @@ class DeviceCommand(CommandMixin):
       ui.success('ui watch disabled')
 
   async def _device_start(self, args: deque[str]) -> None:
-    if not (self._watch_logcat or self._watch_intent or self._watch_ui):
-      ui.fatal('nothing to watch (try di/dl/dt beforehand)')
+    if not (self._watch_logcat or self._watch_intent or self._watch_ui or self._watch_fs):
+      ui.fatal('nothing to watch (try d* beforehand)')
 
     dev = AndroidDevice()
     ctx = self._get_apk_context()
@@ -128,33 +145,34 @@ class DeviceCommand(CommandMixin):
 
     async def _log() -> None:
       pid: Optional[int] = None
-      if self._target_only:
-        d = await dev.invoke_adb('shell ps')
-        m = re.search(r'^[0-9a-zA-Z_]+ +([0-9]+) .*{}$'.format(pkg).encode(), d.encode(), re.MULTILINE)
-        if m:
-          pid = int(m.group(1))
-          ui.info(f'detected target at pid: {pid}')
+      if self._watch_logcat or self._watch_intent:
+        if self._target_only:
+          d = await dev.invoke_adb('shell ps')
+          m = re.search(r'^[0-9a-zA-Z_]+ +([0-9]+) .*{}$'.format(pkg).encode(), d.encode(), re.MULTILINE)
+          if m:
+            pid = int(m.group(1))
+            ui.info(f'detected target at pid: {pid}')
 
-      async for l in dev.invoke_adb_streaming('logcat -T1'):
-        l = l.rstrip()
-        if self._watch_logcat:
-          if self._target_only:
-            if not pid:
-              m = re.search(r' ([0-9]+):{}'.format(pkg).encode(), l)
-              if not m:
-                continue
-              pid = int(m.group(1))
-              ui.info(f'detected target at pid: {pid}')
-            else:
-              m = re.search(r'\.[0-9]+? +{} +'.format(pid).encode(), l)
-              if not m:
-                continue
-          if re.search(self._watch_logcat, l):
-            ui.info('log: {}'.format(l.decode('latin1')))
+        async for l in dev.invoke_adb_streaming('logcat -T1'):
+          l = l.rstrip()
+          if self._watch_logcat:
+            if self._target_only:
+              if not pid:
+                m = re.search(r' ([0-9]+):{}'.format(pkg).encode(), l)
+                if not m:
+                  continue
+                pid = int(m.group(1))
+                ui.info(f'detected target at pid: {pid}')
+              else:
+                m = re.search(r'\.[0-9]+? +{} +'.format(pid).encode(), l)
+                if not m:
+                  continue
+            if re.search(self._watch_logcat, l):
+              ui.info('log: {}'.format(l.decode('latin1')))
 
-        if self._watch_intent and b'intent' in l:
-          if re.search(self._watch_intent, l):
-            ui.info('intent: {}'.format(l.decode('latin1')))
+          if self._watch_intent and b'intent' in l:
+            if re.search(self._watch_intent, l):
+              ui.info('intent: {}'.format(l.decode('latin1')))
 
     async def _ui() -> None:
       import lxml.etree as ET
@@ -182,10 +200,15 @@ class DeviceCommand(CommandMixin):
               with open(self._watch_ui_outfn, 'w') as f:
                 f.write(dom)
 
+    async def _fs() -> None:
+      if self._watch_fs:
+        async for mode, path, md in self._watch_fs_mod_cont(delay=2.0):
+          ui.info('fs: {}: {} {}'.format(mode.decode(), md.decode(), path.decode()))
+
     try:
       from asyncio import gather
       ui.info('watching device (C-c to stop)')
-      await gather(_log(), _ui(), return_exceptions=True)
+      await gather(_log(), _ui(), _fs(), return_exceptions=True)
     except KeyboardInterrupt:
       pass
 
@@ -236,6 +259,38 @@ class DeviceCommand(CommandMixin):
         if m:
           tmpfn = m.group(1)
           yield await dev.invoke_adb(f'shell "cat {tmpfn}; rm {tmpfn}"')
+    except CalledProcessError as e:
+      raise DumpFailedError(e)
+
+  async def _watch_fs_mod_cont(self, /, delay: float = 1.0) -> AsyncIterator[Tuple[bytes, bytes, bytes]]:
+    from subprocess import CalledProcessError
+
+    seen0: Dict[bytes, bytes] = dict()
+    seen1: Dict[bytes, bytes] = dict()
+
+    dev = AndroidDevice()
+    try:
+      async for msg in dev.invoke_adb_streaming(r'shell "while (true) do (find -H /storage -mtime -{thres}s -print0 | xargs -0 ls -nlld); echo \"*\"; sleep {delay}; done"'.format(delay=delay, thres=int(delay*3.))):
+        msg = msg.rstrip()
+        if not msg.startswith(b'*'):
+          m = re.fullmatch(r'(.*00) (.+?)'.encode('latin1'), msg)
+          if m:
+            fn = m.group(2)
+            metadata = m.group(1)
+            seen0[fn] = metadata
+        else:
+          seen0set = frozenset(seen0.keys())
+          seen1set = frozenset(seen1.keys())
+
+          for k in seen0set - seen1set:
+            yield b'add', k, seen0[k]
+
+          for k in seen0set & seen1set:
+            if seen0[k] != seen1[k]:
+              yield b'mod', k, seen0[k]
+
+          seen1.update(seen0)
+          seen0.clear()
     except CalledProcessError as e:
       raise DumpFailedError(e)
 
