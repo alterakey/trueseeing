@@ -68,7 +68,8 @@ async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterato
   finally:
     if p.returncode is None:
       try:
-        await asyncio.wait([p.wait()], timeout=3., return_when=asyncio.ALL_COMPLETED)
+        t = asyncio.create_task(p.wait())
+        await asyncio.wait([t], timeout=3., return_when=asyncio.ALL_COMPLETED)
       except asyncio.TimeoutError:
         ui.warn('process does not seem to terminate, killing it')
         p.kill()
