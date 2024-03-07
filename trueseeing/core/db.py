@@ -82,12 +82,12 @@ class Query:
   def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
       stmt0 = 'select path, z, blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select path, A.z as z, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt1 = 'select path, coalesce(B.z, A.z) as z, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
       for n, z, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
         yield n, zd(o) if z else o
     else:
       stmt2 = 'select path, z, blob from files'
-      stmt3 = 'select path, A.z as z, coalesce(B.blob, A.blob) from files as A full outer join patches as B using (path)'
+      stmt3 = 'select path, coalesce(B.z, A.z) as z, coalesce(B.blob, A.blob) from files as A full outer join patches as B using (path)'
       for n, z, o in self.db.execute(stmt3 if patched else stmt2):
         yield n, zd(o) if z else o
 
