@@ -29,6 +29,8 @@ dependencies = [
     "importlib_metadata~=7.0",
     "asn1crypto~=1.5",
     "zstandard~=0.22",
+    "aiohttp~=3.9",
+    "lief~=0.14",
 ]
 requires-python = ">=3.9"
 dynamic = ['version', 'description']

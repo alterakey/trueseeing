@@ -146,7 +146,7 @@ class DeviceCommand(CommandMixin):
     async def _log() -> None:
       pid: Optional[int] = None
       if self._watch_logcat or self._watch_intent:
-        if self._target_only:
+        if not pid:
           d = await dev.invoke_adb('shell ps')
           m = re.search(r'^[0-9a-zA-Z_]+ +([0-9]+) .*{}$'.format(pkg).encode(), d.encode(), re.MULTILINE)
           if m:
@@ -155,24 +155,24 @@ class DeviceCommand(CommandMixin):
 
         async for l in dev.invoke_adb_streaming('logcat -T1'):
           l = l.rstrip()
+          if not pid:
+            m = re.search(r' ([0-9]+):{}'.format(pkg).encode(), l)
+            if m:
+              pid = int(m.group(1))
+              ui.info(f'detected target at pid: {pid}')
           if self._watch_logcat:
             if self._target_only:
-              if not pid:
-                m = re.search(r' ([0-9]+):{}'.format(pkg).encode(), l)
-                if not m:
-                  continue
-                pid = int(m.group(1))
-                ui.info(f'detected target at pid: {pid}')
-              else:
-                m = re.search(r'\.[0-9]+? +{} +'.format(pid).encode(), l)
-                if not m:
-                  continue
+              if not (pid and re.search(r'\.[0-9]+? +{} +'.format(pid).encode(), l)):
+                continue
             if re.search(self._watch_logcat, l):
               ui.info('log: {}'.format(l.decode('latin1')))
-
           if self._watch_intent and b'intent' in l:
             if re.search(self._watch_intent, l):
               ui.info('intent: {}'.format(l.decode('latin1')))
+          m = re.search('([0-9]+) +?[0-9]+? I Frida +?: Listening on (.*)'.encode(), l)
+          if m:
+            gad_pid, gad_port = int(m.group(1)), m.group(2).decode()
+            ui.success('detected frida-gadget listening on {} for pid {}{}'.format(gad_port, gad_pid, ' [target]' if pid == gad_pid else ''))
 
     async def _ui() -> None:
       import lxml.etree as ET

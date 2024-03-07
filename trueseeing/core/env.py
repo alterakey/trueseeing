@@ -56,5 +56,9 @@ def get_extension_package_prefix() -> str:
   return 'trueseeing_ext0_'
 
 @cache
+def get_device_frida_dir(package_name: str) -> str:
+  return '/data/local/tmp/ts2/{pkg}/frida'.format(pkg=package_name)
+
+@cache
 def get_cache_schema_id() -> int:
   return 0x0657d048  # FIXME: remember to randomize this whenever incompatible changes occur on cache file structure, or DB schema
