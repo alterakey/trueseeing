@@ -234,7 +234,13 @@ class UrlLikeDetector(SignatureMixin):
   def _analyzed(self, x: str, qn: Optional[str] = None) -> Iterable[Dict[str, Any]]:
     assert self._re_tlds is not None
     if '://' in x:
-      yield dict(type_='URL', value=re.findall(r'\S+://\S+', x), cfd='firm')
+      if re.search(r'//[{}$%a-zA-Z0-9_:-]+?@[{}$%a-zA-Z0-9_-]', x):
+        yield dict(
+          type_='authenticated URL', value=re.findall(r'\S+://\S+', x), cfd='firm',
+          cvss='CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N/',
+        )
+      else:
+        yield dict(type_='URL', value=re.findall(r'\S+://\S+', x), cfd='firm')
     elif re.search(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x):
       yield dict(type_='path component', value=re.findall(r'^/[{}$%a-zA-Z0-9_-]+(/[{}$%a-zA-Z0-9_-]+)+', x), cfd='firm')
     elif re.search(r'^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?$', x):
@@ -267,11 +273,11 @@ class UrlLikeDetector(SignatureMixin):
         continue
       for match in self._analyzed(cl.p[1].v, qn):
         for v in match['value']:
-          self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd=match['cfd'], cvss=self._cvss, title=f'detected {match["type_"]}', info0=v, aff0=qn))
+          self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd=match['cfd'], cvss=match.get('cvss', self._cvss), title=f'detected {match["type_"]}', info0=v, aff0=qn))
     for name, val in context.string_resources():
       for match in self._analyzed(val):
         for v in match['value']:
-          self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd=match['cfd'], cvss=self._cvss, title=f'detected {match["type_"]}', info0=v, aff0=f'R.string.{name}'))
+          self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd=match['cfd'], cvss=match.get('cvss', self._cvss), title=f'detected {match["type_"]}', info0=v, aff0=f'R.string.{name}'))
 
 class NativeMethodDetector(SignatureMixin):
   _id = 'detect-native-method'
