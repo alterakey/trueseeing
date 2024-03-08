@@ -55,6 +55,9 @@ class ScanCommand(CommandMixin):
     sigsels = self._get_sigsels(self._helper.get_modifiers(args))
     scanner = Scanner(context, sigsels=sigsels, max_graph_size=limit)
 
+    if not scanner.get_active_signatures():
+      ui.fatal('no signature selected')
+
     at = time.time()
     with context.store().query().scoped() as q:
       if cmd.endswith('!'):
