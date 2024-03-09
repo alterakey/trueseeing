@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from contextlib import contextmanager
 
 if TYPE_CHECKING:
-  from typing import List, Optional, Iterator, Dict, Any
+  from typing import List, Optional, Iterator, Dict, Any, Set
   from trueseeing.api import SignatureEntry, SignatureHelper, SignatureMap
   from trueseeing.core.context import Context, ContextType
   from trueseeing.core.db import Query
@@ -92,19 +92,41 @@ class Scanner:
     else:
       return False
 
+  def _require_sigsels_fully_applied(self, sigsels: List[str], known: Set[str]) -> None:
+    def _regen(key: str, neg: bool) -> str:
+      return ('no-' if neg else '') + key
+    unknown = set()
+    for sel in set(sigsels):
+      neg = False
+      if sel.startswith('no-'):
+        sel = sel[3:]
+        neg = True
+      if sel != 'all':
+        if sel.endswith('-all'):
+          psel = sel[:-4]
+          if psel and not any((f'{psel}-' in k) for k in known):
+            unknown.add(_regen(sel, neg))
+        elif sel not in known:
+          unknown.add(_regen(sel, neg))
+    if unknown:
+      raise ValueError(unknown)
+
   def _init_sigs(self, sigsels: List[str]) -> None:
     from itertools import chain
     from trueseeing.sig import discover
     from trueseeing.core.ext import Extension
+    known = set()
     for clazz in chain(discover(), Extension.get().get_signatures()):
       matched = False
       t = clazz.create(self._helper)
       for k,v in t.get_sigs().items():
+        known.add(k)
         if self._sigsel_matches(k, sigsels):
           self._sigs[k] = v
           matched = True
       if matched:
         self._confbag.update(t.get_configs())
+    self._require_sigsels_fully_applied(sigsels, known)
 
 class SignatureHelperImpl:
   def __init__(self, scanner: Scanner) -> None:
