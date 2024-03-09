@@ -19,10 +19,12 @@ class AnalyzeCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
-      'a':dict(e=self._analyze, n='a[a][!]', d='analyze target (aa: full analysis)'),
+      'a':dict(e=self._analyze, n='a[a][a][!]', d='analyze target (aa: marginal, aaa: full)'),
       'a!':dict(e=self._analyze),
       'aa':dict(e=self._analyze2),
       'aa!':dict(e=self._analyze2),
+      'aaa':dict(e=self._analyze3),
+      'aaa!':dict(e=self._analyze3),
     }
 
   async def _analyze(self, args: deque[str], level: int = 2) -> None:
@@ -39,3 +41,6 @@ class AnalyzeCommand(CommandMixin):
 
   async def _analyze2(self, args: deque[str]) -> None:
     await self._analyze(args, level=3)
+
+  async def _analyze3(self, args: deque[str]) -> None:
+    await self._analyze(args, level=4)

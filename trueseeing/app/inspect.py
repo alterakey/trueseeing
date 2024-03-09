@@ -320,7 +320,7 @@ class CommandHelperImpl:
     return c
 
   def decode_analysis_level(self, level: int) -> str:
-    analysislevelmap = {0:'no', 1: 'minimally', 2: 'lightly', 3:'fully'}
+    analysislevelmap = {0:'no', 1: 'minimally', 2: 'lightly', 3:'marginally', 4:'fully'}
     return analysislevelmap.get(level, '?')
 
   async def run(self, s: str) -> None:

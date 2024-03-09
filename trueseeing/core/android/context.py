@@ -80,7 +80,7 @@ class APKContext(Context):
     await disasm.disassemble(level)
     pub.sendMessage('progress.core.context.disasm.done')
 
-    if level > 2:
+    if level > 3:
       SmaliAnalyzer(self.store()).analyze()
 
   def get_package_name(self) -> str:
@@ -107,7 +107,7 @@ class APKContext(Context):
         provs=len(list(manif.xpath('.//provider'))),
       )
       yield {'int-flts':len(list(manif.xpath('.//intent-filter')))}
-      if level > 2:
+      if level > 3:
         with store.db as c:
           for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
             yield dict(frags=nr)
@@ -130,7 +130,10 @@ class APKContext(Context):
           'api min':'?',
           'api tgt':'?',
         }
-      if level > 2:
+      if level == 3:
+        with store.query().scoped() as q:
+          yield dict(classes='~{}'.format(q.file_count('smali/%')))
+      elif level > 3:
         with store.db as c:
           for nr, in c.execute('select count(1) from analysis_issues'):
             yield dict(issues='{}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))

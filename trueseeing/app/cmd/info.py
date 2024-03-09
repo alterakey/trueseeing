@@ -34,7 +34,12 @@ class InfoCommand(CommandMixin):
 
     _ = args.popleft()
 
-    analysisguidemap = {0: 'try ii for more info', 1: 'try iii for more info', 2: 'try iii for more info'}
+    analysisguidemap = {
+      0: 'try ii for more info',
+      1: 'try iii for more info',
+      2: 'try iii for more info',
+      3: 'try aaa;i for more info',
+    }
 
     context = self._helper.get_context()
     analyzed = context.get_analysis_level()
@@ -54,9 +59,9 @@ class InfoCommand(CommandMixin):
           ui.info('{:12s} {}'.format('has patch?', self._read_field(v)))
         elif k == '_analysis':
           ui.info('{:12s} {}{}'.format(
-            'analyzed??',
+            'analyzed?',
             self._helper.decode_analysis_level(analyzed),
-            ' ({})'.format(analysisguidemap[analyzed]) if analyzed < 3 else '',
+            ' ({})'.format(analysisguidemap[analyzed]) if analyzed < 4 else '',
           ))
 
   async def _info2(self, args: deque[str]) -> None:
