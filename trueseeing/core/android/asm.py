@@ -20,7 +20,7 @@ class APKDisassembler:
   def __init__(self, context: Context):
     self._context = context
 
-  async def disassemble(self, level: int = 3) -> None:
+  async def disassemble(self, level: int = 4) -> None:
     await self._do(level)
 
   async def _do(self, level: int) -> None:

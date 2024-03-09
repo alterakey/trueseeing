@@ -130,15 +130,15 @@ class Context(ABC):
       return False
 
   def _get_analysis_flag_name(self, level: int) -> str:
-    return f'.done{level}' if level < 3 else '.done'
+    return f'.done{level}' if level < 4 else '.done'
 
   def get_analysis_level(self) -> int:
-    for level in range(3, 0, -1):
+    for level in range(4, 0, -1):
       if os.path.exists(os.path.join(self.wd, self._get_analysis_flag_name(level))):
         return level
     return 0
 
-  async def analyze(self, level: int = 3) -> Self:
+  async def analyze(self, level: int = 4) -> Self:
     from trueseeing.core.ui import ui
     if self.get_analysis_level() >= level:
       await self._recheck_schema()
