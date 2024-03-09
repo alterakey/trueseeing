@@ -53,7 +53,10 @@ class ScanCommand(CommandMixin):
     context = await self._helper.get_context().analyze(level=3)
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
     sigsels = self._get_sigsels(self._helper.get_modifiers(args))
-    scanner = Scanner(context, sigsels=sigsels, max_graph_size=limit)
+    try:
+      scanner = Scanner(context, sigsels=sigsels, max_graph_size=limit)
+    except ValueError as e:
+      ui.fatal('invalid sigsels found: {}'.format(', '.join(sorted(e.args[0]))))
 
     if not scanner.get_active_signatures():
       ui.fatal('no signature selected')
