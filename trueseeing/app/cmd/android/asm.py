@@ -185,7 +185,7 @@ class AssembleCommand(CommandMixin):
 
     at = time.time()
     extracted = 0
-    context = self._helper.get_context().require_type('apk')
+    context = self._helper.get_context()
     q = context.store().query()
 
     if not archive:

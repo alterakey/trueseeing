@@ -6,9 +6,9 @@ import io
 import re
 import os
 
-from trueseeing.core.android.model.code import InvocationPattern
+from trueseeing.core.android.model import InvocationPattern
+from trueseeing.core.android.model import SignatureMixin
 from trueseeing.core.android.analysis.flow import DataFlow
-from trueseeing.core.model.sig import SignatureMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
@@ -30,11 +30,11 @@ class SecurityFilePermissionDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects insecure file creation')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -46,7 +46,7 @@ class SecurityFilePermissionDetector(SignatureMixin):
             cvss=self._cvss,
             title=self._summary,
             info0={1: 'MODE_WORLD_READABLE', 2: 'MODE_WORLD_WRITEABLE'}[target_val],
-            aff0=q.qualname_of(cl)
+            aff0=q.qualname_of(cl.addr)
           ))
       except (DataFlow.NoSuchValueError):
         pass
@@ -66,7 +66,7 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects certificate (non-)pinning')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     pin_nsc = False
     if context.get_min_sdk_version() > 23:
       if not context.parsed_manifest().xpath('//application[@android:debuggable="true"]', namespaces=dict(android='http://schemas.android.com/apk/res/android')):
@@ -104,17 +104,17 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
           ))
 
   def _do_detect_plain_pins_x509(self) -> Set[str]:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     pins: Set[str] = set()
     store = context.store()
     q = store.query()
-    for m in q.methods_in_class('checkServerTrusted', 'X509TrustManager'):
-      if any(q.matches_in_method(m, InvocationPattern('verify', ''))):
-        classname = q.class_name_of(q.class_of_method(m))
+    for addr in q.methods_in_class('checkServerTrusted', 'X509TrustManager'):
+      if any(q.matches_in_method(addr, InvocationPattern('verify', ''))):
+        classname = q.class_name_of(addr)
         if classname:
           pins.add(classname)
-      if any(q.matches_in_method(m, InvocationPattern('throw', ''))):
-        classname = q.class_name_of(q.class_of_method(m))
+      if any(q.matches_in_method(addr, InvocationPattern('throw', ''))):
+        classname = q.class_name_of(addr)
         if classname:
           pins.add(classname)
 
@@ -133,12 +133,12 @@ class SecurityTlsInterceptionDetector(SignatureMixin):
       return pins
 
   def _do_detect_plain_pins_hostnameverifier(self) -> Set[str]:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     pins: Set[str] = set()
     q = context.store().query()
-    for m in itertools.chain(q.methods_in_class('verify(Ljava/lang/String;Ljavax/net/ssl/SSLSession;)Z', 'HostnameVerifier')):
-      if any(q.matches_in_method(m, InvocationPattern('invoke', 'contains|equals|verify|Ljavax/net/ssl/SSLSession;->getPeerCertificates'))):
-        classname = q.class_name_of(q.class_of_method(m))
+    for addr in itertools.chain(q.methods_in_class('verify(Ljava/lang/String;Ljavax/net/ssl/SSLSession;)Z', 'HostnameVerifier')):
+      if any(q.matches_in_method(addr, InvocationPattern('invoke', 'contains|equals|verify|Ljavax/net/ssl/SSLSession;->getPeerCertificates'))):
+        classname = q.class_name_of(addr)
         if classname:
           pins.add(classname)
     return pins
@@ -237,7 +237,7 @@ class SecurityTamperableWebViewDetector(SignatureMixin):
     import lxml.etree as ET
     from functools import reduce
 
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     targets = {'WebView','XWalkView','GeckoView'}
@@ -270,7 +270,7 @@ class SecurityTamperableWebViewDetector(SignatureMixin):
 
     # XXX: crude detection
     for op in q.invocations(InvocationPattern('invoke-', ';->loadUrl')):
-      qn = q.qualname_of(op)
+      qn = q.qualname_of(op.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -281,7 +281,7 @@ class SecurityTamperableWebViewDetector(SignatureMixin):
             cvss=self._cvss2,
             title=self._summary2,
             info0=v,
-            aff0=q.qualname_of(op)
+            aff0=q.qualname_of(op.addr)
           ))
       except DataFlow.NoSuchValueError:
         pass
@@ -318,7 +318,7 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
       return default
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     query = store.query()
 
@@ -328,8 +328,8 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
     more = True
     while more:
       more = False
-      for cl in store.query().related_classes('|'.join(seeds)):
-        name = store.query().class_name_of(cl)
+      for addr in store.query().related_classes('|'.join(seeds)):
+        name = store.query().class_name_of(addr)
         if name not in targets:
           targets.add(name)
           more = True
@@ -340,20 +340,20 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
     # https://developer.android.com/reference/android/webkit/WebView.html#addJavascriptInterface(java.lang.Object,%2520java.lang.String)
     if context.get_min_sdk_version() <= 16:
       for p in query.invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setJavaScriptEnabled')):
-        qn = query.qualname_of(p)
+        qn = query.qualname_of(p.addr)
         if context.is_qualname_excluded(qn):
           continue
         try:
           if DataFlow(query).solved_constant_data_in_invocation(p, 0):
             for target in targets:
-              for q in query.invocations_in_class(p, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
+              for q in query.invocations_in_class(p.addr, InvocationPattern('invoke-virtual', f'{target}->addJavascriptInterface')):
                 try:
                   if DataFlow(query).solved_constant_data_in_invocation(q, 0):
                     self._helper.raise_issue(self._helper.build_issue(
                       sigid=self._id,
                       cvss=self._cvss,
                       title=self._summary1,
-                      aff0=query.qualname_of(q)
+                      aff0=query.qualname_of(q.addr)
                     ))
                 except (DataFlow.NoSuchValueError):
                   self._helper.raise_issue(self._helper.build_issue(
@@ -361,7 +361,7 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
                     cfd='tentative',
                     cvss=self._cvss,
                     title=self._summary1,
-                    aff0=query.qualname_of(q)
+                    aff0=query.qualname_of(q.addr)
                   ))
         except (DataFlow.NoSuchValueError):
           pass
@@ -369,7 +369,7 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
     # https://developer.android.com/reference/android/webkit/WebSettings#setMixedContentMode(int)
     if context.get_min_sdk_version() >= 21:
       for q in query.invocations(InvocationPattern('invoke-virtual', 'Landroid/webkit/WebSettings;->setMixedContentMode')):
-        qn = query.qualname_of(q)
+        qn = query.qualname_of(q.addr)
         if context.is_qualname_excluded(qn):
           continue
         try:
@@ -380,14 +380,14 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
               cvss=self._cvss2,
               title=self._summary2,
               info0='MIXED_CONTENT_ALWAYS_ALLOW',
-              aff0=query.qualname_of(q)))
+              aff0=query.qualname_of(q.addr)))
           elif val == 2:
             self._helper.raise_issue(self._helper.build_issue(
               sigid=self._id,
               cvss=self._cvss2b,
               title=self._summary2b,
               info0='MIXED_CONTENT_COMPATIBILITY_MODE',
-              aff0=query.qualname_of(q)))
+              aff0=query.qualname_of(q.addr)))
         except (DataFlow.NoSuchValueError):
           pass
     else:
@@ -398,11 +398,11 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
             cvss=self._cvss,
             title=self._summary2,
             info0='mixed mode always enabled in API < 21',
-            aff0=query.qualname_of(q)
+            aff0=query.qualname_of(q.addr)
           ))
 
     for op in query.invocations(InvocationPattern('invoke-', ';->loadUrl')):
-      qn = query.qualname_of(op)
+      qn = query.qualname_of(op.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -421,7 +421,7 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
                 title=self._summary3,
                 info0=path,
                 info1='default' if csp is None else csp,
-                aff0=query.qualname_of(op)
+                aff0=query.qualname_of(op.addr)
               ))
             else:
               self._helper.raise_issue(self._helper.build_issue(
@@ -430,7 +430,7 @@ class SecurityInsecureWebViewDetector(SignatureMixin):
                 title=self._summary4,
                 info0=path,
                 info1=csp,
-                aff0=query.qualname_of(op)
+                aff0=query.qualname_of(op.addr)
               ))
       except DataFlow.NoSuchValueError:
         pass
@@ -453,20 +453,20 @@ class FormatStringDetector(SignatureMixin):
         yield dict(cfd='firm', value=x)
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     q = context.store().query()
     for cl in q.consts(InvocationPattern('const-string', r'%s')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
-      for t in self._analyzed(cl.p[1].v):
+      for t in self._analyzed(self._an.get_param(cl, 1).v):
         self._helper.raise_issue(self._helper.build_issue(
           sigid=self._id,
           cfd=t['cfd'],
           cvss=self._cvss,
           title=self._summary,
           info0=t['value'],
-          aff0=q.qualname_of(cl)
+          aff0=q.qualname_of(cl.addr)
         ))
     for name, val in context.string_resources():
       for t in self._analyzed(val):
@@ -492,23 +492,25 @@ class LogDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects logging activities')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', r'L.*->([dwie]|debug|error|exception|warning|info|notice|wtf)\(Ljava/lang/String;Ljava/lang/String;.*?Ljava/lang/(Throwable|.*?Exception);|L.*;->print(ln)?\(Ljava/lang/String;|LException;->printStackTrace\(')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
-      if 'print' not in cl.p[1].v:
+
+      func = self._an.get_param(cl, 1).v
+      if 'print' not in func:
         try:
           self._helper.raise_issue(self._helper.build_issue(
             sigid=self._id,
             cfd='tentative',
             cvss=self._cvss,
             title=self._summary,
-            info0=cl.p[1].v,
+            info0=func,
             info1=DataFlow(q).solved_constant_data_in_invocation(cl, 1),
-            aff0=q.qualname_of(cl)
+            aff0=q.qualname_of(cl.addr)
           ))
         except (DataFlow.NoSuchValueError):
           self._helper.raise_issue(self._helper.build_issue(
@@ -516,19 +518,19 @@ class LogDetector(SignatureMixin):
             cfd='tentative',
             cvss=self._cvss,
             title=self._summary,
-            info0=cl.p[1].v,
-            aff0=q.qualname_of(cl)
+            info0=func,
+            aff0=q.qualname_of(cl.addr)
           ))
-      elif 'Exception;->' not in cl.p[1].v:
+      elif 'Exception;->' not in func:
         try:
           self._helper.raise_issue(self._helper.build_issue(
             sigid=self._id,
             cfd='tentative',
             cvss=self._cvss,
             title=self._summary,
-            info0=cl.p[1].v,
+            info0=func,
             info1=DataFlow(q).solved_constant_data_in_invocation(cl, 0),
-            aff0=q.qualname_of(cl)
+            aff0=q.qualname_of(cl.addr)
           ))
         except (DataFlow.NoSuchValueError):
           self._helper.raise_issue(self._helper.build_issue(
@@ -536,8 +538,8 @@ class LogDetector(SignatureMixin):
             cfd='tentative',
             cvss=self._cvss,
             title=self._summary,
-            info0=cl.p[1].v,
-            aff0=q.qualname_of(cl)
+            info0=func,
+            aff0=q.qualname_of(cl.addr)
           ))
       else:
         self._helper.raise_issue(self._helper.build_issue(
@@ -545,8 +547,8 @@ class LogDetector(SignatureMixin):
           cfd='tentative',
           cvss=self._cvss,
           title=self._summary,
-          info0=cl.p[1].v,
-          aff0=q.qualname_of(cl)
+          info0=func,
+          aff0=q.qualname_of(cl.addr)
         ))
 
 class ADBProbeDetector(SignatureMixin):
@@ -563,11 +565,11 @@ class ADBProbeDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects probe of adbd status.')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', r'^Landroid/provider/Settings\$(Global|Secure);->getInt\(')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       for found in DataFlow(q).solved_possible_constant_data_in_invocation(cl, 1):
@@ -576,7 +578,7 @@ class ADBProbeDetector(SignatureMixin):
             sigid=self._id,
             cvss=self._cvss,
             title=self._summary,
-            aff0=q.qualname_of(cl),
+            aff0=q.qualname_of(cl.addr),
             summary=self._synopsis,
           ))
 
@@ -594,7 +596,7 @@ class ClientXSSJQDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects potential client-side XSS vector in JQuery-based apps')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     for fn, blob in context.store().query().file_enum(pat='root/assets/%.js'):
       f = io.StringIO(blob.decode('utf-8', errors='ignore'))
       for l in f:
@@ -624,11 +626,11 @@ class SecurityFileWriteDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects file creation')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-virtual', r'Landroid/content/Context;->openFileOutput\(Ljava/lang/String;I\)')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -644,7 +646,7 @@ class SecurityFileWriteDetector(SignatureMixin):
           title=self._summary1,
           summary=self._synopsis1,
           info0=target_val,
-          aff0=q.qualname_of(cl)
+          aff0=q.qualname_of(cl.addr)
         ))
       else:
         self._helper.raise_issue(self._helper.build_issue(
@@ -654,11 +656,11 @@ class SecurityFileWriteDetector(SignatureMixin):
           title=self._summary2,
           summary=self._synopsis2,
           info0=target_val,
-          aff0=q.qualname_of(cl)
+          aff0=q.qualname_of(cl.addr)
         ))
 
     for cl in q.invocations(InvocationPattern('invoke-direct', r'java/io/File(Writer|OutputStream)?;-><init>\(Ljava/lang/String;\)')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -673,7 +675,7 @@ class SecurityFileWriteDetector(SignatureMixin):
               title=self._summary1,
               summary=self._synopsis1,
               info0=target_val,
-              aff0=q.qualname_of(cl)
+              aff0=q.qualname_of(cl.addr)
             ))
       except DataFlow.NoSuchValueError:
         target_val = '(unknown name)'
@@ -693,7 +695,7 @@ class SecurityInsecureRootedDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects insecure rooted device probes')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
 
@@ -702,20 +704,20 @@ class SecurityInsecureRootedDetector(SignatureMixin):
     confidence: Dict[str, IssueConfidence] = dict()
 
     for cl in q.invocations(InvocationPattern('invoke-', r'Lcom/google/android/gms/safetynet/SafetyNetClient;->attest\(\[BLjava/lang/String;\)')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       # XXX: crude detection
-      verdict_accesses = list(q.consts_in_class(cl, InvocationPattern('const-string', r'ctsProfileMatch|basicIntegrity')))
+      verdict_accesses = list(q.consts_in_class(cl.addr, InvocationPattern('const-string', r'ctsProfileMatch|basicIntegrity')))
       if verdict_accesses and qn is not None:
         attestations[qn] = verdict_accesses
 
     for cl in q.consts(InvocationPattern('const-string', self._pat_path)):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       if qn is not None:
-        attempts = self._get_attempts(cl.p[1].v)
+        attempts = self._get_attempts(self._an.get_param(cl, 1).v)
         if attempts:
           confidence[qn] = 'firm'
           if qn not in path_based_detection_attempt:
@@ -762,11 +764,11 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects SharedPreferences access')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences;->get(Boolean|Float|Int|String|StringSet)\(Ljava/lang/String;')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -782,11 +784,11 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
         summary=self._synopsis,
         info0=target_val,
         info1='read',
-        aff0=q.qualname_of(cl)
+        aff0=q.qualname_of(cl.addr)
       ))
 
     for cl in q.invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences\$Editor;->put(Boolean|Float|Int|String|StringSet)\(Ljava/lang/String;')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -802,11 +804,11 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
         summary=self._synopsis,
         info0=target_val,
         info1='write',
-        aff0=q.qualname_of(cl)
+        aff0=q.qualname_of(cl.addr)
       ))
 
     for cl in q.invocations(InvocationPattern('invoke-interface', r'Landroid/content/SharedPreferences/Editor;->remove\(Ljava/lang/String;')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -822,5 +824,5 @@ class SecuritySharedPreferencesDetector(SignatureMixin):
         summary=self._synopsis,
         info0=target_val,
         info1='delete',
-        aff0=q.qualname_of(cl)
+        aff0=q.qualname_of(cl.addr)
       ))

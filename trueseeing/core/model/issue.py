@@ -1,17 +1,15 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
-
-import attr
+from typing import TYPE_CHECKING, NamedTuple
 
 from trueseeing.core.cvss import CVSS3Scoring
 
 if TYPE_CHECKING:
+  from typing import Optional
   from typing_extensions import Literal
   IssueSeverity = Literal['critical', 'high', 'medium', 'low', 'info']
   IssueConfidence = Literal['certain', 'firm', 'tentative']
 
-@attr.s(auto_attribs=True, frozen=True)
-class Issue:
+class Issue(NamedTuple):
   sigid: str
   cvss: str
   title: str

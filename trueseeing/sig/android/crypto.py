@@ -6,14 +6,15 @@ import re
 import math
 from functools import cache
 
-from trueseeing.core.model.sig import SignatureMixin
-from trueseeing.core.android.model.code import InvocationPattern
+from trueseeing.core.android.model import InvocationPattern
+from trueseeing.core.android.model import SignatureMixin
 from trueseeing.core.android.analysis.flow import DataFlow
 
 if TYPE_CHECKING:
   from typing import Dict, Iterable, Optional, Any
-  from trueseeing.core.android.model.code import Op
   from trueseeing.core.android.store import APKStore
+  from trueseeing.core.android.db import APKQuery
+  from trueseeing.core.android.model import Op
   from trueseeing.api import Signature, SignatureHelper, SignatureMap
 
 class CryptoStaticKeyDetector(SignatureMixin):
@@ -48,13 +49,12 @@ class CryptoStaticKeyDetector(SignatureMixin):
     except ValueError:
       return 0
 
-  @classmethod
-  def _important_args_on_invocation(cls, k: Op) -> Iterable[int]:
-    method_name = k.p[1].v
+  def _important_args_on_invocation(self, k: Op) -> Iterable[int]:
+    method_name = self._an.get_param(k, 1).v
     if re.match('L.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec-><init>|L.*/MessageDigest;->update', method_name):
       yield 0
     else:
-      yield from range(len(DataFlow.decoded_registers_of_set(k.p[0])))
+      yield from range(len(DataFlow.decoded_registers_of_set(self._an.get_param(k, 0))))
 
   async def detect(self) -> None:
     await asyncio.gather(self._do_detect_case1(), self._do_detect_case2())
@@ -68,11 +68,11 @@ class CryptoStaticKeyDetector(SignatureMixin):
       return len(k) >= 8 and not any(x in k for x in ('Padding', 'SHA1', 'PBKDF2', 'Hmac', 'emulator'))
 
     pat_case2 = '^M[C-I][0-9A-Za-z+/=-]{48,}'
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for cl in q.invocations(InvocationPattern('invoke-', '^Ljavax?.*/(SecretKey|(Iv|GCM)Parameter|(PKCS8|X509)EncodedKey)Spec|^Ljavax?.*/MessageDigest;->(update|digest)')):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -93,7 +93,7 @@ class CryptoStaticKeyDetector(SignatureMixin):
                 cvss=self._cvss,
                 title='insecure cryptography: static keys detected',
                 info0=info0,
-                info1=q.method_call_target_of(cl),
+                info1=q.method_call_target_of(cl.addr),
                 aff0=qn,
                 summary='Traces of cryptographic material has been found the application binary.',
                 desc='''\
@@ -110,7 +110,7 @@ Use a device or installation specific information, or obfuscate them.
                 cfd='tentative',
                 title='Cryptographic constants detected',
                 info0=info0,
-                info1=q.method_call_target_of(cl),
+                info1=q.method_call_target_of(cl.addr),
                 aff0=qn,
                 summary='Possible cryptographic constants have been found.',
                 desc='''\
@@ -123,21 +123,21 @@ Possible cryptographic constants has been found in the application binary.
   async def _do_detect_case2(self) -> None:
     # XXX: Crude detection
     def should_be_secret(store: APKStore, k: Op, val: str) -> bool:
-      name = store.query().qualname_of(k)
+      name = store.query().qualname_of(k.addr)
       if name:
         return name.lower() in ['inapp','billing','iab','sku','store','key']
       else:
         return False
 
     pat = '^M[C-I][0-9A-Za-z+/=-]{48,}'
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for cl in q.consts(InvocationPattern('const-string', pat)):
-      qn = q.qualname_of(cl)
+      qn = q.qualname_of(cl.addr)
       if context.is_qualname_excluded(qn):
         continue
-      val = cl.p[1].v
+      val = self._an.get_param(cl, 1).v
       typ = self._inspect_value_type(val)
       param = self._build_template_params(val, typ)
       self._helper.raise_issue(self._helper.build_issue(
@@ -255,7 +255,6 @@ Use a device or installation specific information, or obfuscate them.
         else:
           return '{}'.format(algo.upper())
 
-
 class CryptoEcbDetector(SignatureMixin):
   _id = 'crypto-ecb'
   _cvss = 'CVSS:3.0/AV:P/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L/'
@@ -268,33 +267,33 @@ class CryptoEcbDetector(SignatureMixin):
     return {self._id: dict(e=self.detect, d='Detects ECB mode ciphers')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
-    store = context.store()
-    q = store.query()
-    for cl in q.invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
-      qn = q.qualname_of(cl)
-      if context.is_qualname_excluded(qn):
-        continue
-      try:
-        target_val = DataFlow(q).solved_possible_constant_data_in_invocation(cl, 0)
-        if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
-          self._helper.raise_issue(self._helper.build_issue(
-            sigid=self._id,
-            cvss=self._cvss,
-            cfd='certain',
-            title='insecure cryptography: cipher might be operating in ECB mode',
-            info0=','.join(target_val),
-            aff0=qn,
-            summary='The application might be using ciphers in ECB mode.',
-            desc='''\
-            The application might be using symmetric ciphers in ECB mode.  ECB mode is the most basic operating mode that independently transform data blocks.  Indepent transformation leaks information about distribution in plaintext.
-''',
-            sol='''\
-Use CBC or CTR mode.
-'''
-          ))
-      except (DataFlow.NoSuchValueError):
-        pass
+    q: APKQuery
+    context = self._get_context()
+    with context.store().query().scoped() as q:
+      for cl in q.invocations(InvocationPattern('invoke-static', r'Ljavax/crypto/Cipher;->getInstance\(Ljava/lang/String;.*?\)')):
+        qn = q.qualname_of(cl.addr)
+        if context.is_qualname_excluded(qn):
+          continue
+        try:
+          target_val = DataFlow(q).solved_possible_constant_data_in_invocation(cl, 0)
+          if any((('ECB' in x or '/' not in x) and 'RSA' not in x) for x in target_val):
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss,
+              cfd='certain',
+              title='insecure cryptography: cipher might be operating in ECB mode',
+              info0=','.join(target_val),
+              aff0=qn,
+              summary='The application might be using ciphers in ECB mode.',
+              desc='''\
+              The application might be using symmetric ciphers in ECB mode.  ECB mode is the most basic operating mode that independently transform data blocks.  Indepent transformation leaks information about distribution in plaintext.
+  ''',
+              sol='''\
+  Use CBC or CTR mode.
+  '''
+            ))
+        except DataFlow.NoSuchValueError:
+          pass
 
 class CryptoNonRandomXorDetector(SignatureMixin):
   _id = 'crypto-xor'
@@ -308,19 +307,21 @@ class CryptoNonRandomXorDetector(SignatureMixin):
     return {self._id: dict(e=self.detect, d='Detects Vernum cipher usage with static keys')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
-    store = context.store()
-    q = store.query()
-    for cl in q.ops_of('xor-int/lit8'):
-      qn = q.qualname_of(cl)
-      if context.is_qualname_excluded(qn):
-        continue
-      target_val = int(cl.p[2].v, 16)
-      if (cl.p[0].v == cl.p[1].v) and target_val > 1:
-        self._helper.raise_issue(self._helper.build_issue(
-          sigid=self._id,
-          cvss=self._cvss,
-          title='insecure cryptography: non-random XOR cipher',
-          info0=f'0x{target_val:02x}',
-          aff0=q.qualname_of(cl)
-        ))
+    q: APKQuery
+    context = self._get_context()
+    with context.store().query().scoped() as q:
+      for cl in q.ops_of('xor-int/lit8'):
+        qn = q.qualname_of(cl.addr)
+        if context.is_qualname_excluded(qn):
+          continue
+        m = re.search(r'([pv][0-9]+), \1, (0x[0-9a-f]+)$', cl.l)
+        if m:
+          target_val = int(m.group(2), 16)
+          if target_val > 1:
+            self._helper.raise_issue(self._helper.build_issue(
+              sigid=self._id,
+              cvss=self._cvss,
+              title='insecure cryptography: non-random XOR cipher',
+              info0=f'0x{target_val:02x}',
+              aff0=qn
+            ))

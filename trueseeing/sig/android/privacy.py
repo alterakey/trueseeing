@@ -3,14 +3,14 @@ from typing import TYPE_CHECKING
 
 import re
 
-from trueseeing.core.android.model.code import InvocationPattern
+from trueseeing.core.android.model import InvocationPattern
 from trueseeing.core.android.analysis.flow import DataFlow
-from trueseeing.core.model.sig import SignatureMixin
+from trueseeing.core.android.model import SignatureMixin
 
 if TYPE_CHECKING:
   from typing import Optional
+  from trueseeing.core.android.model import Op
   from trueseeing.core.android.db import APKQuery
-  from trueseeing.core.android.model.code import Op
   from trueseeing.api import Signature, SignatureHelper, SignatureMap
 
 class PrivacyDeviceIdDetector(SignatureMixin):
@@ -27,7 +27,7 @@ class PrivacyDeviceIdDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects device fingerprinting behavior')}
 
   def analyzed(self, q: APKQuery, op: Op) -> Optional[str]:
-    x = op.p[1].v
+    x = self._an.get_param(op, 1).v
     if re.search(r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;', x):
       try:
         if DataFlow(q).solved_constant_data_in_invocation(op, 1) == 'android_id':
@@ -49,11 +49,11 @@ class PrivacyDeviceIdDetector(SignatureMixin):
     return None
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/provider/Settings\$Secure;->getString\(Landroid/content/ContentResolver;Ljava/lang/String;\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getSubscriberId\(\)Ljava/lang/String;|Landroid/telephony/TelephonyManager;->getLine1Number\(\)Ljava/lang/String;|Landroid/bluetooth/BluetoothAdapter;->getAddress\(\)Ljava/lang/String;|Landroid/net/wifi/WifiInfo;->getMacAddress\(\)Ljava/lang/String;|Ljava/net/NetworkInterface;->getHardwareAddress\(\)')):
-      qn = q.qualname_of(op)
+      qn = q.qualname_of(op.addr)
       if context.is_qualname_excluded(qn):
         continue
       val_type = self.analyzed(q, op)
@@ -64,7 +64,7 @@ class PrivacyDeviceIdDetector(SignatureMixin):
           cvss=self._cvss,
           title=self._summary,
           info0=f'getting {val_type}',
-          aff0=q.qualname_of(op)
+          aff0=q.qualname_of(op.addr)
         ))
 
 class PrivacySMSDetector(SignatureMixin):
@@ -80,11 +80,11 @@ class PrivacySMSDetector(SignatureMixin):
     return {self._id:dict(e=self.detect, d='Detects SMS-related behavior')}
 
   async def detect(self) -> None:
-    context = self._helper.get_context().require_type('apk')
+    context = self._get_context()
     store = context.store()
     q = store.query()
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/net/Uri;->parse\(Ljava/lang/String;\)Landroid/net/Uri;')):
-      qn = q.qualname_of(op)
+      qn = q.qualname_of(op.addr)
       if context.is_qualname_excluded(qn):
         continue
       try:
@@ -95,13 +95,13 @@ class PrivacySMSDetector(SignatureMixin):
             cvss=self._cvss,
             title=self._summary,
             info0='accessing SMS',
-            aff0=q.qualname_of(op)
+            aff0=q.qualname_of(op.addr)
           ))
       except DataFlow.NoSuchValueError:
         pass
 
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsManager;->send')):
-      qn = q.qualname_of(op)
+      qn = q.qualname_of(op.addr)
       if context.is_qualname_excluded(qn):
         continue
       self._helper.raise_issue(self._helper.build_issue(
@@ -110,11 +110,11 @@ class PrivacySMSDetector(SignatureMixin):
         cvss=self._cvss,
         title=self._summary,
         info0='sending SMS',
-        aff0=q.qualname_of(op)
+        aff0=q.qualname_of(op.addr)
       ))
 
     for op in q.invocations(InvocationPattern('invoke-', r'Landroid/telephony/SmsMessage;->createFromPdu\(')):
-      qn = q.qualname_of(op)
+      qn = q.qualname_of(op.addr)
       if context.is_qualname_excluded(qn):
         continue
       self._helper.raise_issue(self._helper.build_issue(
@@ -122,5 +122,5 @@ class PrivacySMSDetector(SignatureMixin):
         cvss=self._cvss,
         title=self._summary,
         info0='intercepting incoming SMS',
-        aff0=q.qualname_of(op)
+        aff0=q.qualname_of(op.addr)
       ))
