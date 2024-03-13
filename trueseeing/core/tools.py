@@ -5,14 +5,8 @@ from functools import cache
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from pathlib import Path
-  from typing import Any, Optional, TypeVar, Iterator, TypedDict, AsyncIterator, Type, Iterable, FrozenSet, Dict, Set
+  from typing import Any, Optional, TypeVar, Iterator, AsyncIterator, Type, FrozenSet, Dict, Set
   T = TypeVar('T')
-
-  class Toolchain(TypedDict):
-    apkeditor: Path
-    apksigner: Path
-    abe: Path
 
 def noneif(x: Any, defaulter: Any) -> Any:
   if x is not None:
@@ -164,10 +158,11 @@ def pack_as_output(src: str, dst: str, prefix: str, subformat: str, divisor: Opt
           yield nr
         nr += 1
 
-def get_public_subclasses(mod: Any, typ: Type[T], typs: Iterable[Type[T]] = []) -> Iterator[Type[T]]:
+def get_public_subclasses(mod: Any, typ: Type[T], nopat: Optional[str] = None) -> Iterator[Type[T]]:
+  import re
   from inspect import getmembers, isclass
-  for n, clazz in getmembers(mod, lambda x: isclass(x) and x != typ and (x not in typs) and issubclass(x, typ)):
-    if not n.startswith('_'):
+  for n, clazz in getmembers(mod, lambda x: isclass(x) and x != typ and issubclass(x, typ)):
+    if not n.startswith('_') and not (nopat and re.search(nopat, n)):
       yield clazz
 
 def get_missing_methods(clazz: Any) -> FrozenSet[str]:

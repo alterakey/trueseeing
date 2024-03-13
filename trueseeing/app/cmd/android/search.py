@@ -10,7 +10,7 @@ from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from typing import Optional, Iterator, Iterable, Tuple
   from trueseeing.api import CommandHelper, Command, CommandMap
-  from trueseeing.core.android.model.code import Op
+  from trueseeing.core.android.model import Op
   from trueseeing.core.android.db import APKQuery
 
 class SearchCommand(CommandMixin):
@@ -53,7 +53,7 @@ class SearchCommand(CommandMixin):
 
     pat = args.popleft()
 
-    from trueseeing.core.android.model.code import InvocationPattern
+    from trueseeing.core.android.model import InvocationPattern
     context = await self._helper.get_context().require_type('apk').analyze()
 
     ui.info(f'searching call: {pat}')
@@ -76,7 +76,7 @@ class SearchCommand(CommandMixin):
     else:
       pat = '.'
 
-    from trueseeing.core.android.model.code import InvocationPattern
+    from trueseeing.core.android.model import InvocationPattern
     context = await self._helper.get_context().require_type('apk').analyze()
 
     ui.info(f'searching const: {pat} [{insn}]')
@@ -224,68 +224,13 @@ class OpFormatter:
   def format(self, ops: Iterable[Op]) -> Iterator[Tuple[bool, str]]:
     focus: Optional[str] = None
     for op in ops:
-      qn = self._q.qualname_of(op)
+      qn = self._q.qualname_of(op.addr)
       if qn is None:
-        qn = self._q.class_name_of(op)
+        qn = self._q.class_name_of(op.addr)
       if qn != focus:
         yield True, f'{qn}:'
         focus = qn
       yield False, '{ind}{op}'.format(
         ind=' '*self._indent,
-        op='{id:08x}{sep}{d}'.format(sep=' '*4, id=(op._id if op._id else 0xfffffff), d=self._op(op))
+        op='{id:08x}{sep}{l}'.format(sep=' '*4, id=op.addr, l=op.l.lstrip())
       )
-
-  def _op(self, o: Op) -> str:
-    if o.t == 'directive':
-      return self._op_directive(o)
-    else:
-      if o.v.startswith('invoke'):
-        return self._op_invoke(o)
-      elif o.v.startswith('const-string'):
-        return self._op_const_str(o)
-      else:
-        return self._op_other(o)
-
-  def _op_invoke(self, o: Op) -> str:
-    regs = []
-    trailers = []
-    state = 0
-    for t in o.p:
-      if state == 0:
-        if t.t in ['reg', 'multireg']:
-          regs.append(t)
-        else:
-          state = 1
-      if state == 1:
-        if t.v == '{},': # XXX
-          continue
-        trailers.append(t)
-    return '{insn} {{{regs}}}, {trailers}'.format(
-      insn=o.v,
-      regs=', '.join([self._p(x) for x in regs]),
-      trailers=', '.join([self._p(x) for x in trailers]),
-    )
-
-  def _op_const_str(self, o: Op) -> str:
-    reg = o.p[0]
-    cons = o.p[1]
-    return '{insn} {reg}, "{cons}"'.format(
-      insn=o.v,
-      reg=self._p(reg),
-      cons=self._p(cons),
-    )
-
-  def _op_other(self, o: Op) -> str:
-    return '{insn} {ps}'.format(
-      insn=o.v,
-      ps=', '.join([self._p(x) for x in o.p]),
-    )
-
-  def _op_directive(self, o: Op) -> str:
-    return '.{insn} {ps}'.format(
-      insn=o.v,
-      ps=' '.join([self._p(x) for x in o.p]),
-    )
-
-  def _p(self, x: Op) -> str:
-    return '{}' if x.v == '{},' else x.v

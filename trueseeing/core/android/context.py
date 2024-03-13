@@ -74,14 +74,116 @@ class APKContext(Context):
 
   async def _analyze(self, level: int) -> None:
     from trueseeing.core.android.asm import APKDisassembler
-    from trueseeing.core.android.analysis.smali import SmaliAnalyzer
     pub.sendMessage('progress.core.context.disasm.begin')
     disasm = APKDisassembler(self)
     await disasm.disassemble(level)
     pub.sendMessage('progress.core.context.disasm.done')
 
     if level > 3:
-      SmaliAnalyzer(self.store()).analyze()
+      import time
+      from io import StringIO
+
+      started = time.time()
+      pat = 'smali/%.smali'
+      with self.store().query().scoped() as q:
+        total = q.file_count(pat)
+        pub.sendMessage('progress.core.analysis.smali.begin', total=total)
+        with q.db as c:
+          def _addr(nr: int, ln: int) -> int:
+            return (nr << 24 | ln)
+
+          def _addr_floor(nr: int) -> int:
+            return _addr(nr, 0)
+
+          def _addr_ceil(nr: int) -> int:
+            return _addr_floor(nr+1) - 1
+
+          nr = 0
+          c.execute('create temporary table _tmp_ops (addr integer not null primary key, l varchar not null)')
+          c.execute('create temporary table _tmp_ops_map (addr integer primary key, map_id integer)')
+          c.execute('create temporary table _tmp_xref (addr integer not null, insn varchar not null, val varchar not null, unique (addr, insn, val))')
+
+          for n, b in q.file_enum(pat):
+            t = b.decode('utf-8')
+            m = re.search(r'^\.class.* (L.*?;)', t)
+            assert m is not None, t
+            class_name = m.group(1)
+            m = re.search(r'^\.super (L.*?;)', t, re.MULTILINE)
+            assert m is not None
+            extends = m.group(1)
+            implements = [m.group(1) for m in re.finditer(r'^\.implements (L.*?;)$', t, re.MULTILINE)]
+            c.execute('insert into class_rel(class, super) values (:class_name, :extends)', dict(class_name=class_name, extends=extends))
+            for impl in implements:
+              c.execute('insert into class_rel(class, impl) values (:class_name, :impl)', dict(class_name=class_name, impl=impl))
+
+            c.execute('insert into map(low, high, class) values (:low, :high, :class_name)', dict(low=_addr_floor(nr), high=_addr_ceil(nr), class_name=class_name))
+            method_seen: Optional[Tuple[int, str]] = None
+            for ln, l in enumerate(StringIO(t)):
+              addr = _addr(nr, ln)
+              l = l.rstrip('\n')
+              if not l or ' .line ' in l or l.startswith('.source '):
+                continue
+              c.execute('insert into _tmp_ops(addr, l) values (:addr, :l)', dict(addr=addr, l=l))
+              if not method_seen:
+                m = re.search(r'^\.method .*? ([^ ]+)$', l)
+                if m:
+                  method_seen = ln, m.group(1)
+              else:
+                m = re.search(r'^  +((?:invoke|[si]put|const)\S+)', l)
+                if m:
+                  insn = m.group(1)
+                  mv = re.search(r', (".*"|\S+)(?: +# .+?)?$', l)
+                  assert mv, l
+                  c.execute('insert into _tmp_xref (addr, insn, val) values (:addr, :insn, :val)', dict(addr=addr, insn=insn, val=mv.group(1)))
+                else:
+                  if l.startswith(r'.end method'):
+                    start, name = method_seen
+                    c.execute('insert into map(low, high, class, method) values (:low, :high, :class_name, :method_name)', dict(low=_addr(nr, start), high=addr, class_name=class_name, method_name=name))
+                    method_seen = None
+
+            nr += 1
+            pub.sendMessage('progress.core.analysis.smali.analyzing', nr=nr)
+
+          pub.sendMessage('progress.core.analysis.smali.analyzed')
+
+          nr_ops = 0
+          for nr, in c.execute('select count(1) from _tmp_ops'):
+            nr_ops = nr
+            pub.sendMessage('progress.core.analysis.smali.summary', ops=nr)
+
+          nr_classes = 0
+          for nr, in c.execute('select count(1) from map where method is null'):
+            nr_classes = nr
+            pub.sendMessage('progress.core.analysis.smali.summary', ops=nr_ops, classes=nr_classes)
+
+          nr_methods = 0
+          for nr, in c.execute('select count(1) from map where method is not null'):
+            nr_methods = nr
+            pub.sendMessage('progress.core.analysis.smali.summary', ops=nr_ops, classes=nr_classes, methods=nr_methods)
+
+          pub.sendMessage('progress.core.analysis.smali.finalizing')
+
+          for addr, insn, val in c.execute('select addr, insn, val from _tmp_xref'):
+            if insn.startswith('const'):
+              c.execute('insert into xref_const (addr, insn, sym) values (:addr, :insn, :sym)', dict(addr=addr, insn=insn, sym=val if not val.startswith('"') else val[1:-1]))
+            else:
+              nc = val.split('->')
+              assert len(nc) == 2
+              if insn.startswith('invoke'):
+                assert '(' in nc[1]
+                c.execute('insert into xref_invoke (addr, insn, sym, target) values (:addr, :insn, :sym, (select low from map where class=:cn and method=:mn))', dict(addr=addr, insn=insn, sym=val, cn=nc[0], mn=nc[1]))
+              else:
+                assert '(' not in nc[1]
+                if insn.startswith('sput'):
+                  c.execute('insert into xref_sput (addr, insn, sym) values (:addr, :insn, :sym)', dict(addr=addr, insn=insn, sym=val))
+                elif insn.startswith('iput'):
+                  c.execute('insert into xref_iput (addr, insn, sym) values (:addr, :insn, :sym)', dict(addr=addr, insn=insn, sym=val))
+
+          c.execute('insert into _tmp_ops_map select A.addr,B.id from _tmp_ops as A join map as B on (A.addr between B.low and B.high) where B.method is null')
+          c.execute('insert or replace into _tmp_ops_map select A.addr,B.id from _tmp_ops as A join map as B on (A.addr between B.low and B.high) where B.method is not null')
+          c.execute('insert into ops (addr, l, map_id) select addr, l, map_id from _tmp_ops join _tmp_ops_map using (addr)')
+          c.execute('analyze')
+          pub.sendMessage('progress.core.analysis.smali.done', t=time.time() - started)
 
   def get_package_name(self) -> str:
     return self.parsed_manifest().attrib['package']  # type: ignore[no-any-return]
@@ -109,7 +211,7 @@ class APKContext(Context):
       yield {'int-flts':len(list(manif.xpath('.//intent-filter')))}
       if level > 3:
         with store.db as c:
-          for nr, in c.execute('select count(1) from classes_extends_name where extends_name regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
+          for nr, in c.execute('select count(1) from class_rel where super regexp :pat', dict(pat='^Landroid.*Fragment(Compat)?;$')):
             yield dict(frags=nr)
       for e in manif.xpath('.//application'):
         boolmap = {True:'true', False:'false', 'true':'true', 'false':'false'}
@@ -137,11 +239,11 @@ class APKContext(Context):
         with store.db as c:
           for nr, in c.execute('select count(1) from analysis_issues'):
             yield dict(issues='{}{}'.format(nr, ('' if nr else ' (not scanned yet?)')))
-          for nr, in c.execute('select count(1) from ops where idx=0'):
+          for nr, in c.execute('select count(1) from ops'):
             yield dict(ops='{}'.format(nr))
-          for nr, in c.execute('select count(1) from class_class_name'):
+          for nr, in c.execute('select count(1) from map where method is null'):
             yield dict(classes='{}'.format(nr))
-          for nr, in c.execute('select count(1) from method_method_name'):
+          for nr, in c.execute('select count(1) from map where method is not null'):
             yield dict(methods='{}'.format(nr))
 
   def _copy_target(self) -> None:
