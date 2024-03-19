@@ -168,7 +168,7 @@ class Runner:
       try:
         await self._run(s)
       except InvalidSchemaError:
-        ui.fatal('invalid schema detected, forced reanalysis needed (try a! or aa!)')
+        ui.fatal('invalid schema detected, forced reanalysis needed (try a!)')
     finally:
       self._reset_loglevel()
       self.reset_prompt()
