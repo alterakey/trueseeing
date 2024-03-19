@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from trueseeing.core.env import get_cache_dir
 
 if TYPE_CHECKING:
-  from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator
+  from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator, Tuple
   from typing_extensions import Self
   from trueseeing.api import FormatEntry
   from trueseeing.core.store import Store
@@ -18,28 +18,47 @@ if TYPE_CHECKING:
 class FileOpener:
   _formats: Dict[str, FormatEntry]
 
-  def __init__(self) -> None:
+  def __init__(self, force_opener: Optional[str] = None) -> None:
     from trueseeing.core.config import Configs
     self._confbag = Configs.get().bag
     self._formats = dict()
+    self._force_opener = force_opener
     self._init_formats()
 
   def get_context(self, path: str) -> Context:
-    import re
-    for k in sorted(self._formats.keys(), key=len, reverse=True):
-      if not re.search(k, path, re.IGNORECASE):
-        continue
-      c = self._formats[k]['e'](path)
-      if c is None:
-        continue
-      return c
     from trueseeing.core.exc import InvalidFileFormatError
-    raise InvalidFileFormatError()
+    if not self._force_opener:
+      import re
+
+      def _key(x: Tuple[str, FormatEntry]) -> int:
+        try:
+          return len(x[1]['r'])
+        except KeyError:
+          from trueseeing.core.ui import ui
+          ui.warn('{} ({}): old-style format entry detected; update definition'.format(x[1]['d'], x[0]))
+          return len(x[0])
+
+      for k,v in sorted(self._formats.items(), key=_key, reverse=True):
+        if not re.search(v.get('r', k), path, re.IGNORECASE):
+          continue
+        c = v['e'](path)
+        if c is None:
+          continue
+        return c
+      raise InvalidFileFormatError()
+    else:
+      if self._force_opener in self._formats:
+        c = self._formats[self._force_opener]['e'](path)
+        if c is not None:
+          return c
+      raise InvalidFileFormatError()
 
   def _init_formats(self) -> None:
     from trueseeing.core.ext import Extension
 
-    self._formats.update({r'\.apk$':dict(e=self._handle_apk, d='apk')})
+    self._formats.update({
+      'apk':dict(e=self._handle_apk, r=r'\.apk$', d='apk'),
+    })
 
     for clazz in Extension.get().get_fileformathandlers():
       t = clazz.create()

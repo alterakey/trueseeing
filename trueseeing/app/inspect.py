@@ -22,13 +22,14 @@ class InspectMode:
       batch: bool = False,
       cmdlines: List[str] = [],
       abort_on_errors: bool = False,
+      force_opener: Optional[str] = None,
   ) -> NoReturn:
     try:
       try:
         if ui.is_tty():
           ui.enter_inspect()
         with CoreProgressReporter().scoped():
-          self._do(target, batch, cmdlines, abort_on_errors)
+          self._do(target, batch, cmdlines, abort_on_errors, force_opener)
       finally:
         if ui.is_tty():
           ui.exit_inspect()
@@ -43,11 +44,12 @@ class InspectMode:
       batch: bool,
       cmdlines: List[str],
       abort_on_errors: bool,
+      force_opener: Optional[str],
   ) -> int:
     from code import InteractiveConsole
 
     sein = self
-    runner = Runner(target, abort_on_errors=abort_on_errors)
+    runner = Runner(target, abort_on_errors=abort_on_errors, force_opener=force_opener)
 
     for line in cmdlines:
       asyncio.run(sein._worker(runner.run(line)))
@@ -111,7 +113,7 @@ class Runner:
   _abort_on_errors: bool = False
   _helper: CommandHelper
 
-  def __init__(self, target: Optional[str], *, abort_on_errors: bool = False) -> None:
+  def __init__(self, target: Optional[str], *, abort_on_errors: bool = False, force_opener: Optional[str] = None) -> None:
     from trueseeing.core.config import Configs
     self._target = target
     self._cmds = {
@@ -132,7 +134,7 @@ class Runner:
     if abort_on_errors:
       self._abort_on_errors = True
 
-    self._helper = CommandHelperImpl(self)
+    self._helper = CommandHelperImpl(self, force_opener=force_opener)
 
     self._init_cmds()
 
@@ -282,9 +284,9 @@ class Runner:
     self._target = args.popleft()
 
 class CommandHelperImpl:
-  def __init__(self, runner: Runner) -> None:
+  def __init__(self, runner: Runner, force_opener: Optional[str] = None) -> None:
     self._r = runner
-    self._opener = FileOpener()
+    self._opener = FileOpener(force_opener=force_opener)
     self._confbag = self._r._confbag
 
   def get_target(self) -> Optional[str]:
