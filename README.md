@@ -12,7 +12,7 @@ trueseeing is a fast, accurate and resillient vulnerability scanner for Android 
 Currently we can:
 
 * Automatically scan app for vulnerabilities, reporting in HTML/JSON/text format (see below)
-* Manipulate app for easier analysis: e.g. enabling debug bit, enabling full backup, disabling TLS pinning, manipulating target API level, etc.
+* Manipulate app for easier analysis: e.g. enabling debug bit, enabling full backup, disabling TLS pinning, manipulating target API level, injecting frida-gadget, etc.
 * Examine app for general information
 * Copy in/out app data through debug interface
 * Search for certain calls/consts/sput/iput
@@ -50,7 +50,7 @@ Alternatively, you can install our package with pip as follows. This form of ins
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
     $ trueseeing target.apk
-    [+] trueseeing 2.2.1
+    [+] trueseeing 2.2.2
     ts[target.apk]> ?
     ...
     ts[target.apk]> i                      # show generic information
@@ -194,7 +194,7 @@ The following class will provide a sample command as `t`, for example:
 ```python
 from typing import TYPE_CHECKING
 from trueseeing.api import Command
-from truseeing.core.ui import ui
+from trueseeing.core.ui import ui
 if TYPE_CHECKING:
   from trueseeing.api import CommandMap, CommandPatternMap, ModifierMap, OptionMap, ConfigMap
 
@@ -283,7 +283,7 @@ class APKFileFormatHandler(FileFormatHandler):
     return APKFileFormatHandler()
 
   def get_formats(self) -> FormatMap:
-    return {r'\.apk$':dict(e=self._handle, d='sample file format')}
+    return {'apk2':dict(e=self._handle, r=r'\.apk$', d='sample file format')}
 
   def get_configs(self) -> ConfigMap:
     return dict()
@@ -306,9 +306,15 @@ But by design it works only for known types (currently, the `apk`).  So if you a
 context: MyAPKContext = self._helper.get_context().require_type('apk2')  # type:ignore[assignment]
 ```
 
+It is possible to define multiple formats matching the same pattern. We evaluate patterns in the order of from the most stringent (i.e. long) to the least. You use the `-F` switch to force some format to use with the target file, e.g.:
+
+```
+$ trueseeing -F apk2 target.apk
+```
+
 #### Package requirements
 
-Extensions can be either: a) any package placed under `/ext` (container) or `~/.truseeing2/extensions` (pip), or b) any installed module named with the prefix of `trueseeing_ext0_`.
+Extensions can be either: a) any package placed under `/ext` (container) or `~/.trueseeing2/extensions` (pip), or b) any installed module named with the prefix of `trueseeing_ext0_`.
 
 ### Origin of Project Name?
 
