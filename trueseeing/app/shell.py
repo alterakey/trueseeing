@@ -17,7 +17,7 @@ class Shell:
     #   ..............................................................................80
     return (
       f'Trueseeing {__version__}, an non-decompiling Android app vulnerability scanner\n'
-       'Copyright (C) Takahiro Yoshimura <altakey@gmail.com> et al.\n' # noqa: E131
+       'Copyright (C) Takahiro Yoshimura <alterakey@protonmail.com> et al.\n' # noqa: E131
        'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
     )
 
