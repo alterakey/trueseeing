@@ -100,7 +100,9 @@ class InspectMode:
             ui.fatal('unhandled exception', exc=x)
 
 class QuitSession(Exception):
-  code: int
+  def __init__(self, code: int, *args: Any, **kwargs: Any) -> None:
+    super().__init__(code, *args, **kwargs)
+    self.code = code
 
 class Runner:
   _cmds: Dict[str, CommandEntry]
