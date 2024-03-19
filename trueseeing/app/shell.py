@@ -45,6 +45,7 @@ class Shell:
     parser.add_argument('--quiet', action='store_true', help='Be less verbose')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('-e', '--abort-on-errors', action='store_true', help='Abort on errors')
+    parser.add_argument('-F', dest='force_opener', help='Open target as specified format')
     parser.add_argument('-n', dest='no_target', action='store_true', help='Open empty file')
     args_mut0.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
     args_mut0.add_argument('-c', dest='inline_cmd', metavar='COMMAND', help='Run commands before prompt')
@@ -129,6 +130,7 @@ class Shell:
         batch=True if args.mode == 'batch' else False,
         cmdlines=cmdlines,
         abort_on_errors=args.abort_on_errors,
+        force_opener=args.force_opener,
       )
     elif args.mode == 'scan':
       from trueseeing.core.exc import InvalidFileFormatError
@@ -140,6 +142,7 @@ class Shell:
           outfile=args.scan_output_filename,
           sigsels=args.scan_sigs.split(',') if args.scan_sigs else [],
           excludes=args.scan_exclude_packages if args.scan_exclude_packages else [],
+          force_opener=args.force_opener,
         )
         if args.scan_update_cache:
           return self._launch(app.reanalyze())

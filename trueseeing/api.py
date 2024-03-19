@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
   class FormatEntry(TypedDict):
     e: FormatHandlerEntrypoint
+    r: str
     d: str
 
   CommandMap = Mapping[str, CommandEntry]
