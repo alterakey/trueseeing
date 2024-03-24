@@ -28,8 +28,8 @@ class APKQuery(Query):
       from trueseeing.core.android.store import APKStore
       assert isinstance(store, APKStore)
 
-  def _get_smali_forward_like_pattern_of_package(self, name: str) -> str:
-    return r'L{}/%'.format(name.replace('.', '/'))
+  def _get_smali_forward_like_pattern_of_package(self, name: str, *, regex: bool = False) -> str:
+    return r'L{}/{}'.format(name.replace('.', '/'), '' if regex else '%')
 
   def consts(self, pat: InvocationPattern) -> Iterator[Op]:
     for addr, l in self.db.execute('select addr, l from ops join xref_const using (addr) where insn like :insn and sym regexp :pat', dict(insn=f'{pat.insn}%', pat=pat.value)):
@@ -125,9 +125,9 @@ class APKQuery(Query):
     for addr, l in self.db.execute('select addr, l from ops join map on (addr=low) where method is null and class in (select class from map join class_rel using (class) where method regexp :method and impl regexp :implements)', dict(method=method, implements=implements)):
       yield Op(addr, l)
 
-  def classes_in_package_named(self, name: str) -> Iterator[Op]:
-    for addr, l in self.db.execute('select addr, l from ops join map on (addr=low) where method is null and class like :pkg', dict(pat=self._get_smali_forward_like_pattern_of_package(name))):
-      yield Op(addr, l)
+  def class_names_in_package_named(self, pat: str) -> Iterator[str]:
+    for name, in self.db.execute('select class from map where method is null and class regexp :pat', dict(pat=pat)):
+      yield name
 
   def body(self, class_name: str, method_name: Optional[str]) -> Iterator[Op]:
     stmt0 = 'select addr, l from ops join map on (addr between low and high) where method is null and class=:class_name'
