@@ -419,4 +419,5 @@ class OpFormatter:
         op='{id:08x}{sep}{l}'.format(sep=' '*4, id=op.addr, l=op.l.lstrip())
       )
 
+
 ui = UI()

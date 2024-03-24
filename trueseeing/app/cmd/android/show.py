@@ -64,7 +64,7 @@ class ShowCommand(CommandMixin):
       raise ValueError('invalid dalvik name: {n}') # XXX
     return QualNameInfo(
       clazz=m.group(1),
-      method=m.group(2)[2:],
+      method=m.group(2)[2:] if m.group(2) else None,
     )
 
   async def _show_solved_constant(self, args: deque[str]) -> None:

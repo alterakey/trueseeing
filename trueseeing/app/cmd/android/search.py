@@ -134,18 +134,18 @@ class SearchCommand(CommandMixin):
 
     _ = args.popleft()
 
-    if not args:
-      ui.fatal('need pattern')
-
-    pat = args.popleft()
+    if args:
+      pat = args.popleft()
+    else:
+      pat = '.'
 
     context = await self._helper.get_context().require_type('apk').analyze()
 
     ui.info(f'searching classes in package: {pat}')
 
     with context.store().query().scoped() as q:
-      for is_header, line in OpFormatter(q).format(q.classes_in_package_named(pat)):
-        self._output_as_untagged_listing(is_header, line)
+      for name in q.class_names_in_package_named(pat):
+        ui.info(name)
 
   async def _search_derived_class(self, args: deque[str]) -> None:
     self._helper.require_target()
