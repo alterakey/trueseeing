@@ -5,13 +5,10 @@ import re
 from collections import deque
 
 from trueseeing.core.model.cmd import CommandMixin
-from trueseeing.core.ui import ui
+from trueseeing.core.ui import ui, OpFormatter
 
 if TYPE_CHECKING:
-  from typing import Optional, Iterator, Iterable, Tuple
   from trueseeing.api import CommandHelper, Command, CommandMap
-  from trueseeing.core.android.model import Op
-  from trueseeing.core.android.db import APKQuery
 
 class SearchCommand(CommandMixin):
   def __init__(self, helper: CommandHelper) -> None:
@@ -215,22 +212,3 @@ class SearchCommand(CommandMixin):
     q = context.store().query()
     for is_header, line in OpFormatter(q).format(q.classes_has_method_named(pat)):
       self._output_as_untagged_listing(is_header, line)
-
-class OpFormatter:
-  def __init__(self, q: APKQuery, indent: int = 4) -> None:
-    self._q = q
-    self._indent = indent
-
-  def format(self, ops: Iterable[Op]) -> Iterator[Tuple[bool, str]]:
-    focus: Optional[str] = None
-    for op in ops:
-      qn = self._q.qualname_of(op.addr)
-      if qn is None:
-        qn = self._q.class_name_of(op.addr)
-      if qn != focus:
-        yield True, f'{qn}:'
-        focus = qn
-      yield False, '{ind}{op}'.format(
-        ind=' '*self._indent,
-        op='{id:08x}{sep}{l}'.format(sep=' '*4, id=op.addr, l=op.l.lstrip())
-      )

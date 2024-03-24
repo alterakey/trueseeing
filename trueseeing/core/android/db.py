@@ -128,3 +128,9 @@ class APKQuery(Query):
   def classes_in_package_named(self, name: str) -> Iterator[Op]:
     for addr, l in self.db.execute('select addr, l from ops join map on (addr=low) where method is null and class like :pkg', dict(pat=self._get_smali_forward_like_pattern_of_package(name))):
       yield Op(addr, l)
+
+  def body(self, class_name: str, method_name: Optional[str]) -> Iterator[Op]:
+    stmt0 = 'select addr, l from ops join map on (addr between low and high) where method is null and class=:class_name'
+    stmt1 = 'select addr, l from ops join map on (addr between low and high) where method=:method_name and class=:class_name'
+    for addr, l in self.db.execute(stmt1 if method_name else stmt0, dict(class_name=class_name, method_name=method_name)):
+      yield Op(addr, l)
