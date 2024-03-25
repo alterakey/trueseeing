@@ -94,6 +94,8 @@ class ShowCommand(CommandMixin):
           try:
             v = DataFlow(q).solved_constant_data_in_invocation(op, idx)
             ui.info(repr(v))
+          except DataFlow.UnsolvableValueError as ce:
+            ui.error(f'value is not solvable (possibly not a compile-time constant), data graph: {ce.graph}')
           except DataFlow.NoSuchValueError as e:
             ui.error(str(e))
       else:

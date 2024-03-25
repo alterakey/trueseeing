@@ -125,7 +125,7 @@ class APKQuery(Query):
     for addr, l in self.db.execute('select addr, l from ops join map on (addr=low) where method is null and class in (select class from map join class_rel using (class) where method regexp :method and impl regexp :implements)', dict(method=method, implements=implements)):
       yield Op(addr, l)
 
-  def class_names_in_package_named(self, pat: str) -> Iterator[str]:
+  def class_names(self, pat: str) -> Iterator[str]:
     for name, in self.db.execute('select class from map where method is null and class regexp :pat', dict(pat=pat)):
       yield name
 

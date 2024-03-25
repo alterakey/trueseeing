@@ -39,6 +39,10 @@ class DataFlow:
   class NoSuchValueError(Exception):
     pass
 
+  class UnsolvableValueError(NoSuchValueError):
+    def __init__(self, graph: DataGraph) -> None:
+      self.graph = graph
+
   class RegisterDecodeError(Exception):
     pass
 
@@ -137,11 +141,11 @@ class DataFlow:
         if self._an.get_insn(arg).startswith('const'):
           return self._an.get_param(arg, 1).v
         else:
-          raise self.NoSuchValueError(f'not a compile-time constant: {arg!r}')
+          raise self.UnsolvableValueError(arg)
       except (KeyError, AttributeError):
-        raise self.NoSuchValueError(f'not a compile-time constant: {arg!r}')
+        raise self.UnsolvableValueError(graph=arg)
     else:
-      raise self.NoSuchValueError(f'not a compile-time constant: {arg!r}')
+      raise self.UnsolvableValueError(graph=arg)
 
   @classmethod
   def walk_dict_values(cls, d: DataGraph) -> Iterable[Optional[Op]]:
