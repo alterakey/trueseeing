@@ -24,7 +24,7 @@ class SearchCommand(CommandMixin):
       '/k':dict(e=self._search_const, n='/k insn [pat]', d='search consts for pattern'),
       '/p':dict(e=self._search_put, n='/p[i] [pat]', d='search s/iputs for pattern'),
       '/dp':dict(e=self._search_defined_package, n='/dp [pat]', d='search packages matching pattern'),
-      '/dc':dict(e=self._search_defined_class, n='/dc [pat]', d='search classes defined in packages matching pattern'),
+      '/dc':dict(e=self._search_defined_class, n='/dc [pat]', d='search classes matching pattern'),
       '/dcx':dict(e=self._search_derived_class, n='/dcx classpat [methpat]', d='search classes defining methods and extending ones matching patterns'),
       '/dci':dict(e=self._search_implementing_class, n='/dci ifacepat [methpat]', d='search classes defining methods and implementing interfaces matching patterns'),
       '/dm':dict(e=self._search_defined_method, n='/dm pat', d='search classes defining methods matching pattern'),
@@ -119,7 +119,7 @@ class SearchCommand(CommandMixin):
     import os
     context = await self._helper.get_context().require_type('apk').analyze()
 
-    ui.info(f'searching packages defining class: {pat}')
+    ui.info(f'searching packages: {pat}')
 
     packages = set()
     for fn in (context.source_name_of_disassembled_class(r) for r in context.disassembled_classes()):
@@ -141,10 +141,10 @@ class SearchCommand(CommandMixin):
 
     context = await self._helper.get_context().require_type('apk').analyze()
 
-    ui.info(f'searching classes in package: {pat}')
+    ui.info(f'searching classes: {pat}')
 
     with context.store().query().scoped() as q:
-      for name in q.class_names_in_package_named(pat):
+      for name in q.class_names(pat):
         ui.info(name)
 
   async def _search_derived_class(self, args: deque[str]) -> None:
