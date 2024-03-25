@@ -419,5 +419,21 @@ class OpFormatter:
         op='{id:08x}{sep}{l}'.format(sep=' '*4, id=op.addr, l=op.l.lstrip())
       )
 
+class OpLister:
+  def __init__(self, formatter: OpFormatter) -> None:
+    self._formatter = formatter
+
+  def list_tagged(self, ops: Iterable[Op]) -> None:
+    for is_header, line in self._formatter.format(ops):
+      if is_header:
+        ui.info(ui.colored(line, color='green'))
+      else:
+        ui.info(line)
+
+  def list_untagged(self, ops: Iterable[Op]) -> None:
+    for is_header, line in self._formatter.format(ops):
+      if not is_header:
+        ui.info(line)
+
 
 ui = UI()
