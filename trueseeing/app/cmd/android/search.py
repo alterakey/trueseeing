@@ -5,7 +5,7 @@ import re
 from collections import deque
 
 from trueseeing.core.model.cmd import CommandMixin
-from trueseeing.core.ui import ui, OpFormatter
+from trueseeing.core.ui import ui, OpFormatter, OpLister
 
 if TYPE_CHECKING:
   from trueseeing.api import CommandHelper, Command, CommandMap
@@ -30,16 +30,6 @@ class SearchCommand(CommandMixin):
       '/dm':dict(e=self._search_defined_method, n='/dm pat', d='search classes defining methods matching pattern'),
     }
 
-  def _output_as_tagged_listing(self, is_header: bool, line: str) -> None:
-    if is_header:
-      ui.info(ui.colored(line, color='green'))
-    else:
-      ui.info(line)
-
-  def _output_as_untagged_listing(self, is_header: bool, line: str) -> None:
-    if not is_header:
-      ui.info(line)
-
   async def _search_call(self, args: deque[str]) -> None:
     self._helper.require_target()
 
@@ -56,8 +46,7 @@ class SearchCommand(CommandMixin):
     ui.info(f'searching call: {pat}')
 
     with context.store().query().scoped() as q:
-      for is_header, line in OpFormatter(q).format(q.invocations(InvocationPattern('invoke-', pat))):
-        self._output_as_tagged_listing(is_header, line)
+      OpLister(OpFormatter(q)).list_tagged(q.invocations(InvocationPattern('invoke-', pat)))
 
   async def _search_const(self, args: deque[str]) -> None:
     self._helper.require_target()
@@ -79,8 +68,7 @@ class SearchCommand(CommandMixin):
     ui.info(f'searching const: {pat} [{insn}]')
 
     with context.store().query().scoped() as q:
-      for is_header, line in OpFormatter(q).format(q.consts(InvocationPattern(insn, pat))):
-        self._output_as_tagged_listing(is_header, line)
+      OpLister(OpFormatter(q)).list_tagged(q.consts(InvocationPattern(insn, pat)))
 
   async def _search_put(self, args: deque[str]) -> None:
     self._helper.require_target()
@@ -103,8 +91,7 @@ class SearchCommand(CommandMixin):
 
     ui.info(f'searching {funtype}puts: {pat}')
 
-    for is_header, line in OpFormatter(q).format(fun(pat)):
-      self._output_as_tagged_listing(is_header, line)
+    OpLister(OpFormatter(q)).list_tagged(fun(pat))
 
   async def _search_defined_package(self, args: deque[str]) -> None:
     self._helper.require_target()
@@ -169,8 +156,7 @@ class SearchCommand(CommandMixin):
       ui.info(f'searching classes deriving from: {base} [has method:{pat}]')
 
     with context.store().query().scoped() as q:
-      for is_header, line in OpFormatter(q).format(q.classes_extends_has_method_named(pat, base)):
-        self._output_as_untagged_listing(is_header, line)
+      OpLister(OpFormatter(q)).list_untagged(q.classes_extends_has_method_named(pat, base))
 
   async def _search_implementing_class(self, args: deque[str]) -> None:
     self._helper.require_target()
@@ -193,8 +179,7 @@ class SearchCommand(CommandMixin):
 
     context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
-    for is_header, line in OpFormatter(q).format(q.classes_implements_has_method_named(pat, interface)):
-      self._output_as_untagged_listing(is_header, line)
+    OpLister(OpFormatter(q)).list_untagged(q.classes_implements_has_method_named(pat, interface))
 
   async def _search_defined_method(self, args: deque[str]) -> None:
     self._helper.require_target()
@@ -210,5 +195,4 @@ class SearchCommand(CommandMixin):
 
     context = await self._helper.get_context().require_type('apk').analyze()
     q = context.store().query()
-    for is_header, line in OpFormatter(q).format(q.classes_has_method_named(pat)):
-      self._output_as_untagged_listing(is_header, line)
+    OpLister(OpFormatter(q)).list_untagged(q.classes_has_method_named(pat))

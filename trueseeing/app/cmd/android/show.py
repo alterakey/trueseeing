@@ -5,7 +5,7 @@ import re
 from collections import deque
 
 from trueseeing.core.model.cmd import CommandMixin
-from trueseeing.core.ui import ui, OpFormatter
+from trueseeing.core.ui import ui, OpFormatter, OpLister
 
 if TYPE_CHECKING:
   from typing import Optional
@@ -31,10 +31,6 @@ class ShowCommand(CommandMixin):
       'pt':dict(e=self._show_solved_typeset, n='pt 0xop index', d='guess and show what type would flow into the index-th arg of op'),
     }
 
-  def _output_as_untagged_listing(self, is_header: bool, line: str) -> None:
-    if not is_header:
-      ui.info(line)
-
   async def _show_disasm(self, args: deque[str]) -> None:
     self._helper.require_target()
 
@@ -54,9 +50,7 @@ class ShowCommand(CommandMixin):
       ui.fatal(f'invalid qualname (try quoting): {qn}')
 
     with context.store().query().scoped() as q:
-      formatter = OpFormatter(q)
-      for is_header, line in formatter.format(q.body(c.clazz, c.method)):
-        self._output_as_untagged_listing(is_header, line)
+      OpLister(OpFormatter(q)).list_tagged(q.body(c.clazz, c.method))
 
   def _parse_qualname(self, n: str) -> QualNameInfo:
     m = re.fullmatch('(L[^ ]+?;)(->[^ ]+?)?', n)
