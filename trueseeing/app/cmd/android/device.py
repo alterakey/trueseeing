@@ -9,13 +9,13 @@ from trueseeing.core.ui import ui
 from trueseeing.core.android.device import AndroidDevice
 
 if TYPE_CHECKING:
-  from typing import Optional, Tuple, Literal, AsyncIterator, List, Dict, Mapping, Iterator
+  from typing import Optional, Tuple, Literal, AsyncIterator, Dict
   from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
   from trueseeing.core.android.context import APKContext
 
   UIPatternType = Literal['re', 'xpath']
 
-class DeviceCommand(CommandMixin):
+class ReconCommand(CommandMixin):
   _target_only: bool
   _watch_logcat: Optional[bytes]
   _watch_intent: Optional[bytes]
@@ -35,21 +35,18 @@ class DeviceCommand(CommandMixin):
 
   @staticmethod
   def create(helper: CommandHelper) -> Command:
-    return DeviceCommand(helper)
+    return ReconCommand(helper)
 
   def get_commands(self) -> CommandMap:
     return {
-      'dl':dict(e=self._device_watch_logcat, n='dl[!] [pat]', d='device: watch logcat (!: system-wide)'),
-      'dl!':dict(e=self._device_watch_logcat),
-      'df':dict(e=self._device_watch_fs, n='df', d='device: watch filesystem'),
-      'dt':dict(e=self._device_watch_intent, n='dt[!] [pat]', d='device: watch intent'),
-      'di':dict(e=self._device_watch_ui, n='di[!] [pat|xp:xpath] [output.xml]', d='device: watch device UI'),
-      'dx':dict(e=self._device_start, n='dx', d='device: start watching'),
-      'xi':dict(e=self._exploit_dump_ui, n='xi [output.xml]', d='device: dump device UI'),
-      'xz':dict(e=self._exploit_fuzz_intent, n='xz[!] "am-cmdline-template" [output.txt]', d='device: fuzz intent'),
-      'xz!':dict(e=self._exploit_fuzz_intent),
-      'xzr':dict(e=self._exploit_fuzz_command, n='xzr[!] "cmdline-template" [output.txt]', d='device: fuzz cmdline'),
-      'xzr!':dict(e=self._exploit_fuzz_command),
+      'rwl':dict(e=self._recon_watch_logcat, n='rwl[!] [pat]', d='recon: watch logcat (!: system-wide)'),
+      'rwl!':dict(e=self._recon_watch_logcat),
+      'rwf':dict(e=self._recon_watch_fs, n='rwf', d='recon: watch filesystem'),
+      'rwt':dict(e=self._recon_watch_intent, n='rwt[!] [pat]', d='recon: watch intent'),
+      'rwu':dict(e=self._recon_watch_ui, n='rwu[!] [pat|xp:xpath] [output.xml]', d='recon: watch device UI'),
+      'rwx':dict(e=self._recon_watch_start, n='rwx', d='recon: start watching'),
+      'rp':dict(e=self._recon_list_packages, n='rp', d='recon: list installed packages'),
+      'ru':dict(e=self._recon_dump_ui, n='ru [output.xml]', d='recon: dump device UI'),
     }
 
   def get_options(self) -> OptionMap:
@@ -60,7 +57,7 @@ class DeviceCommand(CommandMixin):
   def _get_apk_context(self) -> APKContext:
     return self._helper.get_context().require_type('apk')
 
-  async def _device_watch_logcat(self, args: deque[str]) -> None:
+  async def _recon_watch_logcat(self, args: deque[str]) -> None:
     cmd = args.popleft()
 
     if cmd.endswith('!'):
@@ -80,7 +77,7 @@ class DeviceCommand(CommandMixin):
     else:
       ui.success('logcat watch disabled')
 
-  async def _device_watch_intent(self, args: deque[str]) -> None:
+  async def _recon_watch_intent(self, args: deque[str]) -> None:
     _ = args.popleft()
 
     if not args:
@@ -94,7 +91,7 @@ class DeviceCommand(CommandMixin):
     else:
       ui.success('intent watch disabled')
 
-  async def _device_watch_fs(self, args: deque[str]) -> None:
+  async def _recon_watch_fs(self, args: deque[str]) -> None:
     _ = args.popleft()
 
     if not args:
@@ -108,7 +105,7 @@ class DeviceCommand(CommandMixin):
     else:
       ui.success('filesystem watch disabled')
 
-  async def _device_watch_ui(self, args: deque[str]) -> None:
+  async def _recon_watch_ui(self, args: deque[str]) -> None:
     cmd = args.popleft()
 
     if not args:
@@ -132,7 +129,7 @@ class DeviceCommand(CommandMixin):
     else:
       ui.success('ui watch disabled')
 
-  async def _device_start(self, args: deque[str]) -> None:
+  async def _recon_watch_start(self, args: deque[str]) -> None:
     if not (self._watch_logcat or self._watch_intent or self._watch_ui or self._watch_fs):
       ui.fatal('nothing to watch (try d* beforehand)')
 
@@ -213,7 +210,24 @@ class DeviceCommand(CommandMixin):
     except KeyboardInterrupt:
       pass
 
-  async def _exploit_dump_ui(self, args: deque[str]) -> None:
+  async def _recon_list_packages(self, args: deque[str]) -> None:
+    _ = args.popleft()
+
+    ui.info('listing packages')
+
+    import time
+    import re
+    from trueseeing.core.android.device import AndroidDevice
+
+    at = time.time()
+    nr = 0
+    for m in re.finditer(r'^package:(.*)', await AndroidDevice().invoke_adb('shell pm list package'), re.MULTILINE):
+      p = m.group(1)
+      ui.info(p)
+      nr += 1
+    ui.success('done, {nr} packages found ({t:.02f} sec.)'.format(nr=nr, t=(time.time() - at)))
+
+  async def _recon_dump_ui(self, args: deque[str]) -> None:
     outfn: Optional[str] = None
 
     cmd = args.popleft()
@@ -294,102 +308,6 @@ class DeviceCommand(CommandMixin):
           seen0.clear()
     except CalledProcessError as e:
       raise DumpFailedError(e)
-
-  async def _exploit_fuzz_command(self, args: deque[str], am: bool = False) -> None:
-    outfn: Optional[str] = None
-
-    cmd = args.popleft()
-
-    if not args:
-      if am:
-        ui.fatal('an "am" command line pattern required; try giving whatever you would to "adb shell am" (e.g. {} "start-activity .." ..)'.format(cmd))
-      else:
-        ui.fatal('command line pattern required; try giving you would to "adb shell"')
-
-    pat = args.popleft()
-    if am:
-      pat = f'am {pat}'
-
-    if args and not args[0].startswith('@'):
-      import os
-      outfn = args.popleft()
-      if os.path.exists(outfn) and not cmd.endswith('!'):
-        ui.fatal('outfile exists; force (!) to overwrite')
-
-    wordlist: Dict[str, List[str]] = dict()
-    for name, fn in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
-      if name.startswith('w'):
-        name = name[1:]
-        try:
-          with open(fn, 'r') as f:
-            wordlist[name] = [x.rstrip() for x in f]
-        except OSError as e:
-          ui.fatal(f'cannot open wordlist: {e}')
-
-    if not wordlist:
-      ui.fatal('need a wordlist (try @o:wNAME=FN)')
-
-    ui.info('wordlist built: {} words in {} keys ({})'.format(sum([len(v) for v in wordlist.values()]), len(wordlist), ','.join(wordlist.keys())))
-
-    def _expand(pat: str, wordlist: Mapping[str, List[str]]) -> Iterator[Tuple[int, int, str]]:
-      tries = min(len(v) for v in wordlist.values())
-      for nr in range(tries):
-        d = {k:v[nr] for k,v in wordlist.items()}
-        try:
-          yield nr, tries, pat.format(*[], **d)
-        except KeyError as e:
-          ui.fatal(f'unknown wordlist specified: {e}')
-
-    ui.info('starting fuzzing, opening log system-wide{}'.format(' [{}]'.format(outfn) if outfn else ''))
-
-    dev = AndroidDevice()
-
-    async def _log(outfn: Optional[str]) -> None:
-      import sys
-      nr = 0
-
-      if not outfn:
-        f = sys.stdout.buffer
-      else:
-        f = open(outfn, 'wb')
-
-      try:
-        async for l in dev.invoke_adb_streaming('logcat -T1'):
-          f.write(l)
-          nr += 1
-          if outfn and nr % 256 == 0:
-            ui.info(' ... captured: {}')
-      finally:
-        if outfn:
-          f.close()
-
-    async def _fuzz(pat: str, wordlist: Mapping[str, List[str]]) -> None:
-      from asyncio import sleep
-      from subprocess import CalledProcessError
-      for nr, tries, t in _expand(pat, wordlist):
-        await sleep(.05)
-        prog = dict(nr=nr+1, max=tries, cmd=t)
-        try:
-          await dev.invoke_adb(f'shell {t}')
-          ui.info('[{nr}/{max}] {cmd}'.format(**prog))
-        except CalledProcessError as e:
-          ui.failure('[{nr}/{max}] {cmd}: failed: {code}'.format(code=e.returncode, **prog))
-
-    from asyncio import create_task, wait, FIRST_COMPLETED, ALL_COMPLETED
-    task_log = create_task(_log(outfn))
-    task_fuzz = create_task(_fuzz(pat, wordlist))
-
-    done, pending = await wait([task_log, task_fuzz], return_when=FIRST_COMPLETED)
-    for t in pending:
-      t.cancel()
-    done, _ = await wait([task_log, task_fuzz], return_when=ALL_COMPLETED)
-    for t in done:
-      exc = t.exception()
-      if exc:
-        ui.error('unhandled exception', exc=exc)
-
-  async def _exploit_fuzz_intent(self, args: deque[str]) -> None:
-    await self._exploit_fuzz_command(args, am=True)
 
 class DumpFailedError(Exception):
   pass
