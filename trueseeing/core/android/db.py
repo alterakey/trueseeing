@@ -106,7 +106,7 @@ class APKQuery(Query):
       yield addr
 
   def matches_in_method(self, addr: int, pattern: InvocationPattern) -> Iterator[Op]:
-    for addr, l in self.db.execute('select addr, l from ops join addr between (select low, high from ops join map on (map_id=id) where addr=:addr) on (addr between low and high) and where l regexp :pat', dict(pat=f'^  ${pattern.insn} ${pattern.value}')):
+    for addr, l in self.db.execute('select addr, l from ops join (select low, high from ops join map on (map_id=id) where addr=:addr) on (addr between low and high) where l regexp :pat', dict(addr=addr, pat=f'^  ${pattern.insn} ${pattern.value}')):
       yield Op(addr, l)
 
   def methods_with_modifier(self, pattern: str) -> Iterator[Op]:
