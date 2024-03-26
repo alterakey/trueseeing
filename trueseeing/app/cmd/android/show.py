@@ -27,9 +27,9 @@ class ShowCommand(CommandMixin):
   def get_commands(self) -> CommandMap:
     return {
       'pd':dict(e=self._show_disasm, n='pd qualname', d='show disassembled class/method'),
-      'pk':dict(e=self._show_solved_constant, n='pk[!] 0xop index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
+      'pk':dict(e=self._show_solved_constant, n='pk[!] 0xaddr index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
       'pk!':dict(e=self._show_solved_constant),
-      'pt':dict(e=self._show_solved_typeset, n='pt 0xop index', d='guess and show what type would flow into the index-th arg of op'),
+      'pt':dict(e=self._show_solved_typeset, n='pt 0xaddr index', d='guess and show what type would flow into the index-th arg of op'),
     }
 
   async def _show_disasm(self, args: deque[str]) -> None:
@@ -68,9 +68,9 @@ class ShowCommand(CommandMixin):
     cmd = args.popleft()
 
     if len(args) < 2:
-      ui.fatal('need op and index')
+      ui.fatal('need addr and index')
 
-    opn = int(args.popleft(), 16)
+    addr = int(args.popleft(), 16)
     idx = int(args.popleft())
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
@@ -80,7 +80,7 @@ class ShowCommand(CommandMixin):
       context = await self._helper.get_context().require_type('apk').analyze()
       store = context.store()
       q = store.query()
-      op = q.op_get(opn)
+      op = q.op_get(addr)
       if op is not None:
         if cmd.endswith('!'):
           vs = DataFlow(q).solved_possible_constant_data_in_invocation(op, idx)
@@ -97,7 +97,7 @@ class ShowCommand(CommandMixin):
           except DataFlow.NoSuchValueError as e:
             ui.error(str(e))
       else:
-        ui.error('op #{} not found'.format(opn))
+        ui.error('0x{:08x}: invalid address'.format(addr))
 
   async def _show_solved_typeset(self, args: deque[str]) -> None:
     self._helper.require_target()
@@ -105,9 +105,9 @@ class ShowCommand(CommandMixin):
     _ = args.popleft()
 
     if len(args) < 2:
-      ui.fatal('need op and index')
+      ui.fatal('need addr and index')
 
-    opn = int(args.popleft(), 16)
+    addr = int(args.popleft(), 16)
     idx = int(args.popleft())
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
@@ -117,9 +117,9 @@ class ShowCommand(CommandMixin):
       context = await self._helper.get_context().require_type('apk').analyze()
       store = context.store()
       q = store.query()
-      op = q.op_get(opn)
+      op = q.op_get(addr)
       if op is not None:
         vs = DataFlow(q).solved_typeset_in_invocation(op, idx)
         ui.info(repr(vs))
       else:
-        ui.error('op #{} not found'.format(opn))
+        ui.error('0x{:08x}: invalid address'.format(addr))

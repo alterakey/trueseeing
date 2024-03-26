@@ -241,43 +241,43 @@ class DataFlow:
         return o
       elif mn in ['move', 'array-length']:
         o = {op:{k:self.analyze(self.analyze_recent_load_of(op, k), state, stage=stage+1) for k in self.decoded_registers_of_set(self._an.get_param(op, 1))}}
-        ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move', id=addr, stage=stage, nodes=self._check_graph(o)))
+        ui.debug('analyze: 0x{addr:08x} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move', addr=addr, stage=stage, nodes=self._check_graph(o)))
         state[addr] = o
         return o
       elif any(mn.startswith(x) for x in ['aget-']):
         assert self._an.get_param_count(op) == 3
         o = {op:{k:self.analyze(self.analyze_recent_array_load_of(op, k), state, stage=stage+1) for k in (self.decoded_registers_of_set(self._an.get_param(op, 1)) | self.decoded_registers_of_set(self._an.get_param(op, 2)))}}
-        ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='aget', id=addr, stage=stage, nodes=self._check_graph(o)))
+        ui.debug('analyze: 0x{addr:08x} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='aget', addr=addr, stage=stage, nodes=self._check_graph(o)))
         state[addr] = o
         return o
       elif any(mn.startswith(x) for x in ['sget-']):
         assert self._an.get_param_count(op) == 2
         o = {op:{k:self.analyze(self.analyze_recent_static_load_of(op), state, stage=stage+1) for k in self.decoded_registers_of_set(self._an.get_param(op, 0))}}
-        ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='sget', id=addr, stage=stage, nodes=self._check_graph(o)))
+        ui.debug('analyze: 0x{addr:08x} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='sget', addr=addr, stage=stage, nodes=self._check_graph(o)))
         state[addr] = o
         return o
       elif any(mn.startswith(x) for x in ['iget-']):
         assert self._an.get_param_count(op) == 3
         o = {op:{k:self.analyze(self.analyze_recent_instance_load_of(op), state, stage=stage+1) for k in self.decoded_registers_of_set(self._an.get_param(op, 0))}}
-        ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='iget', id=addr, stage=stage, nodes=self._check_graph(o)))
+        ui.debug('analyze: 0x{addr:08x} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='iget', addr=addr, stage=stage, nodes=self._check_graph(o)))
         state[addr] = o
         return o
       elif mn.startswith('move-result'):
         o = self.analyze(self.analyze_recent_invocation(op), state, stage=stage+1)
-        ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move-result', id=addr, stage=stage, nodes=self._check_graph(o)))
+        ui.debug('analyze: 0x{addr:08x} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='move-result', addr=addr, stage=stage, nodes=self._check_graph(o)))
         state[addr] = o
         return o
       else:
         try:
           o = {op:{k:self.analyze(self.analyze_recent_load_of(op, k), state, stage=stage+1) for k in self.decoded_registers_of_set(self._an.get_param(op, 0))}}
-          ui.debug('analyze: op #{id} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='gen.', id=addr, stage=stage, nodes=self._check_graph(o)))
+          ui.debug('analyze: 0x{addr:08x} stage: {stage} ({mode}) -> nodes: {nodes}'.format(mode='gen.', addr=addr, stage=stage, nodes=self._check_graph(o)))
           state[addr] = o
           return o
         except self.RegisterDecodeError:
           state[addr] = None
           return None
     except self.GraphSizeError:
-      ui.warn('analyze: op #{id} stage: {stage}: too many nodes'.format(id=addr, stage=stage))
+      ui.warn('analyze: 0x{addr:08x} stage: {stage}: too many nodes'.format(addr=addr, stage=stage))
       state[addr] = None
       return None
 
