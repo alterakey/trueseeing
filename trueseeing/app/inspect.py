@@ -13,7 +13,7 @@ from trueseeing.core.exc import FatalError, InvalidSchemaError
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
   from trueseeing.core.context import ContextType
-  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry
+  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap
 
 class InspectMode:
   def do(
@@ -114,6 +114,7 @@ class Runner:
   _target: Optional[str]
   _abort_on_errors: bool = False
   _helper: CommandHelper
+  _loglevel: int
 
   def __init__(self, target: Optional[str], *, abort_on_errors: bool = False, force_opener: Optional[str] = None) -> None:
     from trueseeing.core.config import Configs
@@ -132,11 +133,13 @@ class Runner:
       'gs':dict(n='@gs:<int>[kmKM]', d='set graph size limit'),
     }
     self._confbag = Configs.get().bag
+    self._confbag.update(self._get_configs())
     self._opts = {}
     if abort_on_errors:
       self._abort_on_errors = True
 
     self._helper = CommandHelperImpl(self, force_opener=force_opener)
+    self._loglevel = ui.level
 
     self._init_cmds()
 
@@ -160,6 +163,30 @@ class Runner:
 
   def get_target(self) -> Optional[str]:
     return self._target
+
+  def _get_configs(self) -> ConfigMap:
+    return {
+      'core.debug':dict(g=self._config_get_debug, s=self._config_set_debug, n='core.debug', d='toggle debug mode (true, false)'),
+      'core.quiet':dict(g=self._config_get_quiet, s=self._config_set_quiet, n='core.quiet', d='toggle quiet mode (true, false)'),
+    }
+
+  def _config_get_debug(self) -> str:
+    return 'true' if (ui.level == ui.DEBUG) else 'false'
+
+  def _config_set_debug(self, v: Any) -> None:
+    try:
+      self._loglevel = dict(true=ui.DEBUG, false=ui.INFO)[v]
+    except KeyError:
+      ui.fatal(f'invalid value: {v}')
+
+  def _config_get_quiet(self) -> str:
+    return 'true' if (ui.level == ui.WARN) else 'false'
+
+  def _config_set_quiet(self, v: Any) -> None:
+    try:
+      self._loglevel = dict(true=ui.WARN, false=ui.INFO)[v]
+    except KeyError:
+      ui.fatal(f'invalid value: {v}')
 
   async def greeting(self) -> None:
     from trueseeing import __version__ as version
@@ -238,7 +265,7 @@ class Runner:
         raise QuitSession(1)
 
   def _reset_loglevel(self, debug:bool = False) -> None:
-    ui.set_level(ui.INFO)
+    ui.set_level(self._loglevel)
 
   def reset_prompt(self) -> None:
     if self._target:
