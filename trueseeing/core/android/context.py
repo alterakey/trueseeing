@@ -21,20 +21,35 @@ class APKContext(Context):
   _store: Optional[APKStore] = None
   _type: ClassVar[Set[ContextType]] = {'apk', 'file'}
 
-  def _workdir_of(self) -> str:
-    fp = self.fingerprint_of()
+  def invalidate(self) -> None:
+    super().invalidate()
+    if self._store:
+      self._store.invalidate()
+      self._store = None
+    self.disassembled_classes.cache_clear()
+    self.disassembled_resources.cache_clear()
+    self.disassembled_assets.cache_clear()
+    self._string_resource_files.cache_clear()
+    self._xml_resource_files.cache_clear()
 
-    path = self._get_workdir_v2(fp)
+  def _workdir_of(self) -> str:
+    fp = self._get_fingerprint()
+
+    path = self._get_workdir_v3(fp)
     if os.path.isdir(path):
       return path
     else:
-      paths = dict(v0=self._get_workdir_v0(fp), v1=self._get_workdir_v1(fp))
+      fp = self._get_fingerprint_v0()
+      paths = dict(v0=self._get_workdir_v0(fp), v1=self._get_workdir_v1(fp), v2=self._get_workdir_v2(fp))
       for vers,trypath in paths.items():
         if os.path.isdir(trypath):
           ui.warn(f'cpntext uses old path ({vers}), consider moving it to {path}')
           return trypath
       else:
         return path
+
+  def _get_workdir_v3(self, fp: str) -> str:
+    return os.path.join(get_cache_dir(), fp)
 
   def _get_workdir_v2(self, fp: str) -> str:
     return os.path.join(get_cache_dir(), fp)
@@ -59,6 +74,10 @@ class APKContext(Context):
     return os.stat(self._path).st_size
 
   def _get_fingerprint(self) -> str:
+    from hashlib import sha256
+    return sha256(self._path.encode('utf-8')).hexdigest()
+
+  def _get_fingerprint_v0(self) -> str:
     from hashlib import sha256
     with open(self._path, 'rb') as f:
       return sha256(f.read()).hexdigest()
