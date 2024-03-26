@@ -27,7 +27,8 @@ class ShowCommand(CommandMixin):
   def get_commands(self) -> CommandMap:
     return {
       'pd':dict(e=self._show_disasm, n='pd qualname', d='show disassembled class/method'),
-      'pk':dict(e=self._show_solved_constant, n='pk 0xop index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
+      'pk':dict(e=self._show_solved_constant, n='pk[!] 0xop index', d='guess and show what constant would flow into the index-th arg of op (!: try harder)'),
+      'pk!':dict(e=self._show_solved_constant),
       'pt':dict(e=self._show_solved_typeset, n='pt 0xop index', d='guess and show what type would flow into the index-th arg of op'),
     }
 
