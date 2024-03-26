@@ -21,18 +21,18 @@ class EngageCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
-      'xq':dict(e=self._engage_discard, n='xq', d='engage: discard changes'),
-      'xx':dict(e=self._engage_apply, n='xx[!]', d='engage: apply and rebuild apk'),
-      'xx!':dict(e=self._engage_apply),
-      'xf':dict(e=self._engage_inject_frida, n='xf[!] [config]', d='engage; inject frida gadget'),
-      'xf!':dict(e=self._engage_inject_frida),
-      'xfs':dict(e=self._engage_inject_frida_scriptdir, n='xfs[!] [path]', d='engage; inject frida gadget in script dir mode'),
-      'xfs!':dict(e=self._engage_inject_frida_scriptdir),
-      'xu':dict(e=self._engage_disable_pinning, n='xu', d='engage: disable SSL/TLS pinning'),
-      'xd':dict(e=self._engage_enable_debug, n='xd', d='engage: make debuggable'),
-      'xb':dict(e=self._engage_enable_backup, n='xb', d='engage: make backupable'),
-      'xt':dict(e=self._engage_patch_target_api_level, n='xt[!] <api level>', d='engage: patch target api level'),
-      'xt!':dict(e=self._engage_patch_target_api_level),
+      'xtq':dict(e=self._engage_tamper_discard, n='xtq', d='engage: discard changes'),
+      'xtx':dict(e=self._engage_tamper_apply, n='xtx[!]', d='engage: apply and rebuild apk'),
+      'xtx!':dict(e=self._engage_tamper_apply),
+      'xtf':dict(e=self._engage_tamper_inject_frida, n='xtf[!] [config]', d='engage; inject frida gadget'),
+      'xtf!':dict(e=self._engage_tamper_inject_frida),
+      'xtfs':dict(e=self._engage_tamper_inject_frida_scriptdir, n='xtfs[!] [path]', d='engage; inject frida gadget in script dir mode'),
+      'xtfs!':dict(e=self._engage_tamper_inject_frida_scriptdir),
+      'xtn':dict(e=self._engage_tamper_disable_pinning, n='xtn', d='engage: patch NSC to disable SSL/TLS pinning'),
+      'xtd':dict(e=self._engage_tamper_enable_debug, n='xtd', d='engage: make debuggable'),
+      'xtb':dict(e=self._engage_tamper_enable_backup, n='xtb', d='engage: make backupable'),
+      'xtt':dict(e=self._engage_tamper_patch_target_api_level, n='xtt[!] <api level>', d='engage: patch target api level'),
+      'xtt!':dict(e=self._engage_tamper_patch_target_api_level),
       'xco':dict(e=self._engage_device_copyout, n='xco[!] package [data.tar]', d='engage: copy-out package data'),
       'xco!':dict(e=self._engage_device_copyout),
       'xci':dict(e=self._engage_device_copyin, n='xci[!] package [data.tar]', d='engage: copy-in package data'),
@@ -48,7 +48,7 @@ class EngageCommand(CommandMixin):
       'vers':dict(n='vers=X.Y.Z', d='specify frida-gadget version to use [xf,xfs]')
     }
 
-  async def _engage_discard(self, args: deque[str]) -> None:
+  async def _engage_tamper_discard(self, args: deque[str]) -> None:
     apk = self._helper.require_target()
 
     _ = args.popleft()
@@ -66,7 +66,7 @@ class EngageCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  async def _engage_apply(self, args: deque[str]) -> None:
+  async def _engage_tamper_apply(self, args: deque[str]) -> None:
     apk = self._helper.require_target()
 
     cmd = args.popleft()
@@ -110,7 +110,7 @@ class EngageCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  async def _engage_disable_pinning(self, args: deque[str]) -> None:
+  async def _engage_tamper_disable_pinning(self, args: deque[str]) -> None:
     apk = self._helper.require_target()
 
     _ = args.popleft()
@@ -160,7 +160,7 @@ class EngageCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  async def _engage_enable_debug(self, args: deque[str]) -> None:
+  async def _engage_tamper_enable_debug(self, args: deque[str]) -> None:
     apk = self._helper.require_target()
 
     _ = args.popleft()
@@ -182,7 +182,7 @@ class EngageCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  async def _engage_enable_backup(self, args: deque[str]) -> None:
+  async def _engage_tamper_enable_backup(self, args: deque[str]) -> None:
     apk = self._helper.require_target()
 
     _ = args.popleft()
@@ -206,7 +206,7 @@ class EngageCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  async def _engage_patch_target_api_level(self, args: deque[str]) -> None:
+  async def _engage_tamper_patch_target_api_level(self, args: deque[str]) -> None:
     apk = self._helper.require_target()
 
     cmd = args.popleft()
@@ -242,7 +242,7 @@ class EngageCommand(CommandMixin):
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
   # XXX: long and ugly
-  async def _engage_inject_frida(self, args: deque[str], script_dir_mode: bool = False) -> None:
+  async def _engage_tamper_inject_frida(self, args: deque[str], script_dir_mode: bool = False) -> None:
     configfn: Optional[str] = None
     config_override: Optional[str] = None
     dev_frida_dir: Optional[str] = None
@@ -422,8 +422,8 @@ class EngageCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
 
-  async def _engage_inject_frida_scriptdir(self, args: deque[str]) -> None:
-    await self._engage_inject_frida(args, script_dir_mode=True)
+  async def _engage_tamper_inject_frida_scriptdir(self, args: deque[str]) -> None:
+    await self._engage_tamper_inject_frida(args, script_dir_mode=True)
 
   def _as_dalvik_classname(self, jn: str) -> str:
     return 'L{};'.format(jn.replace('.', '/'))
