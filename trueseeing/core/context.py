@@ -76,7 +76,7 @@ class Context(ABC):
   _wd: Optional[str] = None
 
   def __init__(self, path: str) -> None:
-    self._path = path
+    self._path = os.path.realpath(path)
     self._excludes = []
     # FIXME: is there a strict need of caching here?
     _ = self.wd

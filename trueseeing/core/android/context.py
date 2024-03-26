@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 import lxml.etree as ET
 import os
 import re
-import shutil
 from functools import cache
 
 from pubsub import pub
@@ -45,10 +44,6 @@ class APKContext(Context):
 
   def _get_workdir_v0(self, fp: str) -> str:
     return os.path.join(get_cache_dir_v0(), fp)
-
-  def create(self, exist_ok: bool = False) -> None:
-    super().create(exist_ok=exist_ok)
-    self._copy_target()
 
   def store(self) -> APKStore:
     if self._store is None:
@@ -245,10 +240,6 @@ class APKContext(Context):
             yield dict(classes='{}'.format(nr))
           for nr, in c.execute('select count(1) from map where method is not null'):
             yield dict(methods='{}'.format(nr))
-
-  def _copy_target(self) -> None:
-    if not os.path.exists(os.path.join(self.wd, 'target.apk')):
-      shutil.copyfile(self._path, os.path.join(self.wd, 'target.apk'))
 
   def parsed_manifest(self, patched: bool = False) -> Any:
     return self.store().query().file_get_xml('AndroidManifest.xml', patched=patched)
