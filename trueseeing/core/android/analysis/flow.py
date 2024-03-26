@@ -318,11 +318,12 @@ class DataFlow:
       for caller in CodeFlow(self._q).callers_of(from_.addr):
         if not self._q.in_same_mod(from_.addr, caller.addr):
           caller_reg = self.decoded_registers_of_list(self._an.get_param(caller, 0))[index]
-          ui.debug('analyze_recent_load_of: retracing [{stage}]: {reg} 0x{addr:08x} [{qn}] -> {caller_reg} 0x{caller_addr:08x} [{caller_qn}] {{{caller_l}}}'.format(
-            stage=stage, reg=reg, addr=from_.addr, qn=self._q.qualname_of(from_.addr),
-            caller_reg=caller_reg, caller_addr=caller.addr, caller_qn=self._q.qualname_of(caller.addr),
-            caller_l=self._q.op_get(caller.addr).l,
-          ))
+          if ui.is_debugging:
+            ui.debug('analyze_recent_load_of: retracing [{stage}]: {reg} 0x{addr:08x} [{qn}] -> {caller_reg} 0x{caller_addr:08x} [{caller_qn}] {{{caller_l}}}'.format(
+              stage=stage, reg=reg, addr=from_.addr, qn=self._q.qualname_of(from_.addr),
+              caller_reg=caller_reg, caller_addr=caller.addr, caller_qn=self._q.qualname_of(caller.addr),
+              caller_l=self._q.op_get(caller.addr).l,
+            ))
           if stage < 5:
             retraced = self.analyze_recent_load_of(caller, caller_reg, stage=stage+1)
             if retraced:
