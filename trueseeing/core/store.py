@@ -19,6 +19,12 @@ class Store:
     self.db = self._open_db()
     self._check_schema()
 
+  def invalidate(self) -> None:
+    if self.db:
+      self.db.close()
+    self.db = self._open_db()
+    self._check_schema()
+
   def _open_db(self) -> Connection:
     import sqlite3
     store_path = os.path.join(self._path, self._fn)

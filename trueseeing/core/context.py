@@ -148,14 +148,37 @@ class Context(ABC):
     else:
       return False
 
+  def _get_identity(self) -> bytes:
+    from os import stat
+    c = stat(self._path)
+    return f'0,{c.st_size},{c.st_mtime_ns}'.encode()
+
   def _get_analysis_flag_name(self, level: int) -> str:
     return f'.done{level}' if level < 4 else '.done'
 
   def get_analysis_level(self) -> int:
     for level in range(4, 0, -1):
-      if os.path.exists(os.path.join(self.wd, self._get_analysis_flag_name(level))):
-        return level
+      fn = os.path.join(self.wd, self._get_analysis_flag_name(level))
+      if os.path.exists(fn):
+        with open(fn, 'rb') as f:
+          expected = f.read()
+        if not expected:
+          with open(fn, 'wb') as g:
+            from trueseeing.core.ui import ui
+            ui.warn('old style flags detected; marking them as for current target')
+            g.write(self._get_identity())
+          return level
+        else:
+          if expected == self._get_identity():
+            return level
+          else:
+            return 0
     return 0
+
+  def _mark_analysis_done(self, level: int) -> None:
+    flagfn = self._get_analysis_flag_name(level)
+    with open(os.path.join(self.wd, flagfn), 'wb') as f:
+      f.write(self._get_identity())
 
   async def analyze(self, level: int = 4) -> Self:
     from trueseeing.core.ui import ui
@@ -163,7 +186,6 @@ class Context(ABC):
       await self._recheck_schema()
       ui.debug('analyzed once')
     else:
-      flagfn = self._get_analysis_flag_name(level)
       if os.path.exists(self.wd):
         ui.info('analyze: removing leftover')
         self.remove()
@@ -171,10 +193,17 @@ class Context(ABC):
       if level > 0:
         self.create()
         await self._analyze(level=level)
+      else:
+        self.invalidate()
 
-      with open(os.path.join(self.wd, flagfn), 'w'):
-        pass
+      self._mark_analysis_done(level)
     return self
+
+  def invalidate(self) -> None:
+    for level in range(4, 0, -1):
+      flag = os.path.join(self.wd, self._get_analysis_flag_name(level))
+      if os.path.exists(flag):
+        os.remove(flag)
 
   @abstractmethod
   def _get_size(self) -> Optional[int]: ...
