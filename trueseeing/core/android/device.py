@@ -7,29 +7,29 @@ from trueseeing.core.tools import invoke, invoke_passthru, invoke_streaming
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Optional, AsyncIterator
+  from typing import Optional, AsyncIterator, Any
 
 class AndroidDevice:
   def __init__(self) -> None:
     pass
 
-  async def invoke_adb(self, cmd: str) -> str:
+  async def invoke_adb(self, cmd: str, **kwargs: Any) -> str:
     self._require_adb()
     line = self._get_adb_cmdline(cmd)
     ui.debug("invoking: {line}")
-    return await invoke(line)
+    return await invoke(line, **kwargs)
 
-  async def invoke_adb_passthru(self, cmd: str) -> None:
+  async def invoke_adb_passthru(self, cmd: str, **kwargs: Any) -> None:
     self._require_adb()
     line = self._get_adb_cmdline(cmd)
     ui.debug("invoking: {line}")
-    await invoke_passthru(line)
+    await invoke_passthru(line, **kwargs)
 
-  async def invoke_adb_streaming(self, cmd: str) -> AsyncIterator[bytes]:
+  async def invoke_adb_streaming(self, cmd: str, **kwargs: Any) -> AsyncIterator[bytes]:
     self._require_adb()
     line = self._get_adb_cmdline(cmd)
     ui.debug("invoking: {line}")
-    async for l in invoke_streaming(line):
+    async for l in invoke_streaming(line, **kwargs):
       yield l
 
   def _get_adb_cmdline(self, cmd: str) -> str:
