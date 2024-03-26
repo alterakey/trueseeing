@@ -29,8 +29,6 @@ class APKDisassembler:
     from trueseeing.core.tools import invoke_streaming
     from trueseeing.core.android.tools import toolchains
 
-    apk = 'target.apk'
-
     cwd = os.getcwd()
 
     pub.sendMessage('progress.core.asm.lift.begin')
@@ -42,7 +40,7 @@ class APKDisassembler:
         with toolchains() as tc:
           async for l in invoke_streaming(r'java -jar {apkeditor} d -i {apk} {suppressor} -o files'.format(
               apkeditor=tc['apkeditor'],
-              apk=apk,
+              apk=self._context.target,
               suppressor='-dex' if level < 3 else '',
           ), redir_stderr=True):
             pub.sendMessage('progress.core.asm.lift.update')
