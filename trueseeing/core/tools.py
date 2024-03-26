@@ -35,12 +35,12 @@ def require_in_path(cmd: str, cmdline: str) -> None:
   except CalledProcessError:
     ui.fatal('not found: {cmd}')
 
-async def invoke(as_: str, redir_stderr: bool = False) -> str:
+async def invoke(as_: str, redir_stderr: bool = False, catch_stderr: bool = False) -> str:
   from asyncio import create_subprocess_shell
   from subprocess import PIPE, STDOUT
-  p = await create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
-  out, _ = await p.communicate()
-  _check_return_code(p, as_, out, None)
+  p = await create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else (PIPE if catch_stderr else None)))
+  out, err = await p.communicate()
+  _check_return_code(p, as_, out, err)
   return out.decode('UTF-8')
 
 async def invoke_passthru(as_: str, nocheck: bool = False) -> None:

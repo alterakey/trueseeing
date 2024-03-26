@@ -202,8 +202,8 @@ class APKContext(Context):
   def get_package_name(self) -> str:
     return self.parsed_manifest().attrib['package']  # type: ignore[no-any-return]
 
-  async def _get_info(self) -> AsyncIterator[ContextInfo]:
-    async for m in super()._get_info():
+  async def _get_info(self, extended: bool) -> AsyncIterator[ContextInfo]:
+    async for m in super()._get_info(extended):
       yield m
 
     level = self.get_analysis_level()
@@ -259,6 +259,26 @@ class APKContext(Context):
             yield dict(classes='{}'.format(nr))
           for nr, in c.execute('select count(1) from map where method is not null'):
             yield dict(methods='{}'.format(nr))
+
+    if extended:
+      from subprocess import CalledProcessError
+      from trueseeing.core.android.device import AndroidDevice
+      dev = AndroidDevice()
+      try:
+        build = (await dev.invoke_adb('shell getprop ro.build.fingerprint', catch_stderr=True)).rstrip()
+        yield {
+          'device?': 'yes ({})'.format(build),
+        }
+      except CalledProcessError as e:
+        cause = e.stderr.decode().splitlines()[-1]
+        if cause.startswith('adb: no '):
+          yield {
+            'device?': 'no',
+          }
+        else:
+          yield {
+            'device?': '? ({})'.format(cause)
+          }
 
   def parsed_manifest(self, patched: bool = False) -> Any:
     return self.store().query().file_get_xml('AndroidManifest.xml', patched=patched)

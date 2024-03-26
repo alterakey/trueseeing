@@ -220,7 +220,7 @@ class Context(ABC):
   @abstractmethod
   async def _analyze(self, level: int) -> None: ...
 
-  async def _get_info(self) -> AsyncIterator[ContextInfo]:
+  async def _get_info(self, extended: bool) -> AsyncIterator[ContextInfo]:
     yield dict(path=self._path)
     size = self.size_of()
     if size:
