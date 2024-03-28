@@ -10,7 +10,7 @@ from trueseeing.core.android.device import AndroidDevice
 
 if TYPE_CHECKING:
   from typing import Optional, Tuple, Literal, AsyncIterator, Dict
-  from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
+  from trueseeing.api import CommandHelper, Command, CommandMap
   from trueseeing.core.android.context import APKContext
 
   UIPatternType = Literal['re', 'xpath']
@@ -48,11 +48,6 @@ class ReconCommand(CommandMixin):
       'rwx':dict(e=self._recon_watch_start, n='rwx', d='recon: start watching'),
       'rp':dict(e=self._recon_list_packages, n='rp', d='recon: list installed packages'),
       'ru':dict(e=self._recon_dump_ui, n='ru [output.xml]', d='recon: dump device UI'),
-    }
-
-  def get_options(self) -> OptionMap:
-    return {
-      'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]'),
     }
 
   def _get_apk_context(self) -> APKContext:
