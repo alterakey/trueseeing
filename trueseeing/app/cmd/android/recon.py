@@ -143,9 +143,6 @@ class ReconCommand(CommandMixin):
     ctx = self._get_apk_context()
     pkg = ctx.get_package_name()
 
-    if self._target_only:
-      await ctx.analyze(level=1)
-
     async def _log() -> None:
       pid: Optional[int] = None
       if self._watch_logcat or self._watch_intent:
