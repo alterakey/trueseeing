@@ -55,10 +55,11 @@ async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterato
   from subprocess import PIPE, STDOUT
   p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
   try:
+    l: Optional[bytes] = None
     if p.stdout is not None:
       async for l in p.stdout:
         yield l
-    _check_return_code(await p.wait(), as_, None, None)
+    _check_return_code(await p.wait(), as_, l, None)
   finally:
     if p.returncode is None:
       try:

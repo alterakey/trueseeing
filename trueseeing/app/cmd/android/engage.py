@@ -37,6 +37,9 @@ class EngageCommand(CommandMixin):
       'xco!':dict(e=self._engage_device_copyout),
       'xci':dict(e=self._engage_device_copyin, n='xci[!] package [data.tar]', d='engage: copy-in package data'),
       'xci!':dict(e=self._engage_device_copyin),
+      'xpd':dict(e=self._engage_deploy_package, n='xpd[!]', d='engage: deploy target package'),
+      'xpd!':dict(e=self._engage_deploy_package),
+      'xpu':dict(e=self._engage_undeploy_package, n='xpu', d='engage: remove target package'),
       'xz':dict(e=self._engage_fuzz_intent, n='xz[!] "am-cmdline-template" [output.txt]', d='engage: fuzz intent'),
       'xz!':dict(e=self._engage_fuzz_intent),
       'xzr':dict(e=self._engage_fuzz_command, n='xzr[!] "cmdline-template" [output.txt]', d='engage: fuzz cmdline'),
@@ -760,6 +763,82 @@ class EngageCommand(CommandMixin):
 
   async def _engage_fuzz_intent(self, args: deque[str]) -> None:
     await self._engage_fuzz_command(args, am=True)
+
+  async def _engage_deploy_package(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+
+    context: APKContext = await self._helper.get_context().require_type('apk').analyze(level=1)
+    apk = context.target
+
+    from time import time
+    from pubsub import pub
+    from trueseeing.core.ui import AndroidInstallProgressReporter
+    from trueseeing.core.android.device import AndroidDevice
+    from subprocess import CalledProcessError
+
+    dev = AndroidDevice()
+    at = time()
+    pkg = context.get_package_name()
+
+    ui.info(f'deploying package: {pkg}')
+
+    if cmd.endswith('!'):
+      try:
+        async for l in dev.invoke_adb_streaming(f'uninstall {pkg}', redir_stderr=True):
+          pub.sendMessage('progress.android.adb.update')
+          if b'success' in l.lower():
+            ui.warn('removing existing package')
+      except CalledProcessError as e:
+        ui.fatal('uninstall failed: {}'.format(e.stdout.decode().rstrip()))
+
+    with AndroidInstallProgressReporter().scoped():
+      pub.sendMessage('progress.android.adb.begin', what='installing ... ')
+      try:
+        async for l in dev.invoke_adb_streaming(f'install --no-streaming {apk}', redir_stderr=True):
+          pub.sendMessage('progress.android.adb.update')
+          if b'failure' in l.lower():
+            ui.stderr('')
+            if not cmd.endswith('!'):
+              ui.fatal('install failed; force (!) to replace ({})'.format(l.decode('UTF-8')))
+            else:
+              ui.fatal('install failed ({})'.format(l.decode('UTF-8')))
+
+        pub.sendMessage('progress.android.adb.done')
+      except CalledProcessError as e:
+        ui.fatal('install failed: {}'.format(e.stdout.decode().rstrip()))
+
+      ui.success('done ({t:.02f} sec){trailer}'.format(t=time() - at, trailer=' '*8))
+
+  async def _engage_undeploy_package(self, args: deque[str]) -> None:
+    _ = args.popleft()
+
+    context: APKContext = await self._helper.get_context().require_type('apk').analyze(level=1)
+
+    from time import time
+    from pubsub import pub
+    from trueseeing.core.android.device import AndroidDevice
+    from subprocess import CalledProcessError
+
+    dev = AndroidDevice()
+    at = time()
+    pkg = context.get_package_name()
+
+    ui.info(f'removing package: {pkg}')
+
+    try:
+      async for l in dev.invoke_adb_streaming(f'uninstall {pkg}', redir_stderr=True):
+        pub.sendMessage('progress.android.adb.update')
+        if b'failure' in l.lower():
+          import re
+          packages = await dev.invoke_adb('shell pm list packages', redir_stderr=True)
+          if not re.match(f'{pkg}$', packages, re.MULTILINE):
+            ui.fatal('package not found')
+          else:
+            ui.fatal('uninstall failed ({})'.format(l.decode()))
+    except CalledProcessError as e:
+      ui.fatal('uninstall failed: {}'.format(e.stdout.decode().rstrip()))
+
+    ui.success('done ({t:.02f} sec)'.format(t=time() - at))
 
   def _generate_tempfilename_for_device(self, dir: Optional[str] = None) -> str:
     import random
