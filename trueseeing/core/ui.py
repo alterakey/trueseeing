@@ -400,6 +400,44 @@ class ScanProgressReporter:
   def _issue(self, issue: Issue) -> None:
     self._CN.note(issue)
 
+class AndroidInstallProgressReporter:
+  _bar: Optional[ProgressBar] = None
+
+  @contextmanager
+  def scoped(self) -> Iterator[None]:
+    submap = {
+      'progress.android.adb.begin':self._begin,
+      'progress.android.adb.update':self._update,
+      'progress.android.adb.done':self._done,
+    }
+    try:
+      for k, v in submap.items():
+        pub.subscribe(v, k)
+      yield None
+    finally:
+      for k, v in submap.items():
+        pub.unsubscribe(v, k)
+      pass
+
+  def _begin(self, what: str) -> None:
+    if ui.is_tty():
+      from progressbar import ProgressBar, RotatingMarker
+      self._bar = ProgressBar(widgets=[
+        ui.bullet('info'),
+        what + ' ',
+        RotatingMarker()   # type:ignore[no-untyped-call]
+      ])
+    else:
+      self._bar = None
+
+  def _update(self) -> None:
+    if self._bar is not None:
+      self._bar.next()   # type:ignore[no-untyped-call]
+
+  def _done(self) -> None:
+    if self._bar:
+      self._bar.finish(end='\r')   # type:ignore[no-untyped-call]
+
 class OpFormatter:
   def __init__(self, q: APKQuery, indent: int = 4) -> None:
     self._q = q
