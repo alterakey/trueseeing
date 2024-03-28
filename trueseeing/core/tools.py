@@ -1,11 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import asyncio
 from functools import cache
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Any, Optional, TypeVar, Iterator, AsyncIterator, Type, FrozenSet, Dict, Set
+  from typing import Any, Optional, TypeVar, Iterator, AsyncIterator, Type, FrozenSet, Dict, Set, Union, SupportsIndex
+  from typing_extensions import Buffer
   T = TypeVar('T')
 
 def noneif(x: Any, defaulter: Any) -> Any:
@@ -50,10 +52,14 @@ async def invoke_passthru(as_: str, nocheck: bool = False) -> None:
   if not nocheck:
     _check_return_code(p, as_, None, None)
 
+class _UniversalBufferPatch(bytearray):
+  def find(self, __sub: Union[Buffer, SupportsIndex], __start: Optional[SupportsIndex] = None, __end: Optional[SupportsIndex] = None) -> int:
+    return super().replace(b'\r', b'\n').find(__sub, __start, __end)
+
 async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterator[bytes]:
-  import asyncio
   from subprocess import PIPE, STDOUT
   p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
+  p.stdout._buffer = _UniversalBufferPatch(p.stdout._buffer) # type: ignore[union-attr]
   try:
     l: Optional[bytes] = None
     if p.stdout is not None:
