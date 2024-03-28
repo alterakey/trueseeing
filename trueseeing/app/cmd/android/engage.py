@@ -48,7 +48,8 @@ class EngageCommand(CommandMixin):
 
   def get_options(self) -> OptionMap:
     return {
-      'vers':dict(n='vers=X.Y.Z', d='specify frida-gadget version to use [xf,xfs]')
+      'vers':dict(n='vers=X.Y.Z', d='specify frida-gadget version to use [xf,xfs]'),
+      'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]'),
     }
 
   async def _engage_tamper_discard(self, args: deque[str]) -> None:
