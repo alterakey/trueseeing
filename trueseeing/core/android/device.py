@@ -32,6 +32,9 @@ class AndroidDevice:
     async for l in invoke_streaming(line, **kwargs):
       yield l
 
+  def get_adb_cmdline(self, cmd: str) -> str:
+    return self._get_adb_cmdline(cmd)
+
   def _get_adb_cmdline(self, cmd: str) -> str:
     host: Optional[str] = get_adb_host()
 
@@ -40,6 +43,9 @@ class AndroidDevice:
       cmd=cmd
     )
     return line
+
+  def require_adb(self) -> None:
+    return self._require_adb()
 
   @cache
   def _require_adb(self) -> None:
