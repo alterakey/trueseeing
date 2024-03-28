@@ -17,9 +17,17 @@ if TYPE_CHECKING:
   from trueseeing.core.context import ContextType, ContextInfo
   from trueseeing.core.android.store import APKStore
 
+class PackageNameReader:
+  @cache
+  def read(self, path: str) -> str:
+    from pyaxmlparser import APK
+    apk = APK(path)
+    return apk.packagename # type: ignore[no-any-return]
+
 class APKContext(Context):
   _store: Optional[APKStore] = None
   _type: ClassVar[Set[ContextType]] = {'apk', 'file'}
+  _package_reader = PackageNameReader()
 
   def invalidate(self) -> None:
     super().invalidate()
@@ -51,14 +59,14 @@ class APKContext(Context):
   def _get_workdir_v3(self, fp: str) -> str:
     return os.path.join(get_cache_dir(), fp)
 
-  def _get_workdir_v2(self, fp: str) -> str:
-    return os.path.join(get_cache_dir(), fp)
+  def _get_workdir_v2(self, fp0: str) -> str:
+    return os.path.join(get_cache_dir(), fp0)
 
-  def _get_workdir_v1(self, fp: str) -> str:
-    return os.path.join(get_cache_dir_v1(self._path), f'.trueseeing2-{fp}')
+  def _get_workdir_v1(self, fp0: str) -> str:
+    return os.path.join(get_cache_dir_v1(self._path), f'.trueseeing2-{fp0}')
 
-  def _get_workdir_v0(self, fp: str) -> str:
-    return os.path.join(get_cache_dir_v0(), fp)
+  def _get_workdir_v0(self, fp0: str) -> str:
+    return os.path.join(get_cache_dir_v0(), fp0)
 
   def store(self) -> APKStore:
     if self._store is None:
@@ -75,7 +83,7 @@ class APKContext(Context):
 
   def _get_fingerprint(self) -> str:
     from hashlib import sha256
-    return sha256(self._path.encode('utf-8')).hexdigest()
+    return sha256((self._path + ':' + self.get_package_name()).encode('utf-8')).hexdigest()
 
   def _get_fingerprint_v0(self) -> str:
     from hashlib import sha256
@@ -200,7 +208,7 @@ class APKContext(Context):
           pub.sendMessage('progress.core.analysis.smali.done', t=time.time() - started)
 
   def get_package_name(self) -> str:
-    return self.parsed_manifest().attrib['package']  # type: ignore[no-any-return]
+    return self._package_reader.read(self.target)
 
   async def _get_info(self, extended: bool) -> AsyncIterator[ContextInfo]:
     async for m in super()._get_info(extended):

@@ -70,6 +70,13 @@ async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterato
         p.kill()
         await p.wait()
 
+def invoke_sync(as_: str, redir_stderr: bool = False, catch_stderr: bool = False) -> str:
+  from subprocess import PIPE, STDOUT, run
+  p = run(as_, shell=True, stdout=PIPE, stderr=(STDOUT if redir_stderr else (PIPE if catch_stderr else None)))
+  out, err = p.stdout, p.stderr
+  _check_return_code(p, as_, out, err)
+  return out.decode('UTF-8')
+
 async def try_invoke(as_: str) -> Optional[str]:
   from subprocess import CalledProcessError
   try:

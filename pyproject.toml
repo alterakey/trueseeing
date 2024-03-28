@@ -30,6 +30,7 @@ dependencies = [
     "zstandard~=0.22",
     "aiohttp~=3.9",
     "lief~=0.14",
+    "pyaxmlparser~=0.3",
 ]
 requires-python = ">=3.9"
 dynamic = ['version', 'description']
@@ -58,6 +59,7 @@ module = [
   "jinja2",
   "pubsub",
   "asn1crypto.*",
+  "pyaxmlparser.*,"
 ]
 ignore_missing_imports = true
 
