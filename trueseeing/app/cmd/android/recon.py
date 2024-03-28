@@ -39,6 +39,7 @@ class ReconCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
+      '!!':dict(e=self._recon_shell, n='!!', d='run shell on device'),
       'rwl':dict(e=self._recon_watch_logcat, n='rwl[!] [pat]', d='recon: watch logcat (!: system-wide)'),
       'rwl!':dict(e=self._recon_watch_logcat),
       'rwf':dict(e=self._recon_watch_fs, n='rwf', d='recon: watch filesystem'),
@@ -56,6 +57,16 @@ class ReconCommand(CommandMixin):
 
   def _get_apk_context(self) -> APKContext:
     return self._helper.get_context().require_type('apk')
+
+  async def _recon_shell(self, args: deque[str]) -> None:
+    _ = args.popleft()
+
+    from asyncio import create_subprocess_shell
+    from trueseeing.core.android.device import AndroidDevice
+    dev = AndroidDevice()
+    dev.require_adb()
+    cmdline = dev.get_adb_cmdline('shell')
+    await (await create_subprocess_shell(cmdline)).wait()
 
   async def _recon_watch_logcat(self, args: deque[str]) -> None:
     cmd = args.popleft()
