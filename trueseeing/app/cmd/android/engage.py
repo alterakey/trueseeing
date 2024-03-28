@@ -768,7 +768,7 @@ class EngageCommand(CommandMixin):
   async def _engage_deploy_package(self, args: deque[str]) -> None:
     cmd = args.popleft()
 
-    context: APKContext = await self._helper.get_context().require_type('apk').analyze(level=1)
+    context: APKContext = self._helper.get_context().require_type('apk')
     apk = context.target
 
     from time import time
@@ -813,7 +813,7 @@ class EngageCommand(CommandMixin):
   async def _engage_undeploy_package(self, args: deque[str]) -> None:
     _ = args.popleft()
 
-    context: APKContext = await self._helper.get_context().require_type('apk').analyze(level=1)
+    context: APKContext = self._helper.get_context().require_type('apk')
 
     from time import time
     from pubsub import pub
