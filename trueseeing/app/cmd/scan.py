@@ -27,8 +27,8 @@ class ScanCommand(CommandMixin):
 
   def get_modifiers(self) -> ModifierMap:
     return {
-      's':dict(n='@s:sig', d='include sig'),
-      'x':dict(n='@x:pa.ckage.name', d='exclude package'),
+      's':dict(n='@s:sig', d='include sig', e=None),
+      'x':dict(n='@x:pa.ckage.name', d='exclude package', e=None),
     }
 
   async def _help_signature(self, args: deque[str]) -> None:
