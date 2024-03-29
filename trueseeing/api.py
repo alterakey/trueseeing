@@ -10,9 +10,12 @@ if TYPE_CHECKING:
   from trueseeing.core.android.context import APKContext
   from trueseeing.core.model.issue import Issue, IssueConfidence
 
+  ModifierEvent = Literal['begin', 'end']
+
   CommandEntrypoint = Callable[[deque[str]], Coroutine[Any, Any, None]]
   CommandlineEntrypoint = Callable[[str], Coroutine[Any, Any, None]]
   CommandPatternEntrypoints = Union[CommandEntrypoint, CommandlineEntrypoint]
+  ModifierListenerEntrypoint = Callable[[ModifierEvent, str], Coroutine[Any, Any, None]]
   SignatureEntrypoint = Callable[[], Coroutine[Any, Any, None]]
   FormatHandlerEntrypoint = Callable[[str], Optional[Context]]
   ConfigGetterEntrypoint = Callable[[], Any]
@@ -34,7 +37,7 @@ if TYPE_CHECKING:
     pass
 
   class ModifierEntry(Entry):
-    pass
+    e: Optional[ModifierListenerEntrypoint]  # type: ignore[misc]
 
   class ConfigEntry(TypedDict):
     g: ConfigGetterEntrypoint

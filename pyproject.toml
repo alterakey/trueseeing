@@ -59,7 +59,7 @@ module = [
   "jinja2",
   "pubsub",
   "asn1crypto.*",
-  "pyaxmlparser.*,"
+  "pyaxmlparser.*",
 ]
 ignore_missing_imports = true
 

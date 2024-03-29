@@ -13,7 +13,7 @@ from trueseeing.core.exc import FatalError, InvalidSchemaError
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
   from trueseeing.core.context import ContextType
-  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap
+  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap, ModifierEvent
 
 class InspectMode:
   def do(
@@ -129,8 +129,8 @@ class Runner:
     }
     self._cmdpats = {}
     self._mods = {
-      'o':dict(n='@o:option', d='pass option'),
-      'gs':dict(n='@gs:<int>[kmKM]', d='set graph size limit'),
+      'o':dict(n='@o:option', d='pass option', e=None),
+      'gs':dict(n='@gs:<int>[kmKM]', d='set graph size limit', e=None),
     }
     self._confbag = Configs.get().bag
     self._confbag.update(self._get_configs())
@@ -176,6 +176,7 @@ class Runner:
   def _config_set_debug(self, v: Any) -> None:
     try:
       self._loglevel = dict(true=ui.DEBUG, false=ui.INFO)[v]
+      self._reset_loglevel()
     except KeyError:
       ui.fatal(f'invalid value: {v}')
 
@@ -251,8 +252,12 @@ class Runner:
     if ent is None:
       return False
     else:
-      await self._as_cmd(ent['e'](args=tokens))
-      return True
+      await self._notify_modifiers('begin', tokens)
+      try:
+        await self._as_cmd(ent['e'](args=tokens))
+        return True
+      finally:
+        await self._notify_modifiers('end', tokens)
 
   async def _as_cmd(self, coro: Awaitable[Any]) -> None:
     try:
@@ -263,6 +268,22 @@ class Runner:
     except FatalError:
       if self._abort_on_errors:
         raise QuitSession(1)
+
+  async def _notify_modifiers(self, ev: ModifierEvent, tokens: deque[str]) -> None:
+    for mod in self._get_modifiers(tokens):
+      typ, val = mod[1:].split(':', maxsplit=1)
+
+      for et, ee in self._mods.items():
+        if et == typ:
+          if ee['e'] is not None:
+            await ee['e'](ev, val)
+
+  def _get_modifiers(self, args: deque[str]) -> List[str]:
+    o = []
+    for m in args:
+      if m.startswith('@'):
+        o.append(m)
+    return o
 
   def _reset_loglevel(self, debug:bool = False) -> None:
     ui.set_level(self._loglevel)
@@ -280,7 +301,7 @@ class Runner:
     await self._help_on('Commands:', ents)
 
   async def _help_mod(self, args: deque[str]) -> None:
-    await self._help_on('Modifiers:', self._mods)
+    await self._help_on('Modifiers:', self._mods) # type: ignore[arg-type]
 
   async def _help_opt(self, args: deque[str]) -> None:
     await self._help_on('Options:', self._opts)
@@ -361,11 +382,7 @@ class CommandHelperImpl:
     return await self._r._run_cmd(tokens, line)
 
   def get_modifiers(self, args: deque[str]) -> List[str]:
-    o = []
-    for m in args:
-      if m.startswith('@'):
-        o.append(m)
-    return o
+    return self._r._get_modifiers(args)
 
   def get_effective_options(self, mods: List[str]) -> Mapping[str, str]:
     o = {}
