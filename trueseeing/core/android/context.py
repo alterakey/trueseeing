@@ -24,10 +24,18 @@ class PackageNameReader:
     apk = APK(path)
     return apk.packagename # type: ignore[no-any-return]
 
+class FingerprintV0:
+  @cache
+  def get(self, path: str) -> str:
+    from hashlib import sha256
+    with open(path, 'rb') as f:
+      return sha256(f.read()).hexdigest()
+
 class APKContext(Context):
   _store: Optional[APKStore] = None
   _type: ClassVar[Set[ContextType]] = {'apk', 'file'}
   _package_reader = PackageNameReader()
+  _fp_v0 = FingerprintV0()
 
   def invalidate(self) -> None:
     super().invalidate()
@@ -39,6 +47,7 @@ class APKContext(Context):
     self.disassembled_assets.cache_clear()
     self._string_resource_files.cache_clear()
     self._xml_resource_files.cache_clear()
+    self._fp_v0.get.cache_clear()
 
   def _workdir_of(self) -> str:
     fp = self._get_fingerprint()
@@ -86,9 +95,7 @@ class APKContext(Context):
     return sha256((self._path + ':' + self.get_package_name()).encode('utf-8')).hexdigest()
 
   def _get_fingerprint_v0(self) -> str:
-    from hashlib import sha256
-    with open(self._path, 'rb') as f:
-      return sha256(f.read()).hexdigest()
+    return self._fp_v0.get(self._path)
 
   async def _recheck_schema(self) -> None:
     from trueseeing.core.android.store import APKStore
