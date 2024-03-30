@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 import os
 import os.path
+import shlex
 
 from pubsub import pub
 
@@ -40,7 +41,7 @@ class APKDisassembler:
         with toolchains() as tc:
           async for l in invoke_streaming(r'java -jar {apkeditor} d -i {apk} {suppressor} -o files'.format(
               apkeditor=tc['apkeditor'],
-              apk=self._context.target,
+              apk=shlex.quote(self._context.target),
               suppressor='-dex' if level < 3 else '',
           ), redir_stderr=True):
             pub.sendMessage('progress.core.asm.lift.update')
@@ -78,7 +79,7 @@ class APKDisassembler:
     with toolchains() as tc:
       async for l in invoke_streaming(
         '(java -jar {apkeditor} d -o {path} -i {apk} {s})'.format(
-          apk=apk,
+          apk=shlex.quote(apk),
           s='-dex' if nodex else '',
           apkeditor=tc['apkeditor'],
           path=path,
@@ -100,7 +101,7 @@ class APKAssembler:
     with toolchains() as tc:
       async for l in invoke_streaming(
         '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
-          wd=wd, path=path,
+          wd=wd, path=shlex.quote(path),
           apkeditor=tc['apkeditor'],
           apksigner=tc['apksigner'],
           keystore=await SigningKey().key(),
