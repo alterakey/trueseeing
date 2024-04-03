@@ -40,7 +40,7 @@ class DataFlow:
     pass
 
   class UnsolvableValueError(NoSuchValueError):
-    def __init__(self, graph: DataGraph) -> None:
+    def __init__(self, graph: Optional[DataGraph]) -> None:
       self.graph = graph
 
   class RegisterDecodeError(Exception):
@@ -141,11 +141,11 @@ class DataFlow:
         if self._an.get_insn(arg).startswith('const'):
           return self._an.get_param(arg, 1).v
         else:
-          raise self.UnsolvableValueError(arg)
+          raise self.UnsolvableValueError(graph=arg)
       except (KeyError, AttributeError):
-        raise self.UnsolvableValueError(graph=arg)
+        raise self.UnsolvableValueError(graph=graph)
     else:
-      raise self.UnsolvableValueError(graph=arg)
+      raise self.UnsolvableValueError(graph=None)
 
   @classmethod
   def walk_dict_values(cls, d: DataGraph) -> Iterable[Optional[Op]]:
