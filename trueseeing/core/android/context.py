@@ -24,7 +24,7 @@ class PackageNameReader:
     apk = APK(path)
     return apk.packagename # type: ignore[no-any-return]
 
-class FingerprintV0:
+class Fingerprint:
   @cache
   def get(self, path: str) -> str:
     from hashlib import sha256
@@ -35,7 +35,7 @@ class APKContext(Context):
   _store: Optional[APKStore] = None
   _type: ClassVar[Set[ContextType]] = {'apk', 'file'}
   _package_reader = PackageNameReader()
-  _fp_v0 = FingerprintV0()
+  _fp = Fingerprint()
 
   def invalidate(self) -> None:
     super().invalidate()
@@ -47,16 +47,14 @@ class APKContext(Context):
     self.disassembled_assets.cache_clear()
     self._string_resource_files.cache_clear()
     self._xml_resource_files.cache_clear()
-    self._fp_v0.get.cache_clear()
+    self._fp.get.cache_clear()
 
   def _workdir_of(self) -> str:
-    fp = self._get_fingerprint()
-
-    path = self._get_workdir_v3(fp)
+    path = self._get_workdir_v3()
     if os.path.isdir(path):
       return path
     else:
-      fp = self._get_fingerprint_v0()
+      fp = self._get_fingerprint()
       paths = dict(v0=self._get_workdir_v0(fp), v1=self._get_workdir_v1(fp), v2=self._get_workdir_v2(fp))
       for vers,trypath in paths.items():
         if os.path.isdir(trypath):
@@ -65,17 +63,19 @@ class APKContext(Context):
       else:
         return path
 
-  def _get_workdir_v3(self, fp: str) -> str:
+  def _get_workdir_v3(self) -> str:
+    from hashlib import sha256
+    ctx_id = sha256((self._path + ':' + self.get_package_name()).encode('utf-8')).hexdigest()
+    return os.path.join(get_cache_dir(), ctx_id)
+
+  def _get_workdir_v2(self, fp: str) -> str:
     return os.path.join(get_cache_dir(), fp)
 
-  def _get_workdir_v2(self, fp0: str) -> str:
-    return os.path.join(get_cache_dir(), fp0)
+  def _get_workdir_v1(self, fp: str) -> str:
+    return os.path.join(get_cache_dir_v1(self._path), f'.trueseeing2-{fp}')
 
-  def _get_workdir_v1(self, fp0: str) -> str:
-    return os.path.join(get_cache_dir_v1(self._path), f'.trueseeing2-{fp0}')
-
-  def _get_workdir_v0(self, fp0: str) -> str:
-    return os.path.join(get_cache_dir_v0(), fp0)
+  def _get_workdir_v0(self, fp: str) -> str:
+    return os.path.join(get_cache_dir_v0(), fp)
 
   def store(self) -> APKStore:
     if self._store is None:
@@ -91,11 +91,7 @@ class APKContext(Context):
     return os.stat(self._path).st_size
 
   def _get_fingerprint(self) -> str:
-    from hashlib import sha256
-    return sha256((self._path + ':' + self.get_package_name()).encode('utf-8')).hexdigest()
-
-  def _get_fingerprint_v0(self) -> str:
-    return self._fp_v0.get(self._path)
+    return self._fp.get(self._path)
 
   async def _recheck_schema(self) -> None:
     from trueseeing.core.android.store import APKStore
