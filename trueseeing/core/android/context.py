@@ -49,7 +49,7 @@ class APKContext(Context):
     self._xml_resource_files.cache_clear()
     self._fp.get.cache_clear()
 
-  def _workdir_of(self) -> str:
+  def _get_workdir(self) -> str:
     path = self._get_workdir_v3()
     if os.path.isdir(path):
       return path

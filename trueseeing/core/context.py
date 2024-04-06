@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, overload
 
 import os.path
 from abc import ABC, abstractmethod
-from trueseeing.core.env import get_cache_dir
 
 if TYPE_CHECKING:
   from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator, Tuple
@@ -88,7 +87,7 @@ class Context(ABC):
   @property
   def wd(self) -> str:
     if self._wd is None:
-      self._wd = self._workdir_of()
+      self._wd = self._get_workdir()
     return self._wd
 
   @property
@@ -113,9 +112,6 @@ class Context(ABC):
       return self
     from trueseeing.core.exc import InvalidContextError
     raise InvalidContextError()
-
-  def _workdir_of(self) -> str:
-    return os.path.join(get_cache_dir(), self.fingerprint_of())
 
   def store(self) -> Store:
     if self._store is None:
@@ -204,6 +200,9 @@ class Context(ABC):
       flag = os.path.join(self.wd, self._get_analysis_flag_name(level))
       if os.path.exists(flag):
         os.remove(flag)
+
+  @abstractmethod
+  def _get_workdir(self) -> str: ...
 
   @abstractmethod
   def _get_size(self) -> Optional[int]: ...
