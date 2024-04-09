@@ -7,9 +7,27 @@ from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Any, Optional, Dict, Mapping, List, Iterator, Tuple
+  from typing import Any, Optional, Dict, Mapping, List, Iterator, Tuple, TypedDict
   from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
   from trueseeing.core.android.context import APKContext
+
+  class XAPKSliceMember(TypedDict):
+    id: str
+    file: str
+
+  class XAPKManifest(TypedDict, total=False):
+    xapk_version: str
+    total_size: int
+    locales_name: Dict[str, str]
+    split_apks: List[XAPKSliceMember]
+    name: str
+    icon: str
+    package_name: str
+    version_code: str
+    version_name: str
+    min_sdk_version: str
+    target_sdk_version: str
+    permissions: List[str]
 
 class EngageCommand(CommandMixin):
   def __init__(self, helper: CommandHelper) -> None:
@@ -44,6 +62,8 @@ class EngageCommand(CommandMixin):
       'xz!':dict(e=self._engage_fuzz_intent),
       'xzr':dict(e=self._engage_fuzz_command, n='xzr[!] "cmdline-template" [output.txt]', d='engage: fuzz cmdline'),
       'xzr!':dict(e=self._engage_fuzz_command),
+      'xg':dict(e=self._engage_grab_package, n='xg[!] package [output.apk]', d='engage: grab package'),
+      'xg!':dict(e=self._engage_grab_package),
     }
 
   def get_options(self) -> OptionMap:
@@ -841,6 +861,98 @@ class EngageCommand(CommandMixin):
 
     ui.success('done ({t:.02f} sec)'.format(t=time() - at))
 
+  async def _engage_grab_package(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+
+    import os
+    if not args:
+      ui.fatal('need the package name')
+
+    pkg = args.popleft()
+
+    if args:
+      outfn = args.popleft()
+    else:
+      outfn = f'{pkg}.apk'
+
+    if os.path.exists(outfn):
+      if not cmd.endswith('!'):
+        ui.fatal('output file exists; force (!) to overwrite')
+      else:
+        os.remove(outfn)
+
+    import re
+    from time import time
+    from tempfile import TemporaryDirectory
+    from pubsub import pub
+    from trueseeing.core.android.device import AndroidDevice
+
+    dev = AndroidDevice()
+    at = time()
+    outfn = os.path.realpath(outfn)
+
+    ui.info(f'grabbing package: {pkg} -> {outfn}')
+
+    basepath: Optional[bytes] = None
+    splits: List[bytes] = []
+
+    async for l in dev.invoke_adb_streaming(f'shell pm dump {pkg}', redir_stderr=True):
+      pub.sendMessage('progress.android.adb.update')
+      if f'unable to find package: {pkg}'.encode() in l.lower():
+        ui.fatal(f'package not found: {pkg}')
+
+      m = re.search(rb'codePath=(/.+)', l)
+      if m:
+        basepath = m.group(1)
+      m = re.search(rb'splits=\[(.+)\]', l)
+      if m:
+        splits = re.split(rb', *', m.group(1))
+
+    assert basepath
+    assert splits
+
+    with TemporaryDirectory() as td:
+      from os import chdir, getcwd
+      from shlex import quote
+      from zipfile import ZipFile, ZIP_STORED
+      cd = getcwd()
+      try:
+        chdir(td)
+        slicemap = dict()
+        if len(splits) == 1:
+          if outfn.endswith('.xapk'):
+            ui.warn('target has only one slice; using apk format')
+            outfn = outfn.replace('.xapk', '.apk')
+          ui.info('getting {nr} slice'.format(nr=len(splits)))
+          await dev.invoke_adb('pull {path}/base.apk {outfn}'.format(path=quote(basepath.decode()), outfn=outfn))
+        else:
+          if outfn.endswith('.apk'):
+            ui.warn('target has multiple slices; using xapk format')
+            outfn = outfn.replace('.apk', '.xapk')
+          ui.info('getting {nr} slices'.format(nr=len(splits)))
+          for s in splits:
+            slice = s.decode()
+            if slice == 'base':
+              fn = f'{pkg}.apk'
+            else:
+              fn = f'{slice}.apk'
+            await dev.invoke_adb('pull {path}/{typ}{slice}.apk {fn}'.format(
+              path=quote(basepath.decode()),
+              typ='' if slice == 'base' else 'split_',
+              slice=slice,
+              fn=fn,
+            ))
+            slicemap[slice] = fn
+          XAPKManifestGenerator(slicemap).generate()
+          with ZipFile(outfn, 'w', ZIP_STORED) as zf:
+            from glob import glob
+            for n in glob('*'):
+              with open(n, 'rb') as g:
+                zf.writestr(n, g.read())
+      finally:
+        chdir(cd)
+    ui.success('done ({t:.02f} sec)'.format(t=time() - at))
+
   def _generate_tempfilename_for_device(self, dir: Optional[str] = None) -> str:
     import random
     return (f'{dir}/' if dir is not None else '/data/local/tmp/') + ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=16))
@@ -856,3 +968,50 @@ class EngageCommand(CommandMixin):
 
 class InvalidResponseError(Exception):
   pass
+
+class XAPKManifestGenerator:
+  def __init__(self, slicemap: Dict[str, str]) -> None:
+    self._slicemap = slicemap
+
+  def generate(self) -> None:
+    from os import stat
+    from pyaxmlparser import APK
+    manif: XAPKManifest = dict(
+      xapk_version='2',
+      total_size=0,
+      locales_name=dict(),
+      split_apks=[],
+    )
+
+    for slice, fn in self._slicemap.items():
+      conf = slice.split('.')[-1]
+      manif['total_size'] += stat(fn).st_size
+      manif['split_apks'].append(dict(id=slice, file=fn))
+      if slice == 'base':
+        apk = APK(fn)
+        manif.update(dict(
+          name=apk.get_app_name(),
+          icon='icon.png',
+          package_name=apk.get_package(),
+          version_code=apk.version_code,
+          version_name=apk.version_name,
+          min_sdk_version=apk.get_min_sdk_version(),
+          target_sdk_version=apk.get_target_sdk_version(),
+          permissions=apk.get_permissions(),
+        ))
+        with open('icon.png', 'wb') as f:
+          f.write(apk.icon_data)
+      elif len(conf) == 2:
+        apk = APK(fn)
+        country_code = conf
+        manif['locales_name'].update({
+          country_code:apk.get_app_name(),
+        })
+      if manif['locales_name']:
+        ln: Dict[str, str] = manif['locales_name']
+        for k in ln.keys():
+          if not ln[k]:
+            ln[k] = manif['name']
+    with open('manifest.json', 'w') as g:
+      from json import dumps
+      g.write(dumps(manif, separators=(',', ':')))
