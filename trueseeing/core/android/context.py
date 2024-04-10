@@ -15,14 +15,29 @@ from trueseeing.core.context import Context
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set, AsyncIterator
   from trueseeing.core.context import ContextType, ContextInfo
+  from trueseeing.core.android.asm import APKDisassembler
   from trueseeing.core.android.store import APKStore
+  from trueseeing.core.android.model import XAPKManifest
 
 class PackageNameReader:
   @cache
   def read(self, path: str) -> str:
-    from pyaxmlparser import APK
-    apk = APK(path)
-    return apk.packagename # type: ignore[no-any-return]
+    if path.endswith('.apk'):
+      from pyaxmlparser import APK
+      apk = APK(path)
+      return apk.packagename # type: ignore[no-any-return]
+    elif path.endswith('.xapk'):
+      from zipfile import ZipFile
+      with ZipFile(path) as zf:
+        from json import loads
+        manif: XAPKManifest = loads(zf.read('manifest.json'))
+        vers = manif['xapk_version']
+        if vers != '2':
+          raise ValueError(f'invalid xapk manifest: {vers}')
+        pkg = manif['package_name']
+        return pkg
+    else:
+      raise ValueError('format unknown')
 
 class Fingerprint:
   @cache
@@ -97,10 +112,13 @@ class APKContext(Context):
     from trueseeing.core.android.store import APKStore
     APKStore.require_valid_schema_on(self.wd)
 
-  async def _analyze(self, level: int) -> None:
+  async def _get_disassembler(self) -> APKDisassembler:
     from trueseeing.core.android.asm import APKDisassembler
+    return APKDisassembler(self)
+
+  async def _analyze(self, level: int) -> None:
     pub.sendMessage('progress.core.context.disasm.begin')
-    disasm = APKDisassembler(self)
+    disasm = await self._get_disassembler()
     await disasm.disassemble(level)
     pub.sendMessage('progress.core.context.disasm.done')
 
@@ -357,3 +375,48 @@ class APKContext(Context):
       return any([re.match(f'L{x}', qualname) for x in self.excludes])
     else:
       return False
+
+class XAPKContext(APKContext):
+  _disasm: Optional[APKDisassembler] = None
+
+  async def _get_disassembler(self) -> APKDisassembler:
+    assert self._disasm
+    return self._disasm
+
+  async def _analyze(self, level: int) -> None:
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory(dir=self.wd) as td:
+      from trueseeing.core.tools import invoke_streaming
+      from trueseeing.core.android.tools import toolchains
+      outfile = os.path.join(td, 'merged.apk')
+      with toolchains() as tc:
+        async for l in invoke_streaming('java -jar {apkeditor} m -i {target} -o {outfile}'.format(
+            apkeditor=tc['apkeditor'],
+            target=self.target,
+            outfile=outfile,
+        )):
+          ui.info(l.decode())
+      try:
+        from trueseeing.core.android.asm import APKDisassembler
+        self._disasm = APKDisassembler(self, outfile)
+        return await super()._analyze(level)
+      finally:
+        self._disasm = None
+
+  async def _get_info(self, extended: bool) -> AsyncIterator[ContextInfo]:
+    async for m in super()._get_info(extended):
+      yield m
+
+    manif = self._get_xapk_manifest()
+    yield {
+      'xapk vers': manif['xapk_version'],
+      'xapk slices': '{} ({})'.format(len(manif['split_apks']), ', '.join([x['id'] for x in manif['split_apks']])),
+    }
+
+  def _get_xapk_manifest(self) -> XAPKManifest:
+    from zipfile import ZipFile
+    from json import loads
+    with ZipFile(self.target) as zf:
+      manif: XAPKManifest = loads(zf.read('manifest.json'))
+      assert manif['xapk_version'] == '2'
+      return manif

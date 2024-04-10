@@ -57,6 +57,7 @@ class FileOpener:
 
     self._formats.update({
       'apk':dict(e=self._handle_apk, r=r'\.apk$', d='apk'),
+      'xapk':dict(e=self._handle_xapk, r=r'\.xapk$', d='xapk'),
     })
 
     for clazz in Extension.get().get_fileformathandlers():
@@ -67,6 +68,10 @@ class FileOpener:
   def _handle_apk(self, path: str) -> Optional[Context]:
     from trueseeing.core.android.context import APKContext
     return APKContext(path)
+
+  def _handle_xapk(self, path: str) -> Optional[Context]:
+    from trueseeing.core.android.context import XAPKContext
+    return XAPKContext(path)
 
 class Context(ABC):
   _path: str

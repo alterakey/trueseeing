@@ -7,27 +7,10 @@ from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Any, Optional, Dict, Mapping, List, Iterator, Tuple, TypedDict
+  from typing import Any, Optional, Dict, Mapping, List, Iterator, Tuple
   from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
   from trueseeing.core.android.context import APKContext
-
-  class XAPKSliceMember(TypedDict):
-    id: str
-    file: str
-
-  class XAPKManifest(TypedDict, total=False):
-    xapk_version: str
-    total_size: int
-    locales_name: Dict[str, str]
-    split_apks: List[XAPKSliceMember]
-    name: str
-    icon: str
-    package_name: str
-    version_code: str
-    version_name: str
-    min_sdk_version: str
-    target_sdk_version: str
-    permissions: List[str]
+  from trueseeing.core.android.model import XAPKManifest
 
 class EngageCommand(CommandMixin):
   def __init__(self, helper: CommandHelper) -> None:

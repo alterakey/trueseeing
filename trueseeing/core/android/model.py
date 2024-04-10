@@ -4,10 +4,28 @@ from typing import TYPE_CHECKING, NamedTuple
 from trueseeing.api import Signature
 
 if TYPE_CHECKING:
-  from typing import Optional
+  from typing import Optional, TypedDict, Dict, List
   from trueseeing.api import SignatureHelper, ConfigMap
   from trueseeing.core.android.context import APKContext
   from trueseeing.core.android.analysis.op import OpAnalyzer
+
+  class XAPKSliceMember(TypedDict):
+    id: str
+    file: str
+
+  class XAPKManifest(TypedDict, total=False):
+    xapk_version: str
+    total_size: int
+    locales_name: Dict[str, str]
+    split_apks: List[XAPKSliceMember]
+    name: str
+    icon: str
+    package_name: str
+    version_code: str
+    version_name: str
+    min_sdk_version: str
+    target_sdk_version: str
+    permissions: List[str]
 
 class Op(NamedTuple):
   addr: int
