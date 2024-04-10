@@ -47,16 +47,24 @@ class AssembleCommand(CommandMixin):
       ui.fatal('need root path')
 
     import os
+    import re
     import time
     from tempfile import TemporaryDirectory
     from trueseeing.core.android.asm import APKAssembler
     from trueseeing.core.android.tools import move_apk
 
     root = args.popleft()
-    origapk = apk.replace('.apk', '.apk.orig')
+    origapk = re.sub(r'(\.x?apk)$', r'\1.orig', apk)
 
-    if os.path.exists(origapk) and not cmd.endswith('!'):
-      ui.fatal('backup file exists; force (!) to overwrite')
+    stem = re.sub(r'\.x?apk$', '', apk)
+    for typ in ['apk', 'xapk']:
+      print(origapk, f'{stem}.{typ}.orig')
+      if os.path.exists(f'{stem}.{typ}.orig') and not cmd.endswith('!'):
+        ui.fatal('backup file exists; force (!) to overwrite')
+
+    if apk.endswith('.xapk'):
+      ui.warn('assembling xapk is not supported; assembling as merged apk')
+      apk = apk.replace('.xapk', '.apk')
 
     opts = self._helper.get_effective_options(self._helper.get_modifiers(args))
 
@@ -140,7 +148,7 @@ class AssembleCommand(CommandMixin):
     at = time.time()
 
     with TemporaryDirectory() as td:
-      await APKDisassembler.disassemble_to_path(apk, td, nodex=nodex)
+      await APKDisassembler.disassemble_to_path(apk, td, nodex=nodex, merge=apk.endswith('.xapk'))
 
       if not archive:
         with FileTransferProgressReporter('disassemble: writing').scoped() as progress:

@@ -11,15 +11,19 @@ from trueseeing.core.env import get_home_dir
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Tuple
+  from typing import Tuple, Optional
   from trueseeing.core.context import Context
   from trueseeing.core.db import FileEntry
 
 class APKDisassembler:
   _context: Context
 
-  def __init__(self, context: Context):
+  def __init__(self, context: Context, target: Optional[str] = None):
     self._context = context
+    if target:
+      self._target = target
+    else:
+      self._target = context.target
 
   async def disassemble(self, level: int = 4) -> None:
     await self._do(level)
@@ -41,7 +45,7 @@ class APKDisassembler:
         with toolchains() as tc:
           async for l in invoke_streaming(r'java -jar {apkeditor} d -i {apk} {suppressor} -o files'.format(
               apkeditor=tc['apkeditor'],
-              apk=shlex.quote(self._context.target),
+              apk=shlex.quote(self._target),
               suppressor='-dex' if level < 3 else '',
           ), redir_stderr=True):
             pub.sendMessage('progress.core.asm.lift.update')
@@ -70,13 +74,38 @@ class APKDisassembler:
       pub.sendMessage('progress.core.asm.lift.done')
 
   @classmethod
-  async def disassemble_to_path(cls, apk: str, path: str, nodex: bool = False) -> None:
+  async def disassemble_to_path(cls, target: str, path: str, nodex: bool = False, merge: bool = False) -> None:
+    import os
+    from tempfile import TemporaryDirectory
     from trueseeing.core.tools import invoke_streaming
     from trueseeing.core.android.tools import toolchains
 
     pub.sendMessage('progress.core.asm.disasm.begin')
 
-    with toolchains() as tc:
+    with TemporaryDirectory() as td:
+      with toolchains() as tc:
+        apk = target
+        if target.endswith('.xapk'):
+          if not merge:
+            raise ValueError('cannot disassemble xapk without merging')
+          with TemporaryDirectory() as td2:
+            from zipfile import ZipFile
+            with ZipFile(target) as zf:
+              for n in zf.namelist():
+                zf.extract(n, path=td2)
+            tmpapk = os.path.join(td, 'merged.apk')
+            async for l in invoke_streaming(
+              '(java -jar {apkeditor} m -i {path} -o {tmpapk})'.format(
+                apkeditor=tc['apkeditor'],
+                path=td2,
+                tmpapk=tmpapk,
+              )
+            ):
+              print(l)
+          apk = tmpapk
+        else:
+          apk = target
+
       async for l in invoke_streaming(
         '(java -jar {apkeditor} d -o {path} -i {apk} {s})'.format(
           apk=shlex.quote(apk),
