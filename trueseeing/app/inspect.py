@@ -1,8 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from code import InteractiveConsole
 from collections import deque
 import asyncio
+from functools import cache
 from shlex import shlex
 import sys
 import re
@@ -12,6 +14,7 @@ from trueseeing.core.exc import FatalError, InvalidSchemaError
 
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
+  from prompt_toolkit.styles import Style
   from trueseeing.core.context import ContextType
   from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap, ModifierEvent
 
@@ -46,13 +49,10 @@ class InspectMode:
       abort_on_errors: bool,
       force_opener: Optional[str],
   ) -> int:
-    from code import InteractiveConsole
-
-    sein = self
     runner = Runner(target, abort_on_errors=abort_on_errors, force_opener=force_opener)
 
     for line in cmdlines:
-      asyncio.run(sein._worker(runner.run(line)))
+      asyncio.run(LambdaConsole._worker(runner.run(line)))
 
     if batch:
       return 0
@@ -62,27 +62,42 @@ class InspectMode:
 
     asyncio.run(runner.greeting())
 
-    class LambdaConsole(InteractiveConsole):
-      def runsource(self, source: str, filename: Optional[str]=None, symbol: Optional[str]=None) -> bool:
-        try:
-          asyncio.run(sein._worker(runner.run(source)))
-        except FatalError:
-          pass
-        return False
-
-    try:
-      import readline
-    except ImportError:
-      readline = None # type: ignore[assignment] # noqa: F841
     ps1, ps2 = getattr(sys, 'ps1', None), getattr(sys, 'ps2', None)
     try:
-      runner.reset_prompt()
-      LambdaConsole(locals=locals(), filename='<input>').interact(banner='', exitmsg='')
+      LambdaConsole(locals=locals(), runner=runner).interact(banner='', exitmsg='')
       return 0
     finally:
       sys.ps1, sys.ps2 = ps1, ps2
 
-  async def _worker(self, coro: Any) -> None:
+class LambdaConsole(InteractiveConsole):
+  def __init__(self, /, runner: Runner, locals: Optional[Mapping[str, Any]] = None) -> None:
+    super().__init__(locals=locals, filename='<input>')
+    from prompt_toolkit import PromptSession
+    self._sess: Any = PromptSession()
+    self._runner = runner
+
+  def runsource(self, source: str, filename: Optional[str]=None, symbol: Optional[str]=None) -> bool:
+    try:
+      asyncio.run(self._worker(self._runner.run(source)))
+    except FatalError:
+      pass
+    return False
+
+  def raw_input(self, prompt: str = "") -> str:
+    target = self._runner.get_target()
+    return self._sess.prompt(  # type: ignore[no-any-return]
+      message=[('class:p', f'ts[{target}]> ' if target else 'ts> ')],
+      prompt_continuation=[('class:p', '... ')],
+      style=self._get_prompt_style(),
+    )
+
+  @cache
+  def _get_prompt_style(self) -> Style:
+    from prompt_toolkit.styles import Style
+    return Style.from_dict({'p': '#888800'})
+
+  @classmethod
+  async def _worker(cls, coro: Any) -> None:
     tasks = [asyncio.create_task(coro)]
     done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     for t in pending:
@@ -201,7 +216,6 @@ class Runner:
         ui.fatal('invalid schema detected, forced reanalysis needed (try a!)')
     finally:
       self._reset_loglevel()
-      self.reset_prompt()
 
   async def _run(self, s: str) -> None:
     if not await self._run_raw(s):
@@ -287,12 +301,6 @@ class Runner:
 
   def _reset_loglevel(self, debug:bool = False) -> None:
     ui.set_level(self._loglevel)
-
-  def reset_prompt(self) -> None:
-    if self._target:
-      sys.ps1, sys.ps2 = ui.colored(f'ts[{self.get_target()}]> ', color='yellow'), ui.colored('... ', color='yellow')
-    else:
-      sys.ps1, sys.ps2 = ui.colored('ts> ', color='yellow'), ui.colored('... ', color='yellow')
 
   async def _help(self, args: deque[str]) -> None:
     ents: Dict[str, Entry] = dict()
