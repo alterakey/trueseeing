@@ -71,7 +71,7 @@ class SearchCommand(CommandMixin):
         for nr, t in enumerate(l.rstrip() for l in BytesIO(blob)):
           m = re.search(pat.encode('utf-8'), t)
           if m:
-            ui.info('{}:{:d}:{:d}: {}'.format(path, nr+1, m.start(), t.decode('utf-8')))
+            ui.info('{}:{:d}:{:d}: {}'.format(path, nr+1, m.start(), t.decode('utf-8', 'replace')))
 
   def _looks_binary(self, b: bytes) -> bool:
     return b'\x00' in b
