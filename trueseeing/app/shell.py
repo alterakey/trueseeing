@@ -39,6 +39,7 @@ class Shell:
     args_mut1 = parser.add_mutually_exclusive_group()
     parser.add_argument('fn', nargs='?', metavar='FILE', help='Target APK file')
     parser.add_argument('--help-signatures', action='store_true', help='Show signatures')
+    parser.add_argument('--help-formats', action='store_true', help='Show supported file formats')
     parser.add_argument('--version', action='store_true', help='Version information')
     parser.add_argument('--norc', action='store_true', help='Ignore startup file')
     parser.add_argument('--noext', action='store_true', help='Ignore extensions')
@@ -101,6 +102,10 @@ class Shell:
       args.no_target = True
       args.mode = 'batch'
       cmdlines = ['?s?']
+    if args.help_formats:
+      args.no_target = True
+      args.mode = 'batch'
+      cmdlines = ['?f?']
 
     ui.set_level(log_level)
 
