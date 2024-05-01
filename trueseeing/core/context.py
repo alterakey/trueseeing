@@ -5,7 +5,7 @@ import os.path
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
-  from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator, Tuple
+  from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator, Tuple, Iterator
   from typing_extensions import Self
   from trueseeing.api import FormatEntry
   from trueseeing.core.store import Store
@@ -52,12 +52,16 @@ class FileOpener:
           return c
       raise InvalidFileFormatError()
 
+  def get_formats(self) -> Iterator[Mapping[str, str]]:
+    for k,v in self._formats.items():
+      yield dict(n=k, d=v['d'])
+
   def _init_formats(self) -> None:
     from trueseeing.core.ext import Extension
 
     self._formats.update({
-      'apk':dict(e=self._handle_apk, r=r'\.apk$', d='apk'),
-      'xapk':dict(e=self._handle_xapk, r=r'\.xapk$', d='xapk'),
+      'apk':dict(e=self._handle_apk, r=r'\.apk$', d='Android application package'),
+      'xapk':dict(e=self._handle_xapk, r=r'\.xapk$', d='Android appllication bundle'),
     })
 
     for clazz in Extension.get().get_fileformathandlers():

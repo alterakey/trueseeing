@@ -138,6 +138,7 @@ class Runner:
       '?':dict(e=self._help, n='?', d='help'),
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
       '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
+      '?f?':dict(e=self._help_formats, n='?f?', d='supported file formats'),
       '!':dict(e=self._shell, n='!', d='shell'),
       'o':dict(e=self._set_target, n='o /path/to/target', d='set target file'),
       'q':dict(e=self._quit, n='q', d='quit'),
@@ -324,6 +325,16 @@ class Runner:
           ui.stderr(
             f'{{n:<{width}s}}{{d}}'.format(n=e['n'], d=e['d'])
           )
+
+  async def _help_formats(self, args: deque[str]) -> None:
+    from trueseeing.core.context import FileOpener
+    ui.success('File formats:')
+    formats = list(FileOpener().get_formats())
+    width = 2 + max([len(e['n']) for e in formats])
+    for e in formats:
+      ui.stderr(
+        f'{{n:<{width}s}}{{d}}'.format(n=e['n'], d=e['d'])
+      )
 
   async def _shell(self, args: deque[str]) -> None:
     from trueseeing.core.env import get_shell
