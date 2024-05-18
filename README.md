@@ -50,7 +50,7 @@ Alternatively, you can install our package with pip as follows. This form of ins
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
     $ trueseeing target.apk
-    [+] trueseeing 2.2.2
+    [+] trueseeing 2.2.4
     ts[target.apk]> ?
     ...
     ts[target.apk]> i                      # show generic information
