@@ -23,19 +23,19 @@ class AssembleCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
-      'ca':dict(e=self._assemble, n='ca[!] /path', d='assemble as target from path'),
-      'ca!':dict(e=self._assemble),
-      'cd':dict(e=self._disassemble, n='cd[s][!] /path', d='disassemble target into path'),
-      'cd!':dict(e=self._disassemble),
-      'cds':dict(e=self._disassemble_nodex),
-      'cds!':dict(e=self._disassemble_nodex),
-      'co':dict(e=self._export_context, n='co[!] /path [pat]', d='export codebase'),
-      'co!':dict(e=self._export_context),
+      'ca':dict(e=self._assemble, n='ca[!] /path', d='assemble as target from path', t={'apk'}),
+      'ca!':dict(e=self._assemble, t={'apk'}),
+      'cd':dict(e=self._disassemble, n='cd[s][!] /path', d='disassemble target into path', t={'apk'}),
+      'cd!':dict(e=self._disassemble, t={'apk'}),
+      'cds':dict(e=self._disassemble_nodex, t={'apk'}),
+      'cds!':dict(e=self._disassemble_nodex, t={'apk'}),
+      'co':dict(e=self._export_context, n='co[!] /path [pat]', d='export codebase', t={'apk'}),
+      'co!':dict(e=self._export_context, t={'apk'}),
     }
 
   def get_options(self) -> OptionMap:
     return {
-      'nocache':dict(n='nocache', d='do not replicate content before build [ca]')
+      'nocache':dict(n='nocache', d='do not replicate content before build [ca]', t={'apk'}),
     }
 
   async def _assemble(self, args: deque[str]) -> None:
