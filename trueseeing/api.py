@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
   from collections import deque
-  from typing import Any, TypedDict, Protocol, Optional, Callable, Coroutine, Union, List, Mapping, overload, Literal
+  from typing import Any, TypedDict, Protocol, Optional, Callable, Coroutine, Union, List, Mapping, overload, Literal, Set
   from typing_extensions import deprecated
   from trueseeing.core.context import Context, ContextType
   from trueseeing.core.android.context import APKContext
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     e: CommandEntrypoint
     n: str
     d: str
+    t: Set[str]
 
   class CommandEntry(Entry):
     pass

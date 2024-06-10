@@ -20,14 +20,14 @@ class SearchCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
-      '/c':dict(e=self._search_call, n='/c [pat]', d='search call for pattern'),
-      '/k':dict(e=self._search_const, n='/k insn [pat]', d='search consts for pattern'),
-      '/p':dict(e=self._search_put, n='/p[i] [pat]', d='search s/iputs for pattern'),
-      '/dp':dict(e=self._search_defined_package, n='/dp [pat]', d='search packages matching pattern'),
-      '/dc':dict(e=self._search_defined_class, n='/dc [pat]', d='search classes matching pattern'),
-      '/dcx':dict(e=self._search_derived_class, n='/dcx classpat [methpat]', d='search classes defining methods and extending ones matching patterns'),
-      '/dci':dict(e=self._search_implementing_class, n='/dci ifacepat [methpat]', d='search classes defining methods and implementing interfaces matching patterns'),
-      '/dm':dict(e=self._search_defined_method, n='/dm pat', d='search classes defining methods matching pattern'),
+      '/c':dict(e=self._search_call, n='/c [pat]', d='search call for pattern', t={'apk'}),
+      '/k':dict(e=self._search_const, n='/k insn [pat]', d='search consts for pattern', t={'apk'}),
+      '/p':dict(e=self._search_put, n='/p[i] [pat]', d='search s/iputs for pattern', t={'apk'}),
+      '/dp':dict(e=self._search_defined_package, n='/dp [pat]', d='search packages matching pattern', t={'apk'}),
+      '/dc':dict(e=self._search_defined_class, n='/dc [pat]', d='search classes matching pattern', t={'apk'}),
+      '/dcx':dict(e=self._search_derived_class, n='/dcx classpat [methpat]', d='search classes defining methods and extending ones matching patterns', t={'apk'}),
+      '/dci':dict(e=self._search_implementing_class, n='/dci ifacepat [methpat]', d='search classes defining methods and implementing interfaces matching patterns', t={'apk'}),
+      '/dm':dict(e=self._search_defined_method, n='/dm pat', d='search classes defining methods matching pattern', t={'apk'}),
     }
 
   async def _search_call(self, args: deque[str]) -> None:
