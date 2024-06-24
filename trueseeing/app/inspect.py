@@ -16,7 +16,7 @@ if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
   from prompt_toolkit.styles import Style
   from trueseeing.core.context import ContextType
-  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap, ModifierEvent
+  from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap, ModifierEvent, CommandMap, CommandPatternMap, OptionMap, ModifierMap
 
 class InspectMode:
   def do(
@@ -119,11 +119,51 @@ class QuitSession(Exception):
     super().__init__(code, *args, **kwargs)
     self.code = code
 
-class Runner:
+class SessionCommands:
   _cmds: Dict[str, CommandEntry]
   _cmdpats: Dict[str, CommandPatternEntry]
   _mods: Dict[str, ModifierEntry]
   _opts: Dict[str, OptionEntry]
+
+  def __init__(self) -> None:
+    from trueseeing.core.config import Configs
+    self._cmds = {}
+    self._cmdpats = {}
+    self._mods = {}
+    self._confbag = Configs.get().bag
+
+  def add_cmds(self, cmap: CommandMap) -> None:
+    self._cmds.update(cmap)
+
+  def add_cmdpats(self, cmap: CommandPatternMap) -> None:
+    self._cmdpats.update(cmap)
+
+  def add_mods(self, cmap: ModifierMap) -> None:
+    self._mods.update(cmap)
+
+  def add_opts(self, cmap: OptionMap) -> None:
+    self._opts.update(cmap)
+
+  def add_configs(self, cmap: ConfigMap) -> None:
+    self._confbag.update(cmap)
+
+  def get_cmds(self) -> CommandMap:
+    return self._cmds
+
+  def get_cmdpats(self) -> CommandPatternMap:
+    return self._cmdpats
+
+  def get_mods(self) -> ModifierMap:
+    return self._mods
+
+  def get_opts(self) -> OptionMap:
+    return self._opts
+
+  def get_configs(self) -> ConfigMap:
+    return self._confbag
+
+class Runner:
+  _sc: SessionCommands
   _quiet: bool = False
   _verbose: bool = False
   _target: Optional[str]
@@ -132,9 +172,9 @@ class Runner:
   _loglevel: int
 
   def __init__(self, target: Optional[str], *, abort_on_errors: bool = False, force_opener: Optional[str] = None) -> None:
-    from trueseeing.core.config import Configs
     self._target = target
-    self._cmds = {
+    self._sc = SessionCommands()
+    self._sc.add_cmds({
       '?':dict(e=self._help, n='?', d='help'),
       '?@?':dict(e=self._help_mod, n='?@?', d='modifier help'),
       '?o?':dict(e=self._help_opt, n='?o?', d='options help'),
@@ -142,15 +182,12 @@ class Runner:
       '!':dict(e=self._shell, n='!', d='shell'),
       'o':dict(e=self._set_target, n='o /path/to/target', d='set target file'),
       'q':dict(e=self._quit, n='q', d='quit'),
-    }
-    self._cmdpats = {}
-    self._mods = {
+    })
+    self._sc.add_mods({
       'o':dict(n='@o:option', d='pass option', e=None),
       'gs':dict(n='@gs:<int>[kmKM]', d='set graph size limit', e=None),
-    }
-    self._confbag = Configs.get().bag
-    self._confbag.update(self._get_configs())
-    self._opts = {}
+    })
+    self._sc.add_configs(self._get_configs())
     if abort_on_errors:
       self._abort_on_errors = True
 
@@ -171,11 +208,11 @@ class Runner:
 
   def _register_cmd(self, clazz: Type[Command]) -> None:
     t = clazz.create(self._helper)
-    self._cmds.update(t.get_commands())
-    self._cmdpats.update(t.get_command_patterns())
-    self._mods.update(t.get_modifiers())
-    self._opts.update(t.get_options())
-    self._confbag.update(t.get_configs())
+    self._sc.add_cmds(t.get_commands())
+    self._sc.add_cmdpats(t.get_command_patterns())
+    self._sc.add_mods(t.get_modifiers())
+    self._sc.add_opts(t.get_options())
+    self._sc.add_configs(t.get_configs())
 
   def get_target(self) -> Optional[str]:
     return self._target
@@ -236,10 +273,11 @@ class Runner:
 
   async def _run_raw(self, line: str) -> bool:
     ent: Any = None
-    for pat in [k for k,v in self._cmdpats.items() if v.get('raw')]:
+    cmdpats = self._sc.get_cmdpats()
+    for pat in [k for k,v in cmdpats.items() if v.get('raw')]:
       m = re.match(pat, line)
       if m:
-        ent = self._cmdpats[pat]
+        ent = cmdpats[pat]
         if m.end() < (len(line) - 1):
           ui.warn('ignoring trailer: {}'.format(line[m.end():]))
         break
@@ -252,17 +290,19 @@ class Runner:
 
   async def _run_cmd(self, tokens: deque[str], line: Optional[str]) -> bool:
     ent: Any = None
+    cmdpats = self._sc.get_cmdpats()
+    cmds = self._sc.get_cmds()
     if line is not None:
-      for pat in [k for k,v in self._cmdpats.items() if not v.get('raw')]:
+      for pat in [k for k,v in cmdpats.items() if not v.get('raw')]:
         m = re.match(pat, line)
         if m:
-          ent = self._cmdpats[pat]
+          ent = cmdpats[pat]
           break
 
     if ent is None:
       c = tokens[0]
-      if c in self._cmds:
-        ent = self._cmds[c]
+      if c in cmds:
+        ent = cmds[c]
 
     if ent is None:
       return False
@@ -288,7 +328,7 @@ class Runner:
     for mod in self._get_modifiers(tokens):
       typ, val = mod[1:].split(':', maxsplit=1)
 
-      for et, ee in self._mods.items():
+      for et, ee in self._sc.get_mods().items():
         if et == typ:
           if ee['e'] is not None:
             await ee['e'](ev, val)
@@ -305,15 +345,15 @@ class Runner:
 
   async def _help(self, args: deque[str]) -> None:
     ents: Dict[str, Entry] = dict()
-    ents.update(self._cmds)
-    ents.update(self._cmdpats)  # type: ignore[arg-type]
+    ents.update(self._sc.get_cmds())
+    ents.update(self._sc.get_cmdpats())  # type: ignore[arg-type]
     await self._help_on('Commands:', ents)
 
   async def _help_mod(self, args: deque[str]) -> None:
-    await self._help_on('Modifiers:', self._mods) # type: ignore[arg-type]
+    await self._help_on('Modifiers:', self._sc.get_mods()) # type: ignore[arg-type]
 
   async def _help_opt(self, args: deque[str]) -> None:
-    await self._help_on('Options:', self._opts)
+    await self._help_on('Options:', self._sc.get_opts()) # type: ignore[arg-type]
 
   async def _help_on(self, topic: str, entries: Dict[str, Entry]) -> None:
     ui.success(topic)
@@ -356,7 +396,7 @@ class CommandHelperImpl:
   def __init__(self, runner: Runner, force_opener: Optional[str] = None) -> None:
     self._r = runner
     self._opener = FileOpener(force_opener=force_opener)
-    self._confbag = self._r._confbag
+    self._confbag = self._r._sc.get_configs()
 
   def get_target(self) -> Optional[str]:
     return self._r.get_target()
