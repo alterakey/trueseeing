@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import os
 import os.path
 
+from functools import cache
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_extension_dir, get_extension_dir_v0, get_extension_package_prefix
 
@@ -89,6 +90,7 @@ class Extension:
           continue
         yield clazz
 
+  @cache
   def get_commands(self) -> Iterator[Type[Command]]:
     from trueseeing.api import Command
     from trueseeing.core.tools import get_public_subclasses, get_missing_methods

@@ -1,10 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from functools import cache
 
 if TYPE_CHECKING:
   from typing import Type, Iterator
   from trueseeing.api import Command
 
+@cache
 def discover() -> Iterator[Type[Command]]:
   from trueseeing.api import Command
   from importlib import import_module
