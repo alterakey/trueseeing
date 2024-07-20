@@ -13,7 +13,7 @@ from trueseeing.core.ui import ui, CoreProgressReporter
 from trueseeing.core.exc import FatalError, InvalidSchemaError
 
 if TYPE_CHECKING:
-  from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type
+  from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type, Set, Iterator
   from prompt_toolkit.styles import Style
   from trueseeing.core.context import ContextType
   from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap, ModifierEvent, CommandMap, CommandPatternMap, OptionMap, ModifierMap
@@ -120,47 +120,72 @@ class QuitSession(Exception):
     self.code = code
 
 class SessionCommands:
-  _cmds: Dict[str, CommandEntry]
-  _cmdpats: Dict[str, CommandPatternEntry]
-  _mods: Dict[str, ModifierEntry]
-  _opts: Dict[str, OptionEntry]
+  _cmds: Dict[str, Dict[str, CommandEntry]]
+  _cmdpats: Dict[str, Dict[str, CommandPatternEntry]]
+  _mods: Dict[str, Dict[str, ModifierEntry]]
+  _opts: Dict[str, Dict[str, OptionEntry]]
+  _typ: Set[ContextType]
 
   def __init__(self) -> None:
     from trueseeing.core.config import Configs
+    self._typ = set()
     self._cmds = {}
     self._cmdpats = {}
     self._mods = {}
+    self._opts = {}
     self._confbag = Configs.get().bag
 
   def add_cmds(self, cmap: CommandMap) -> None:
-    self._cmds.update(cmap)
+    for k, v in cmap.items():
+      self._cmds[k] = {p:v for p in v.get('t', {''})}
 
   def add_cmdpats(self, cmap: CommandPatternMap) -> None:
-    self._cmdpats.update(cmap)
+    for k, v in cmap.items():
+      self._cmdpats[k] = {p:v for p in v.get('t', {''})}
 
   def add_mods(self, cmap: ModifierMap) -> None:
-    self._mods.update(cmap)
+    for k, v in cmap.items():
+      self._mods[k] = {p:v for p in v.get('t', {''})}
 
   def add_opts(self, cmap: OptionMap) -> None:
-    self._opts.update(cmap)
+    for k, v in cmap.items():
+      self._opts[k] = {p:v for p in v.get('t', {''})}
 
   def add_configs(self, cmap: ConfigMap) -> None:
     self._confbag.update(cmap)
 
   def get_cmds(self) -> CommandMap:
-    return self._cmds
+    return self._slice(self._cmds) # type:ignore[no-any-return]
 
   def get_cmdpats(self) -> CommandPatternMap:
-    return self._cmdpats
+    return self._slice(self._cmdpats) # type:ignore[no-any-return]
 
   def get_mods(self) -> ModifierMap:
-    return self._mods
+    return self._slice(self._mods) # type:ignore[no-any-return]
 
   def get_opts(self) -> OptionMap:
-    return self._opts
+    return self._slice(self._opts) # type:ignore[no-any-return]
 
   def get_configs(self) -> ConfigMap:
     return self._confbag
+
+  def _slice(self, target: Any) -> Any:
+    o: Dict[str, Any] = dict()
+    for k,pv in target.items():
+      for p in self._get_matches(pv.keys()):
+        o[k] = pv[p]
+        break
+    return o
+
+  def _get_matches(self, ks: Iterator[str]) -> Iterator[str]:
+    for k in sorted(ks, key=len):
+      if not k:
+        yield k
+      elif any([re.match(k, t) for t in self._typ]):
+        yield k
+
+  def set_type(self, typ: Set[ContextType]) -> None:
+    self._typ = typ
 
 class Runner:
   _sc: SessionCommands
@@ -229,7 +254,7 @@ class Runner:
   def _config_set_debug(self, v: Any) -> None:
     try:
       self._loglevel = dict(true=ui.DEBUG, false=ui.INFO)[v]
-      self._reset_loglevel()
+      self._reset()
     except KeyError:
       ui.fatal(f'invalid value: {v}')
 
@@ -243,8 +268,11 @@ class Runner:
       ui.fatal(f'invalid value: {v}')
 
   async def greeting(self) -> None:
-    from trueseeing import __version__ as version
-    ui.success(f"Trueseeing {version}")
+    try:
+      from trueseeing import __version__ as version
+      ui.success(f"Trueseeing {version}")
+    finally:
+      self._reset()
 
   async def run(self, s: str) -> None:
     try:
@@ -253,7 +281,7 @@ class Runner:
       except InvalidSchemaError:
         ui.fatal('invalid schema detected, forced reanalysis needed (try a!)')
     finally:
-      self._reset_loglevel()
+      self._reset()
 
   async def _run(self, s: str) -> None:
     if not await self._run_raw(s):
@@ -340,8 +368,9 @@ class Runner:
         o.append(m)
     return o
 
-  def _reset_loglevel(self, debug:bool = False) -> None:
+  def _reset(self, debug:bool = False) -> None:
     ui.set_level(self._loglevel)
+    self._sc.set_type(self._helper.get_context_type())
 
   async def _help(self, args: deque[str]) -> None:
     ents: Dict[str, Entry] = dict()
@@ -406,6 +435,16 @@ class CommandHelperImpl:
     if t is None:
       ui.fatal(msg if msg else 'need target')
     return t
+
+  def get_context_type(self) -> Set[ContextType]:
+    from trueseeing.core.exc import InvalidFileFormatError
+    t = self.get_target()
+    if not t:
+      return set()
+    try:
+      return self._opener.get_context(t).type
+    except InvalidFileFormatError:
+      return set()
 
   def get_context(self, typ: Optional[ContextType] = None) -> Any:
     from trueseeing.core.exc import InvalidFileFormatError
