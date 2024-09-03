@@ -124,11 +124,10 @@ class SessionCommands:
   _cmdpats: Dict[str, Dict[str, CommandPatternEntry]]
   _mods: Dict[str, Dict[str, ModifierEntry]]
   _opts: Dict[str, Dict[str, OptionEntry]]
-  _typ: Set[ContextType]
+  _typ: Optional[Set[ContextType]] = None
 
   def __init__(self) -> None:
     from trueseeing.core.config import Configs
-    self._typ = set()
     self._cmds = {}
     self._cmdpats = {}
     self._mods = {}
@@ -179,12 +178,14 @@ class SessionCommands:
 
   def _get_matches(self, ks: Iterator[str]) -> Iterator[str]:
     for k in sorted(ks, key=len):
-      if not k:
+      if self._typ is None:
+        yield k
+      elif not k:
         yield k
       elif any([re.match(k, t) for t in self._typ]):
         yield k
 
-  def set_type(self, typ: Set[ContextType]) -> None:
+  def set_type(self, typ: Optional[Set[ContextType]]) -> None:
     self._typ = typ
 
 class Runner:
@@ -436,11 +437,11 @@ class CommandHelperImpl:
       ui.fatal(msg if msg else 'need target')
     return t
 
-  def get_context_type(self) -> Set[ContextType]:
+  def get_context_type(self) -> Optional[Set[ContextType]]:
     from trueseeing.core.exc import InvalidFileFormatError
     t = self.get_target()
     if not t:
-      return set()
+      return None
     try:
       return self._opener.get_context(t).type
     except InvalidFileFormatError:
