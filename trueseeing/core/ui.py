@@ -224,7 +224,7 @@ class CoreProgressReporter:
 
   def _core_asm_lift_done(self) -> None:
     if self._bar_lift:
-      self._bar_lift.finish(end='\r')   # type:ignore[no-untyped-call]
+      self._bar_lift.finish(end='\r')
 
   def _core_asm_disasm_begin(self) -> None:
     if ui.is_tty():
@@ -292,14 +292,14 @@ class CoreProgressReporter:
 
   def _core_analysis_smali_analyzing(self, nr: int) -> None:
     if self._bar_analysis is not None:
-      self._bar_analysis.update(nr)   # type:ignore[no-untyped-call]
+      self._bar_analysis.update(nr)
     else:
       if (nr % 128) == 0:
         ui.info(f"analyze: analyzing ... {nr} classes")
 
   def _core_analysis_smali_analyzed(self) -> None:
     if self._bar_analysis is not None:
-      self._bar_analysis.finish()   # type:ignore[no-untyped-call]
+      self._bar_analysis.finish()
 
   def _core_analysis_smali_summary(self, ops: Optional[int] = None, classes: Optional[int] = None, methods: Optional[int] = None) -> None:
     if self._bar_analysis:
@@ -345,7 +345,7 @@ class FileTransferProgressReporter:
       yield self
     finally:
       if self._bar is not None and not self._done:
-        self._bar.finish()  # type: ignore[no-untyped-call]
+        self._bar.finish()
 
   def using_bar(self) -> bool:
     return self._bar is not None
@@ -359,20 +359,20 @@ class FileTransferProgressReporter:
         Counter(), ' ',   # type:ignore[no-untyped-call]
         RotatingMarker()   # type:ignore[no-untyped-call]
       ])
-      self._bar.start() # type:ignore[no-untyped-call]
+      self._bar.start()
     else:
       ui.info(self._desc)
       self._bar = None
 
   def update(self, nr: int) -> None:
     if self._bar is not None:
-      self._bar.update(nr) # type: ignore[no-untyped-call]
+      self._bar.update(nr)
     else:
       ui.info(f' .. {nr} files')
 
   def done(self) -> None:
     if self._bar is not None:
-      self._bar.finish(end='\r')  # type: ignore[no-untyped-call]
+      self._bar.finish(end='\r')
       ui.info(f'{self._desc}... done.' + (' '*16), ow=True)
     else:
       ui.info(f'{self._desc}... done.')
@@ -436,7 +436,7 @@ class AndroidInstallProgressReporter:
 
   def _done(self) -> None:
     if self._bar:
-      self._bar.finish(end='\r')   # type:ignore[no-untyped-call]
+      self._bar.finish(end='\r')
 
 class OpFormatter:
   def __init__(self, q: APKQuery, indent: int = 4) -> None:
