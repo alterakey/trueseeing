@@ -47,7 +47,7 @@ class Shell:
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('-e', '--abort-on-errors', action='store_true', help='Abort on errors')
     parser.add_argument('-F', dest='force_opener', help='Open target as specified format')
-    parser.add_argument('-n', dest='no_target', action='store_true', help='Open empty file')
+    parser.add_argument('-n', dest='no_target', action='store_true', help='Run without target')
     args_mut0.add_argument('-i', dest='scriptfn', metavar='FILE', help='Run script file before prompt')
     args_mut0.add_argument('-c', dest='inline_cmd', metavar='COMMAND', help='Run commands before prompt')
     args_mut1.add_argument('-q', dest='mode', action='store_const', const='batch', help='Batch mode; quit instead of giving prompt')
@@ -109,12 +109,11 @@ class Shell:
 
     ui.set_level(log_level)
 
-    if not args.fn:
-      if args.no_target:
-        args.fn = '/dev/null'
-      else:
-        parser.print_help()
-        return 2
+    if args.no_target:
+      args.fn = None
+    elif not args.fn:
+      parser.print_help()
+      return 2
 
     if args.mode in ['inspect', 'batch']:
       from trueseeing.app.inspect import InspectMode
@@ -138,6 +137,9 @@ class Shell:
         force_opener=args.force_opener,
       )
     elif args.mode == 'scan':
+      if not args.fn:
+        ui.fatal('need target')
+
       from trueseeing.core.exc import InvalidFileFormatError
       try:
         from trueseeing.app.scan import ScanMode
