@@ -32,7 +32,7 @@ class PackageNameReader:
         from json import loads
         manif: XAPKManifest = loads(zf.read('manifest.json'))
         vers = manif['xapk_version']
-        if vers != '2':
+        if str(vers) != '2':
           raise ValueError(f'invalid xapk manifest: {vers}')
         pkg = manif['package_name']
         return pkg
