@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import lxml.etree as ET
 import os
 import re
+import shlex
 from functools import cache
 
 from pubsub import pub
@@ -392,7 +393,7 @@ class XAPKContext(APKContext):
       with toolchains() as tc:
         async for l in invoke_streaming('java -jar {apkeditor} m -i {target} -o {outfile}'.format(
             apkeditor=tc['apkeditor'],
-            target=self.target,
+            target=shlex.quote(self.target),
             outfile=outfile,
         )):
           ui.info(l.decode())
