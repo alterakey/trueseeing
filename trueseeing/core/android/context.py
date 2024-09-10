@@ -419,5 +419,5 @@ class XAPKContext(APKContext):
     from json import loads
     with ZipFile(self.target) as zf:
       manif: XAPKManifest = loads(zf.read('manifest.json'))
-      assert manif['xapk_version'] == '2'
+      assert str(manif['xapk_version']) == '2'
       return manif
