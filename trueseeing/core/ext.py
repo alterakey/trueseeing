@@ -121,25 +121,53 @@ class Extension:
     import re
     path = os.path.expandvars(os.path.expanduser(path))
     mods: Dict[str, str] = dict()
-    fns: Iterable[str] = iglob(f'{path}/*') if not only else [os.path.join(path, only)]
-    for fn in fns:
-      bn = os.path.basename(fn)
-      ns, ne = os.path.splitext(bn)
-      if not re.fullmatch(r'[0-9A-Za-z_]+', ns):
-        ui.warn(f'cannot load extension {bn}: invalid filename')
-        continue
-      if ne and ne not in ['py', 'pyc', 'pyo']:
-        ui.warn(f'cannot load extension {bn}: invalid filename')
-        continue
-      mods[bn] = ns
 
-    return 'import sys\ntry:\n sys.dont_write_bytecode=True;sys.path.insert(0,"{path}");\n{importblock}\nfinally:\n sys.dont_write_bytecode=False;sys.path.pop(0);del sys'.format(
-      path=path,
+    def _get_seeds() -> Iterator[str]:
+      if only:
+        yield os.path.join(path, only)
+      else:
+        for n in iglob(f'{path}/*'):
+          yield n
+
+    def _discover() -> Iterator[str]:
+      for n in _get_seeds():
+        bn = os.path.basename(n)
+        if os.path.isfile(n):
+          ns, ne = os.path.splitext(bn)
+          if not (ne in ['py', 'pyc', 'pyo']):
+            ui.warn(f'cannot load extension {bn}: invalid filename')
+            continue
+          if not re.fullmatch(r'[0-9A-Za-z_]+', ns):
+            ui.warn(f'cannot load extension {bn}: invalid filename')
+            continue
+          yield n
+        elif os.path.isdir(n):
+          if os.path.exists(os.path.join(n, '__init__.py')):
+            yield n
+            continue
+          found = False
+          for nn in iglob(f'{n}/*'):
+            if os.path.exists(os.path.join(nn, '__init__.py')):
+              yield nn
+              found = True
+          if not found:
+            ui.warn(f'cannot load extension {bn}: need to be or contain a module')
+        else:
+          ui.warn(f'cannot load extension {bn}: invalid filetype')
+
+    for n in _discover():
+      ns, _ = os.path.splitext(os.path.basename(n))
+      mods[ns] = n
+
+    return 'import sys\ntry:\n sys.dont_write_bytecode=True;\n{importblock}\nfinally:\n sys.dont_write_bytecode=False;del sys'.format(
       importblock='\n'.join([
         ' try:\n'
+        '  sys.path[0:0]=["{path}"]\n'
         '  import {ns}\n'
         ' except Exception as e:\n'
-        '  ui.warn(f"cannot load extension {bn}: {{e}}")\n'.format(ns=ns, bn=bn) for bn, ns in mods.items()
+        '  ui.warn(f"cannot load extension {bn}: {{e}}")\n'
+        ' finally:\n'
+        '  del sys.path[0]\n'.format(ns=ns, bn=os.path.basename(path), path=os.path.dirname(path)) for ns, path in mods.items()
       ])
     )
 
