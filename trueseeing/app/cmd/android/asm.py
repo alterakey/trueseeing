@@ -223,6 +223,7 @@ class AssembleCommand(CommandMixin):
 
           bf = BytesIO(blob)
           ti = tarfile.TarInfo(name=target)
+          ti.size = len(blob)
           ti.uname = 'root'
           ti.gname = 'root'
           ti.mode = 0o600
