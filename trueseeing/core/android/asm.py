@@ -142,6 +142,27 @@ class APKAssembler:
 
     return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
 
+  @classmethod
+  async def merge_slices(cls, xapk: str, wd: str) -> Tuple[str, str]:
+    import os
+    from trueseeing.core.tools import invoke_streaming
+    from trueseeing.core.android.tools import toolchains
+
+    pub.sendMessage('progress.core.asm.asm.begin')
+
+    with toolchains() as tc:
+      async for l in invoke_streaming(
+        'java -jar {apkeditor} m -i {xapk} -o {wd}/output.apk'.format(
+          wd=wd, xapk=shlex.quote(xapk),
+          apkeditor=tc['apkeditor'],
+        ), redir_stderr=True
+      ):
+        pub.sendMessage('progress.core.asm.asm.update')
+
+    pub.sendMessage('progress.core.asm.asm.done')
+
+    return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
+
 class SigningKey:
   _path: str
 

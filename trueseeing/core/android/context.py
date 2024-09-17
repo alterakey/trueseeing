@@ -379,6 +379,7 @@ class APKContext(Context):
 
 class XAPKContext(APKContext):
   _disasm: Optional[APKDisassembler] = None
+  _type: ClassVar[Set[ContextType]] = {'xapk'}
 
   async def _get_disassembler(self) -> APKDisassembler:
     assert self._disasm
@@ -403,6 +404,9 @@ class XAPKContext(APKContext):
         return await super()._analyze(level)
       finally:
         self._disasm = None
+
+  def _get_type(self) -> Set[ContextType]:
+    return super()._type | self._type
 
   async def _get_info(self, extended: bool) -> AsyncIterator[ContextInfo]:
     async for m in super()._get_info(extended):
