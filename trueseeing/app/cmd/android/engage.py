@@ -84,6 +84,10 @@ class EngageCommand(CommandMixin):
     from trueseeing.core.android.asm import APKAssembler
     from trueseeing.core.android.tools import move_apk
 
+    if apk.endswith('.xapk'):
+      ui.warn('patching xapk as merged apk')
+      apk = apk.replace('.xapk', '.apk')
+
     origapk = apk.replace('.apk', '.apk.orig')
 
     if os.path.exists(origapk) and not cmd.endswith('!'):
