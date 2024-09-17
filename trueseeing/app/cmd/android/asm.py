@@ -29,7 +29,7 @@ class AssembleCommand(CommandMixin):
       'cd!':dict(e=self._disassemble, t={'apk'}),
       'cds':dict(e=self._disassemble_nodex, t={'apk'}),
       'cds!':dict(e=self._disassemble_nodex, t={'apk'}),
-      'cm':dict(e=self._merge, n='cm[!]', d='merge slices', t={'xapk'}),
+      'cm':dict(e=self._merge, n='cm[!] [output.apk]', d='merge slices into a plain apk', t={'xapk'}),
       'cm!':dict(e=self._merge, t={'xapk'}),
       'co':dict(e=self._export_context, n='co[!] /path [pat]', d='export codebase', t={'apk'}),
       'co!':dict(e=self._export_context, t={'apk'}),
@@ -254,22 +254,26 @@ class AssembleCommand(CommandMixin):
     from trueseeing.core.android.asm import APKAssembler
     from trueseeing.core.android.tools import move_apk
 
-    apk = target.replace('.xapk', '.apk')
-    origapk = apk.replace('.apk', '.apk.orig')
+    if args:
+      outfn = args.popleft()
+    else:
+      outfn = target.replace('.xapk', '.apk')
 
-    if os.path.exists(origapk) and not cmd.endswith('!'):
+    origfn = outfn.replace('.apk', '.apk.orig')
+
+    if os.path.exists(origfn) and not cmd.endswith('!'):
       ui.fatal('backup file exists; force (!) to overwrite')
 
-    ui.info('merging slices {target} -> {apk}'.format(target=target, apk=apk))
+    ui.info('merging slices {target} -> {outfn}'.format(target=target, outfn=outfn))
 
     at = time.time()
 
     with TemporaryDirectory() as td:
-      outapk, outsig = await APKAssembler.merge_slices(target, td)
+      apk, sig = await APKAssembler.merge_slices(target, td)
 
-      if os.path.exists(apk):
-        move_apk(apk, origapk)
+      if os.path.exists(outfn):
+        move_apk(outfn, origfn)
 
-      move_apk(outapk, apk)
+      move_apk(apk, outfn)
 
     ui.success('done ({t:.02f} sec.)'.format(t=(time.time() - at)))
