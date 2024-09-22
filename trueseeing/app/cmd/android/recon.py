@@ -44,7 +44,9 @@ class ReconCommand(CommandMixin):
       'rwl!':dict(e=self._recon_watch_logcat),
       'rwf':dict(e=self._recon_watch_fs, n='rwf', d='recon: watch filesystem'),
       'rwt':dict(e=self._recon_watch_intent, n='rwt[!] [pat]', d='recon: watch intent'),
+      'rwt!':dict(e=self._recon_watch_intent),
       'rwu':dict(e=self._recon_watch_ui, n='rwu[!] [pat|xp:xpath] [output.xml]', d='recon: watch device UI'),
+      'rwu!':dict(e=self._recon_watch_ui),
       'rwx':dict(e=self._recon_watch_start, n='rwx', d='recon: start watching'),
       'rp':dict(e=self._recon_list_packages, n='rp', d='recon: list installed packages'),
       'ru':dict(e=self._recon_dump_ui, n='ru [output.xml]', d='recon: dump device UI'),
@@ -140,13 +142,15 @@ class ReconCommand(CommandMixin):
       ui.fatal('nothing to watch (try d* beforehand)')
 
     dev = AndroidDevice()
-    ctx = self._get_apk_context()
-    pkg = ctx.get_package_name()
+    pkg: Optional[str] = None
+    if self._target_only:
+      ctx = self._get_apk_context()
+      pkg = ctx.get_package_name()
 
     async def _log() -> None:
       pid: Optional[int] = None
       if self._watch_logcat or self._watch_intent:
-        if not pid:
+        if pkg and not pid:
           d = await dev.invoke_adb('shell ps')
           m = re.search(r'^[0-9a-zA-Z_]+ +([0-9]+) .*{}$'.format(pkg).encode(), d.encode(), re.MULTILINE)
           if m:
@@ -155,7 +159,7 @@ class ReconCommand(CommandMixin):
 
         async for l in dev.invoke_adb_streaming('logcat -T1'):
           l = l.rstrip()
-          if not pid:
+          if pkg and not pid:
             m = re.search(r' ([0-9]+):{}'.format(pkg).encode(), l)
             if m:
               pid = int(m.group(1))
