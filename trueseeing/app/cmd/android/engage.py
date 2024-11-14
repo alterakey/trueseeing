@@ -47,6 +47,7 @@ class EngageCommand(CommandMixin):
       'xzr!':dict(e=self._engage_fuzz_command, t={'apk'}),
       'xg':dict(e=self._engage_grab_package, n='xg[!] package [output.apk]', d='engage: grab package', t={'apk'}),
       'xg!':dict(e=self._engage_grab_package, t={'apk'}),
+      'xk':dict(e=self._engage_frida_kill_server, n='xk', d='engage: kill frida server', t={'apk'}),
     }
 
   def get_options(self) -> OptionMap:
@@ -952,6 +953,48 @@ class EngageCommand(CommandMixin):
     import lxml.etree as ET
     assert manifest is not None
     return ET.tostring(manifest) # type: ignore[no-any-return]
+
+  async def _engage_frida_start_server(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+    context: APKContext = self._helper.get_context().require_type('apk')
+
+    pkg = context.get_package_name()
+    scripts = list(args)
+
+    force = cmd.endswith('!')
+
+    ui.info("starting frida-server")
+
+    from time import time
+    from trueseeing.core.android.device import AndroidDevice
+    from trueseeing.core.tools import invoke_passthru
+
+    at = time()
+    dev = AndroidDevice()
+
+    if force:
+      ui.warn("killing frida-server if any")
+      await dev.invoke_adb('shell "killall frida-server || exit 0"')
+    await dev.invoke_adb('shell "cd /data/local/tmp && ./frida-server &"')
+
+    ui.info(f"starting frida on {pkg}")
+    scripts_str = ' '.join([f"-l {s}" for s in scripts])
+    await invoke_passthru(f"frida -U {pkg} {scripts_str}")
+
+    ui.success("done ({t:.2f} sec.)".format(t=time() - at))
+
+  async def _engage_frida_kill_server(self, args: deque[str]) -> None:
+    from time import time
+    from trueseeing.core.android.device import AndroidDevice
+
+    ui.info("killing frida-server")
+
+    at = time()
+    dev = AndroidDevice()
+
+    await dev.invoke_adb('shell killall frida-server')
+
+    ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
 class InvalidResponseError(Exception):
   pass
