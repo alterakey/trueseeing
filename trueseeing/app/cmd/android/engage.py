@@ -47,6 +47,8 @@ class EngageCommand(CommandMixin):
       'xzr!':dict(e=self._engage_fuzz_command, t={'apk'}),
       'xg':dict(e=self._engage_grab_package, n='xg[!] package [output.apk]', d='engage: grab package', t={'apk'}),
       'xg!':dict(e=self._engage_grab_package, t={'apk'}),
+      'xs':dict(e=self._engage_frida_start_server, n='xs[!] [config]', d='engage: start frida-server (!: force)', t={'apk'}),
+      'xs!':dict(e=self._engage_frida_start_server, t={'apk'}),
       'xk':dict(e=self._engage_frida_kill_server, n='xk', d='engage: kill frida server', t={'apk'}),
     }
 
