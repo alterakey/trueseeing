@@ -970,6 +970,7 @@ class EngageCommand(CommandMixin):
     from time import time
     from trueseeing.core.android.device import AndroidDevice
     from trueseeing.core.tools import invoke_passthru
+    from pathlib import Path
 
     at = time()
     dev = AndroidDevice()
@@ -980,8 +981,16 @@ class EngageCommand(CommandMixin):
     await dev.invoke_adb('shell "cd /data/local/tmp && ./frida-server &"')
 
     ui.info(f"starting frida on {pkg}")
-    scripts_str = ' '.join([f"-l {s}" for s in scripts])
-    await invoke_passthru(f"frida -U {pkg} {scripts_str}")
+    scripts_str = []
+    for s in scripts:
+      p = Path(s)
+      if p.is_file():
+        scripts_str.append(f"-l {p}")
+      elif p.is_dir():
+        scripts_str.extend([f"-l {m}" for m in p.rglob('*.js')])
+      else:
+        ui.warn(f"ignoring unknown path: {p}")
+    await invoke_passthru(f"frida -U {pkg} {' '.join(scripts_str)}")
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
