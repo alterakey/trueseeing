@@ -157,7 +157,7 @@ def pack_as_output(src: str, dst: str, prefix: str, subformat: str, divisor: Opt
   if subformat in ['gz']:
     kwargs.update(dict(compresslevel=3))
 
-  with tarfile.open(dst, 'w:{}'.format(subformat), **kwargs) as tf:  # type: ignore[arg-type]
+  with tarfile.open(dst, 'w:{}'.format(subformat), **kwargs) as tf:  # type: ignore[call-overload]
     for sp, dns, fns in os.walk(src, topdown=False):
       dp = os.path.join(prefix, os.path.relpath(sp, src))
       for dn in dns:
