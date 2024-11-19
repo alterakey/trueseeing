@@ -216,7 +216,7 @@ class AssembleCommand(CommandMixin):
       if subformat in ['gz']:
         kwargs.update(dict(compresslevel=3))
 
-      with tarfile.open(root, 'w:{}'.format(subformat), **kwargs) as tf:  # type: ignore[arg-type]
+      with tarfile.open(root, 'w:{}'.format(subformat), **kwargs) as tf:  # type: ignore[call-overload]
         now = int(time.time())
         for path,blob in q.file_enum(pat=pat, regex=True):
           target = os.path.join('files', *path.split('/'))
