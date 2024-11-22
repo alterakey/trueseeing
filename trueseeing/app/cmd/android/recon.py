@@ -268,7 +268,7 @@ class ReconCommand(CommandMixin):
       if not m:
         raise DumpFailedError(msg)
       tmpfn = m.group(1)
-      return await dev.invoke_adb(f'shell "cat {tmpfn}; rm {tmpfn}"')
+      return await dev.invoke_adb(f"shell 'cat {tmpfn}; rm {tmpfn}'")
     except CalledProcessError as e:
       raise DumpFailedError(e)
 
@@ -276,11 +276,11 @@ class ReconCommand(CommandMixin):
     from subprocess import CalledProcessError
     dev = AndroidDevice()
     try:
-      async for msg in dev.invoke_adb_streaming(r'shell "while (true) do uiautomator dump /sdcard/dump-\$(date +%s).xml; sleep {delay}; done"'.format(delay=delay)):
+      async for msg in dev.invoke_adb_streaming(r"shell 'while (true) do uiautomator dump /sdcard/dump-$(date +%s).xml; sleep {delay}; done'".format(delay=delay)):
         m = re.search(r'dumped to: (/.*)', msg.decode())
         if m:
           tmpfn = m.group(1)
-          yield await dev.invoke_adb(f'shell "cat {tmpfn}; rm {tmpfn}"')
+          yield await dev.invoke_adb(f"shell 'cat {tmpfn}; rm {tmpfn}'")
     except CalledProcessError as e:
       raise DumpFailedError(e)
 
@@ -292,7 +292,7 @@ class ReconCommand(CommandMixin):
 
     dev = AndroidDevice()
     try:
-      async for msg in dev.invoke_adb_streaming(r'shell "while (true) do (find -H /storage -mtime -{thres}s -print0 | xargs -0 ls -nlld); echo \"*\"; sleep {delay}; done"'.format(delay=delay, thres=int(delay*3.))):
+      async for msg in dev.invoke_adb_streaming(r"shell 'while (true) do (find -H /storage -mtime -{thres}s -print0 | xargs -0 ls -nlld); echo \"*\"; sleep {delay}; done'".format(delay=delay, thres=int(delay*3.))):
         msg = msg.rstrip()
         if not msg.startswith(b'*'):
           m = re.fullmatch(r'(.*00) (.+?)'.encode('latin1'), msg)

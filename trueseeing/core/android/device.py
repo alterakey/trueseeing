@@ -57,5 +57,5 @@ class AndroidDevice:
     return 'backup either' in out
 
   async def is_package_debuggable(self, package: str) -> bool:
-    out = await self.invoke_adb(f'shell "run-as {package} ls" 2>&1 || exit 0')
+    out = await self.invoke_adb(f"shell 'run-as {package} ls' 2>&1 || exit 0")
     return 'package not debuggable' not in out
