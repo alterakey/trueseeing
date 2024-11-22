@@ -564,7 +564,7 @@ class EngageCommand(CommandMixin):
 
         tfn0 = self._generate_tempfilename_for_device()
         ui.info('copying internal storage')
-        await dev.invoke_adb_passthru(f'shell "run-as {target} tar -cv . > {tfn0}"')
+        await dev.invoke_adb_passthru(f"shell 'run-as {target} tar -cv . > {tfn0}'")
         await dev.invoke_adb_passthru(f'pull {tfn0} {quote(outfn0)}')
         await dev.invoke_adb_passthru(f'shell rm -f {tfn0}')
         ui.success(f'copied out: {outfn0}')
@@ -572,7 +572,7 @@ class EngageCommand(CommandMixin):
         ui.info('copying external storage')
         tfn1 = self._generate_tempfilename_for_device()
         try:
-          await dev.invoke_adb_passthru(f'shell "cd /storage/emulated/0/Android/ && tar -cv data/{target} obb/{target} > {tfn1}"')
+          await dev.invoke_adb_passthru(f"shell 'cd /storage/emulated/0/Android/ && tar -cv data/{target} obb/{target} > {tfn1}'")
         except CalledProcessError:
           ui.warn('detected errors during extraction from external storage (may indicate partial extraction)')
         await dev.invoke_adb_passthru(f'pull {tfn1} {quote(outfn1)}')
@@ -658,7 +658,7 @@ class EngageCommand(CommandMixin):
         else:
           tfn0 = self._generate_tempfilename_for_device()
           await dev.invoke_adb_passthru(f'push {quote(fn0)} {tfn0}')
-          await dev.invoke_adb_passthru(f'shell "run-as {target} tar -xv < {tfn0}; rm -f {tfn0}"')
+          await dev.invoke_adb_passthru(f"shell 'run-as {target} tar -xv < {tfn0}; rm -f {tfn0}'")
           ui.success(f'copied in: {fn}')
           success = True
 
@@ -668,7 +668,7 @@ class EngageCommand(CommandMixin):
         else:
           tfn1 = self._generate_tempfilename_for_device()
           await dev.invoke_adb_passthru(f'push {quote(fn1)} {tfn1}')
-          await dev.invoke_adb_passthru(f'shell "cd /storage/emulated/0/Android/ && tar -xv < {tfn1}; rm -f {tfn1}"')
+          await dev.invoke_adb_passthru(f"shell 'cd /storage/emulated/0/Android/ && tar -xv < {tfn1}; rm -f {tfn1}'")
           ui.success(f'copied in: {fn1}')
           success = True
 
@@ -981,8 +981,8 @@ class EngageCommand(CommandMixin):
 
     if force:
       ui.warn("killing frida-server if any")
-      await dev.invoke_adb('shell "killall frida-server || exit 0"')
-    await dev.invoke_adb('shell "cd /data/local/tmp && ./frida-server &"')
+      await dev.invoke_adb("shell 'killall frida-server || exit 0'")
+    await dev.invoke_adb("shell 'cd /data/local/tmp && ./frida-server &'")
 
     ui.info(f"starting frida on {pkg}")
     scripts_str = []
