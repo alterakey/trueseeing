@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 import lxml.etree as ET
 import os
 import re
-import shlex
 from functools import cache
 
 from pubsub import pub
@@ -386,6 +385,7 @@ class XAPKContext(APKContext):
     return self._disasm
 
   async def _analyze(self, level: int) -> None:
+    from shlex import quote
     from tempfile import TemporaryDirectory
     with TemporaryDirectory(dir=self.wd) as td:
       from trueseeing.core.tools import invoke_streaming
@@ -394,7 +394,7 @@ class XAPKContext(APKContext):
       with toolchains() as tc:
         async for l in invoke_streaming('java -jar {apkeditor} m -i {target} -o {outfile}'.format(
             apkeditor=tc['apkeditor'],
-            target=shlex.quote(self.target),
+            target=quote(self.target),
             outfile=outfile,
         )):
           ui.info(l.decode())
