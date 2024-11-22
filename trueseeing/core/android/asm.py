@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 import os
 import os.path
-import shlex
 
 from pubsub import pub
 
@@ -31,6 +30,7 @@ class APKDisassembler:
   async def _do(self, level: int) -> None:
     import glob
     import shutil
+    from shlex import quote
     from trueseeing.core.tools import invoke_streaming
     from trueseeing.core.android.tools import toolchains
 
@@ -45,7 +45,7 @@ class APKDisassembler:
         with toolchains() as tc:
           async for l in invoke_streaming(r'java -jar {apkeditor} d -i {apk} {suppressor} -o files'.format(
               apkeditor=tc['apkeditor'],
-              apk=shlex.quote(self._target),
+              apk=quote(self._target),
               suppressor='-dex' if level < 3 else '',
           ), redir_stderr=True):
             pub.sendMessage('progress.core.asm.lift.update')
@@ -76,6 +76,7 @@ class APKDisassembler:
   @classmethod
   async def disassemble_to_path(cls, target: str, path: str, nodex: bool = False, merge: bool = False) -> None:
     import os
+    from shlex import quote
     from tempfile import TemporaryDirectory
     from trueseeing.core.tools import invoke_streaming
     from trueseeing.core.android.tools import toolchains
@@ -108,10 +109,10 @@ class APKDisassembler:
 
       async for l in invoke_streaming(
         '(java -jar {apkeditor} d -o {path} -i {apk} {s})'.format(
-          apk=shlex.quote(apk),
+          apk=quote(apk),
           s='-dex' if nodex else '',
           apkeditor=tc['apkeditor'],
-          path=path,
+          path=quote(path),
         ), redir_stderr=True
       ):
         pub.sendMessage('progress.core.asm.disasm.update')
@@ -122,6 +123,7 @@ class APKAssembler:
   @classmethod
   async def assemble_from_path(cls, wd: str, path: str) -> Tuple[str, str]:
     import os
+    from shlex import quote
     from trueseeing.core.tools import invoke_streaming
     from trueseeing.core.android.tools import toolchains
 
@@ -130,7 +132,7 @@ class APKAssembler:
     with toolchains() as tc:
       async for l in invoke_streaming(
         '(java -jar {apkeditor} b -i {path} -o {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
-          wd=wd, path=shlex.quote(path),
+          wd=quote(wd), path=quote(path),
           apkeditor=tc['apkeditor'],
           apksigner=tc['apksigner'],
           keystore=await SigningKey().key(),
@@ -145,6 +147,7 @@ class APKAssembler:
   @classmethod
   async def merge_slices(cls, xapk: str, wd: str) -> Tuple[str, str]:
     import os
+    from shlex import quote
     from trueseeing.core.tools import invoke_streaming
     from trueseeing.core.android.tools import toolchains
 
@@ -153,7 +156,7 @@ class APKAssembler:
     with toolchains() as tc:
       async for l in invoke_streaming(
         'java -jar {apkeditor} m -i {xapk} -o {wd}/output.apk'.format(
-          wd=wd, xapk=shlex.quote(xapk),
+          wd=wd, xapk=quote(xapk),
           apkeditor=tc['apkeditor'],
         ), redir_stderr=True
       ):
@@ -176,6 +179,7 @@ class SigningKey:
     return self._path
 
   async def _generate(self) -> None:
+    from shlex import quote
     from trueseeing.core.tools import invoke_passthru
     ui.info("generating key for repackaging")
-    await invoke_passthru(f'keytool -genkey -v -keystore {self._path} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')
+    await invoke_passthru(f'keytool -genkey -v -keystore {quote(self._path)} -alias androiddebugkey -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000')

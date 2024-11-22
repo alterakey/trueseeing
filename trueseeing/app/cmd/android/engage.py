@@ -516,6 +516,7 @@ class EngageCommand(CommandMixin):
     ui.info(f'copying out: {target} -> {outfn}')
 
     import time
+    from shlex import quote
     from subprocess import CalledProcessError
     from trueseeing.core.tools import invoke_passthru
     from trueseeing.core.android.device import AndroidDevice
@@ -534,7 +535,7 @@ class EngageCommand(CommandMixin):
           with toolchains() as tc:
             await invoke_passthru('java -jar {abe} unpack {outfn}.ab {outfn} 1'.format(
               abe=tc['abe'],
-              outfn=outfn,
+              outfn=quote(outfn),
             ))
         except CalledProcessError:
           ui.warn('unpack failed (did you give the correct password?); trying the next method')
@@ -564,7 +565,7 @@ class EngageCommand(CommandMixin):
         tfn0 = self._generate_tempfilename_for_device()
         ui.info('copying internal storage')
         await dev.invoke_adb_passthru(f'shell "run-as {target} tar -cv . > {tfn0}"')
-        await dev.invoke_adb_passthru(f'pull {tfn0} {outfn0}')
+        await dev.invoke_adb_passthru(f'pull {tfn0} {quote(outfn0)}')
         await dev.invoke_adb_passthru(f'shell rm -f {tfn0}')
         ui.success(f'copied out: {outfn0}')
 
@@ -574,7 +575,7 @@ class EngageCommand(CommandMixin):
           await dev.invoke_adb_passthru(f'shell "cd /storage/emulated/0/Android/ && tar -cv data/{target} obb/{target} > {tfn1}"')
         except CalledProcessError:
           ui.warn('detected errors during extraction from external storage (may indicate partial extraction)')
-        await dev.invoke_adb_passthru(f'pull {tfn1} {outfn1}')
+        await dev.invoke_adb_passthru(f'pull {tfn1} {quote(outfn1)}')
         await dev.invoke_adb_passthru(f'shell rm -f {tfn1}')
         ui.success(f'copied out: {outfn1}')
 
@@ -609,6 +610,7 @@ class EngageCommand(CommandMixin):
     ui.info(f'copying in: {fn} -> {target}')
 
     import time
+    from shlex import quote
     from subprocess import CalledProcessError
     from trueseeing.core.tools import invoke_passthru
     from trueseeing.core.android.device import AndroidDevice
@@ -628,14 +630,14 @@ class EngageCommand(CommandMixin):
             with toolchains() as tc:
               await invoke_passthru('java -jar {abe} pack-kk {fn} {fn}.ab 1'.format(
                 abe=tc['abe'],
-                fn=fn,
+                fn=quote(fn),
               ))
           except CalledProcessError:
             ui.warn('pack failed; trying the next method')
           else:
             ui.success('pack success')
             ui.info('initiating a restore on device; give "1" as the password if asked')
-            await dev.invoke_adb_passthru(f'restore {fn}.ab')
+            await dev.invoke_adb_passthru(f'restore {quote(fn)}.ab')
             ui.success(f'copied in: {fn}')
             success = True
         finally:
@@ -652,20 +654,20 @@ class EngageCommand(CommandMixin):
 
         ui.info('copying internal storage')
         if not os.path.exists(fn0):
-          ui.warn('data not found: {fn0}')
+          ui.warn(f'data not found: {fn0}')
         else:
           tfn0 = self._generate_tempfilename_for_device()
-          await dev.invoke_adb_passthru(f'push {fn0} {tfn0}')
+          await dev.invoke_adb_passthru(f'push {quote(fn0)} {tfn0}')
           await dev.invoke_adb_passthru(f'shell "run-as {target} tar -xv < {tfn0}; rm -f {tfn0}"')
           ui.success(f'copied in: {fn}')
           success = True
 
         ui.info('copying external storage')
         if not os.path.exists(fn1):
-          ui.warn('data not found: {fn1}')
+          ui.warn(f'data not found: {fn1}')
         else:
           tfn1 = self._generate_tempfilename_for_device()
-          await dev.invoke_adb_passthru(f'push {fn1} {tfn1}')
+          await dev.invoke_adb_passthru(f'push {quote(fn1)} {tfn1}')
           await dev.invoke_adb_passthru(f'shell "cd /storage/emulated/0/Android/ && tar -xv < {tfn1}; rm -f {tfn1}"')
           ui.success(f'copied in: {fn1}')
           success = True
@@ -782,6 +784,7 @@ class EngageCommand(CommandMixin):
     apk = context.target
 
     from time import time
+    from shlex import quote
     from pubsub import pub
     from trueseeing.core.ui import AndroidInstallProgressReporter
     from trueseeing.core.android.device import AndroidDevice
@@ -805,7 +808,7 @@ class EngageCommand(CommandMixin):
     with AndroidInstallProgressReporter().scoped():
       pub.sendMessage('progress.android.adb.begin', what='installing ... ')
       try:
-        async for l in dev.invoke_adb_streaming(f'install --no-streaming {apk}', redir_stderr=True):
+        async for l in dev.invoke_adb_streaming(f'install --no-streaming {quote(apk)}', redir_stderr=True):
           pub.sendMessage('progress.android.adb.update')
           if b'failure' in l.lower():
             ui.stderr('')
@@ -914,7 +917,7 @@ class EngageCommand(CommandMixin):
             ui.warn('target has only one slice; using apk format')
             outfn = outfn.replace('.xapk', '.apk')
           ui.info('getting {nr} slice'.format(nr=len(splits)))
-          await dev.invoke_adb('pull {path}/base.apk {outfn}'.format(path=quote(basepath.decode()), outfn=outfn))
+          await dev.invoke_adb('pull {path}/base.apk {outfn}'.format(path=quote(basepath.decode()), outfn=quote(outfn)))
         else:
           if outfn.endswith('.apk'):
             ui.warn('target has multiple slices; using xapk format')
@@ -968,6 +971,7 @@ class EngageCommand(CommandMixin):
     ui.info("starting frida-server")
 
     from time import time
+    from shlex import quote
     from trueseeing.core.android.device import AndroidDevice
     from trueseeing.core.tools import invoke_passthru
     from pathlib import Path
@@ -985,9 +989,9 @@ class EngageCommand(CommandMixin):
     for s in scripts:
       p = Path(s)
       if p.is_file():
-        scripts_str.append(f"-l {p}")
+        scripts_str.append(f"-l {quote(str(p))}")
       elif p.is_dir():
-        scripts_str.extend([f"-l {m}" for m in p.rglob('*.js')])
+        scripts_str.extend([f"-l {quote(str(m))}" for m in p.rglob('*.js')])
       else:
         ui.warn(f"ignoring unknown path: {p}")
     await invoke_passthru(f"frida -U {pkg} {' '.join(scripts_str)}")
