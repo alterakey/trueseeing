@@ -7,7 +7,7 @@ from trueseeing.core.android.model import Op
 if TYPE_CHECKING:
   from typing import Optional, Iterator
   from trueseeing.core.store import Store
-  from trueseeing.core.android.model import InvocationPattern
+  from trueseeing.core.android.model import InvocationPattern, Call
 
 class APKStorePrep(StorePrep):
   def stage1(self) -> None:
@@ -134,3 +134,26 @@ class APKQuery(Query):
     stmt1 = 'select addr, l from ops join map on (addr between low and high) where method=:method_name and class=:class_name'
     for addr, l in self.db.execute(stmt1 if method_name else stmt0, dict(class_name=class_name, method_name=method_name)):
       yield Op(addr, l)
+
+  def call_add_batch(self, gen: Iterator[Call]) -> None:
+    stmt0 = 'insert into ncalls (priv, cpp, target, path, sect, offs) values (:priv, :cpp, :target, :path, :sect, :offs)'
+    self.db.executemany(stmt0, gen)
+
+  def call_count(self) -> int:
+    stmt0 = 'select count(1) from ncalls'
+    for n, in self.db.execute(stmt0):
+      return n # type:ignore[no-any-return]
+    return 0
+
+  def calls(self, priv: bool = False, api: bool = False) -> Iterator[Call]:
+    stmt0 = 'select priv, cpp, target, path, sect, offs from ncalls'
+    stmt1 = 'select priv, cpp, target, path, sect, offs from ncalls where priv=:is_priv'
+    for priv, cpp, target, path, sect, offs in self.db.execute(stmt1 if (priv or api) else stmt0, dict(is_priv=priv)):
+      yield dict(
+        path=path,
+        sect=sect,
+        offs=offs,
+        priv=priv,
+        cpp=cpp,
+        target=target,
+      )

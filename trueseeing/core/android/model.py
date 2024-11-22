@@ -27,6 +27,14 @@ if TYPE_CHECKING:
     target_sdk_version: str
     permissions: List[str]
 
+  class Call(TypedDict):
+    path: str
+    sect: str
+    offs: int
+    priv: bool
+    cpp: bool
+    target: str
+
 class Op(NamedTuple):
   addr: int
   l: str

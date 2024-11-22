@@ -61,4 +61,4 @@ def get_device_frida_dir(package_name: str) -> str:
 
 @cache
 def get_cache_schema_id() -> int:
-  return 0x190b4df6  # FIXME: remember to randomize this whenever incompatible changes occur on cache file structure, or DB schema
+  return 0x54f6d672  # FIXME: remember to randomize this whenever incompatible changes occur on cache file structure, or DB schema
