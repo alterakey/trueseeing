@@ -13,11 +13,11 @@ from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v
 from trueseeing.core.context import Context
 
 if TYPE_CHECKING:
-  from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set, AsyncIterator
+  from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set, AsyncIterator, Iterator, Mapping
   from trueseeing.core.context import ContextType, ContextInfo
   from trueseeing.core.android.asm import APKDisassembler
   from trueseeing.core.android.store import APKStore
-  from trueseeing.core.android.model import XAPKManifest
+  from trueseeing.core.android.model import XAPKManifest, Call
 
 class PackageNameReader:
   @cache
@@ -117,6 +117,16 @@ class APKContext(Context):
     return APKDisassembler(self)
 
   async def _analyze(self, level: int) -> None:
+    from time import time
+
+    at = time()
+
+    await self._analyze_dalvik(level)
+    await self._analyze_native(level)
+
+    pub.sendMessage('progress.core.analysis.done', t=time()-at)
+
+  async def _analyze_dalvik(self, level: int) -> None:
     pub.sendMessage('progress.core.context.disasm.begin')
     disasm = await self._get_disassembler()
     await disasm.disassemble(level)
@@ -227,6 +237,45 @@ class APKContext(Context):
           c.execute('insert into ops (addr, l, map_id) select addr, l, map_id from _tmp_ops join _tmp_ops_map using (addr)')
           c.execute('analyze')
           pub.sendMessage('progress.core.analysis.smali.done', t=time.time() - started)
+
+  async def _analyze_native(self, level: int) -> None:
+    if level > 2:
+      tarpath = os.path.join(os.path.dirname(self._path), 'disasm.tar.gz')
+      if not os.path.exists(tarpath):
+        ui.warn(f'skipping native code analysis; prepare {tarpath}')
+        return
+
+      from time import time
+      at = time()
+
+      with self.store().query().scoped() as q:
+        pub.sendMessage('progress.core.analysis.nat.begin')
+        import tarfile
+        with tarfile.open(tarpath) as tf:
+          q.file_put_batch(dict(path=i.name, blob=tf.extractfile(i).read(), z=True) for i in tf.getmembers() if (i.isreg() or i.islnk())) # type:ignore[union-attr]
+
+        if level > 3:
+          pub.sendMessage('progress.core.analysis.nat.analyzing')
+          from trueseeing.core.android.analysis.nat import analyze_api_in
+
+          def _as_call(g: Iterator[Mapping[str, Any]]) -> Iterator[Call]:
+            for e in g:
+              typ = e['typ']
+              lang = e['lang']
+              sect, offs = e['origin'].split('+')
+              yield dict(
+                path=e['fn'],
+                sect=sect,
+                offs=int(offs.strip(), 16),
+                priv=(typ == 'private'),
+                cpp=(lang == 'cpp'),
+                target=e['call']
+              )
+
+          q.call_add_batch(_as_call(analyze_api_in(q.file_enum('lib/%'))))
+          pub.sendMessage('progress.core.analysis.nat.summary', calls=q.call_count())
+
+      pub.sendMessage('progress.core.analysis.nat.done', t=time() - at)
 
   def get_package_name(self) -> str:
     return self._package_reader.read(self.target)

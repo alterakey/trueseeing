@@ -79,10 +79,10 @@ class Query:
     else:
       return default
 
-  def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> Iterable[Tuple[str, bytes]]:
+  def file_enum(self, pat: Optional[str], patched: bool = False, regex: bool = False, neg: bool = False) -> Iterable[Tuple[str, bytes]]:
     if pat is not None:
-      stmt0 = 'select path, z, blob from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select path, coalesce(B.z, A.z) as z, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt0 = 'select path, z, blob from files where {neg} path {op} :pat'.format(neg='not' if neg else '', op=('like' if not regex else 'regexp'))
+      stmt1 = 'select path, coalesce(B.z, A.z) as z, coalesce(B.blob, A.blob) as blob from files as A full outer join patches as B using (path) where {neg} path {op} :pat'.format(neg='not' if neg else '', op=('like' if not regex else 'regexp'))
       for n, z, o in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
         yield n, zd(o) if z else o
     else:
@@ -91,10 +91,10 @@ class Query:
       for n, z, o in self.db.execute(stmt3 if patched else stmt2):
         yield n, zd(o) if z else o
 
-  def file_count(self, pat: Optional[str], patched: bool = False, regex: bool = False) -> int:
+  def file_count(self, pat: Optional[str], patched: bool = False, regex: bool = False, neg: bool = False) -> int:
     if pat is not None:
-      stmt0 = 'select count(1) from files where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
-      stmt1 = 'select conut(1) from files as A full outer join patches as B using (path) where path {op} :pat'.format(op=('like' if not regex else 'regexp'))
+      stmt0 = 'select count(1) from files where {neg} path {op} :pat'.format(neg='not' if neg else '', op=('like' if not regex else 'regexp'))
+      stmt1 = 'select conut(1) from files as A full outer join patches as B using (path) where {neg} path {op} :pat'.format(neg='not' if neg else '', op=('like' if not regex else 'regexp'))
       for nr, in self.db.execute(stmt1 if patched else stmt0, dict(pat=pat)):
         return nr # type:ignore[no-any-return]
     else:

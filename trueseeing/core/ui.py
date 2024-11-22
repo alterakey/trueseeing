@@ -194,6 +194,11 @@ class CoreProgressReporter:
       'progress.core.analysis.smali.summary':self._core_analysis_smali_summary,
       'progress.core.analysis.smali.finalizing':self._core_analysis_smali_finalizing,
       'progress.core.analysis.smali.done':self._core_analysis_smali_done,
+      'progress.core.analysis.nat.begin':self._core_analysis_nat_begin,
+      'progress.core.analysis.nat.analyzing':self._core_analysis_nat_analyzing,
+      'progress.core.analysis.nat.summary':self._core_analysis_nat_summary,
+      'progress.core.analysis.nat.done':self._core_analysis_nat_done,
+      'progress.core.analysis.done':self._core_analysis_done,
     }
     try:
       for k, v in submap.items():
@@ -330,6 +335,21 @@ class CoreProgressReporter:
     ui.info("analyze: finalizing")
 
   def _core_analysis_smali_done(self, t: float) -> None:
+    ui.info(f"analyze: done ({t:.02f} sec)")
+
+  def _core_analysis_nat_begin(self) -> None:
+    ui.info('analyze_nat: analyzing...', nl=False)
+
+  def _core_analysis_nat_analyzing(self) -> None:
+    ui.info('analyze_nat: calls ...{tail}'.format(tail=' '*20), ow=True, nl=False)
+
+  def _core_analysis_nat_summary(self, calls: Optional[int] = None) -> None:
+    ui.info(f'analyze_nat: got {calls} calls', ow=True)
+
+  def _core_analysis_nat_done(self, t: float) -> None:
+    ui.info(f"analyze_nat: done ({t:.02f} sec)")
+
+  def _core_analysis_done(self, t: float) -> None:
     ui.info(f"analyze: done ({t:.02f} sec)")
 
 class FileTransferProgressReporter:
