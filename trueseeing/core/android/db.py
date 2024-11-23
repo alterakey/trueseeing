@@ -16,7 +16,8 @@ class APKStorePrep(StorePrep):
     self.c.executescript((files('trueseeing')/'libs'/'android'/'store.0.sql').read_text())
 
   def stage2(self) -> None:
-    pass
+    from importlib.resources import files
+    self.c.executescript((files('trueseeing')/'libs'/'android'/'store.1.sql').read_text())
 
   def _get_cache_schema_id(self) -> int:
     return super()._get_cache_schema_id() ^ 0x48d42899
