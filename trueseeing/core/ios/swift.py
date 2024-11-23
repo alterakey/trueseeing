@@ -81,7 +81,8 @@ class _Remote:
   _sess: Optional[ClientSession] = None
 
   def __init__(self, simplify: bool = False):
-    self._url = 'http://127.0.0.1:8000/{}'.format('s/' if simplify else '')
+    from trueseeing.core.env import get_swift_demangler_url
+    self._url = '{base}{prefix}'.format(base=get_swift_demangler_url(), prefix='/s/' if simplify else '/')
 
   @asynccontextmanager
   async def scoped(self) -> AsyncIterator[Self]:

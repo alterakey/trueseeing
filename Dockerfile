@@ -22,5 +22,6 @@ env TS2_IN_DOCKER=1
 env TS2_CACHEDIR=/cache
 env TS2_HOME=/data
 env TS2_EXTDIR=/ext
+env TS2_SWIFT_DEMANGLER_URL=http://ts2-swift-demangle
 workdir /out
 entrypoint ["trueseeing"]
