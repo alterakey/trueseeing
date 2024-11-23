@@ -7,7 +7,7 @@ if TYPE_CHECKING:
   from typing import Optional, TypedDict, Dict, List
   from trueseeing.api import SignatureHelper, ConfigMap
   from trueseeing.core.android.context import APKContext
-  from trueseeing.core.android.analysis.op import OpAnalyzer
+  from trueseeing.core.android.analyze.op import OpAnalyzer
 
   class XAPKSliceMember(TypedDict):
     id: str
@@ -60,7 +60,7 @@ class SignatureMixin(Signature):
   @property
   def _an(self) -> OpAnalyzer:
     if self.__an is None:
-      from trueseeing.core.android.analysis.op import OpAnalyzer
+      from trueseeing.core.android.analyze.op import OpAnalyzer
       self.__an = OpAnalyzer()
     return self.__an
 

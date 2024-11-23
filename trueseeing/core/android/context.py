@@ -256,7 +256,7 @@ class APKContext(Context):
 
         if level > 3:
           pub.sendMessage('progress.core.analysis.nat.analyzing')
-          from trueseeing.core.android.analysis.nat import analyze_api_in
+          from trueseeing.core.android.analyze.nat import analyze_api_in
 
           def _as_call(g: Iterator[Mapping[str, Any]]) -> Iterator[Call]:
             for e in g:

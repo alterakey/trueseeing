@@ -6,7 +6,7 @@ import re
 
 from trueseeing.core.android.model import InvocationPattern
 from trueseeing.core.android.model import SignatureMixin
-from trueseeing.core.android.analysis.flow import DataFlow
+from trueseeing.core.android.analyze.flow import DataFlow
 
 if TYPE_CHECKING:
   from typing import Iterable, Optional, List, Dict, Any, Set

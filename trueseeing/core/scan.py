@@ -36,7 +36,7 @@ class Scanner:
     import asyncio
     from pubsub import pub
     from trueseeing.core.exc import InvalidContextError
-    from trueseeing.core.android.analysis.flow import DataFlow
+    from trueseeing.core.android.analyze.flow import DataFlow
     from trueseeing.core.ui import ui
     with DataFlow.apply_max_graph_size(self._max_graph_size):
       with self._apply_excludes_on_context():

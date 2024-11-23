@@ -75,7 +75,7 @@ class ShowCommand(CommandMixin):
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
 
-    from trueseeing.core.android.analysis.flow import DataFlow
+    from trueseeing.core.android.analyze.flow import DataFlow
     with DataFlow.apply_max_graph_size(limit):
       context = await self._helper.get_context().require_type('apk').analyze()
       store = context.store()
@@ -112,7 +112,7 @@ class ShowCommand(CommandMixin):
 
     limit = self._helper.get_graph_size_limit(self._helper.get_modifiers(args))
 
-    from trueseeing.core.android.analysis.flow import DataFlow
+    from trueseeing.core.android.analyze.flow import DataFlow
     with DataFlow.apply_max_graph_size(limit):
       context = await self._helper.get_context().require_type('apk').analyze()
       store = context.store()
