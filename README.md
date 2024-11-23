@@ -5,7 +5,7 @@
 ![Main branch deploy status](https://github.com/alterakey/trueseeing/workflows/deploy/badge.svg)
 ![Main branch last commit](https://img.shields.io/github/last-commit/alterakey/trueseeing/main)
 
-trueseeing is a fast, accurate and resillient vulnerability scanner for Android apps.  We operate on the Dalvik VM level -- i.e. we don't care if the target app is obfuscated or not.
+trueseeing is a fast, accurate and resillient vulnerability scanner for iOS/Android apps.  We operate on the Dalvik VM level for Android -- i.e. we don't care if the target app is obfuscated or not.
 
 ## Capability
 
@@ -17,6 +17,8 @@ Currently we can:
 * Copy in/out app data through debug interface
 * Search for certain calls/consts/sput/iput
 * Deduce constants/typesets for args of op
+* Scan API/private calls for native codes (NB: you need [ts2-disasm-ghidra](https://github.com/alterakey/ts2-disasm-ghidra))
+* Scan iOS apps for basic vulnerabilities (NB: you need [ts2-disasm-ghidra](https://github.com/alterakey/ts2-disasm-ghidra))
 * etc.
 
 ## Installation
@@ -50,7 +52,7 @@ Alternatively, you can install our package with pip as follows. This form of ins
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
     $ trueseeing target.apk
-    [+] trueseeing 2.2.4
+    [+] trueseeing 2.2.5
     ts[target.apk]> ?
     ...
     ts[target.apk]> i                      # show generic information
