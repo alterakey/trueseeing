@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 from trueseeing.core.ui import ui
 from trueseeing.core.android.model import Op
-from trueseeing.core.android.analysis.op import OpAnalyzer
+from trueseeing.core.android.analyze.op import OpAnalyzer
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Mapping, Set, Optional, FrozenSet, Union, Dict, Iterator

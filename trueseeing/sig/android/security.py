@@ -8,7 +8,7 @@ import os
 
 from trueseeing.core.android.model import InvocationPattern
 from trueseeing.core.android.model import SignatureMixin
-from trueseeing.core.android.analysis.flow import DataFlow
+from trueseeing.core.android.analyze.flow import DataFlow
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:

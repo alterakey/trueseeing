@@ -93,7 +93,7 @@ class Shell:
       except OSError as e:
         ui.fatal(f'cannot open script file: {e}')
     if args.scan_max_graph_size:
-      from trueseeing.core.android.analysis.flow import DataFlow
+      from trueseeing.core.android.analyze.flow import DataFlow
       DataFlow.set_max_graph_size(args.scan_max_graph_size)
     if args.version:
       ui.stderr(self._version())

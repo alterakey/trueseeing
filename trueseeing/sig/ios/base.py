@@ -83,7 +83,7 @@ class IOSDetector(Signature):
           ))
 
   async def _detect_url(self) -> None:
-    from trueseeing.core.ios.analyze import analyze_url_in
+    from trueseeing.core.analyze import analyze_url_in
     q: IPAQuery
     context = self._get_ipa_context()
     with context.store().query().scoped() as q:

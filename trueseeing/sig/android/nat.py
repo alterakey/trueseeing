@@ -57,7 +57,7 @@ class NativeCodeDetector(Signature):
         ))
 
   async def _detect_url(self) -> None:
-    from trueseeing.core.android.analysis.nat import analyze_url_in
+    from trueseeing.core.analyze import analyze_url_in
     context = self._get_context()
     with context.store().query().scoped() as q:
       for d in analyze_url_in(q.file_enum('lib/%', neg=True)):
