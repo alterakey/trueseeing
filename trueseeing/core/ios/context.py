@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 import os
 import os.path
 
+from pubsub import pub
+
 from trueseeing.core.context import Context, Fingerprint
 from trueseeing.core.env import get_cache_dir
 from trueseeing.core.ui import ui
@@ -76,13 +78,14 @@ class IPAContext(Context):
       if not os.path.exists(tarpath):
         ui.fatal(f'prepare {tarpath}')
       with self.store().query().scoped() as q:
+        pub.sendMessage('progress.core.analysis.nat.begin')
         import tarfile
         with tarfile.open(tarpath) as tf:
           q.file_put_batch(dict(path=f'disasm/{i.name}', blob=tf.extractfile(i).read(), z=True) for i in tf.getmembers() if (i.isreg() or i.islnk())) # type:ignore[union-attr]
 
         if level > 3:
-          ui.info('analyze: calls ...', nl=False)
-          from .analyze import analyze_api_in
+          pub.sendMessage('progress.core.analysis.nat.analyzing')
+          from trueseeing.core.ios.analyze import analyze_api_in
 
           def _as_call(g: Iterator[Mapping[str, Any]]) -> Iterator[Call]:
             for e in g:
@@ -101,4 +104,4 @@ class IPAContext(Context):
               )
 
           q.call_add_batch(_as_call(analyze_api_in(q.file_enum('disasm/%'))))
-          ui.info('analyze: got {} calls'.format(q.call_count()), ow=True)
+          pub.sendMessage('progress.core.analysis.nat.summary', calls=q.call_count())
