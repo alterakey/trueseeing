@@ -1,0 +1,1 @@
+create table ncalls (nr integer primary key, priv boolean not null, swift boolean not null, cpp boolean not null, objc boolean not null, target varchar not null, path varchar not null, sect varchar not null, offs integer not null);
