@@ -10,7 +10,7 @@ from pubsub import pub
 
 from trueseeing.core.ui import ui
 from trueseeing.core.env import get_cache_dir, get_cache_dir_v0, get_cache_dir_v1
-from trueseeing.core.context import Context
+from trueseeing.core.context import Context, Fingerprint
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set, AsyncIterator, Iterator, Mapping
@@ -38,13 +38,6 @@ class PackageNameReader:
         return pkg
     else:
       raise ValueError('format unknown')
-
-class Fingerprint:
-  @cache
-  def get(self, path: str) -> str:
-    from hashlib import sha256
-    with open(path, 'rb') as f:
-      return sha256(f.read()).hexdigest()
 
 class APKContext(Context):
   _store: Optional[APKStore] = None
