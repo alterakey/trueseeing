@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, overload
 
 import os.path
 from abc import ABC, abstractmethod
+from functools import cache
 
 if TYPE_CHECKING:
   from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator, Tuple, Iterator
@@ -242,3 +243,10 @@ class Context(ABC):
     yield dict(ctx=self.wd)
     yield dict(_patch=self.has_patches())
     yield dict(_analysis=self.get_analysis_level())
+
+class Fingerprint:
+  @cache
+  def get(self, path: str) -> str:
+    from hashlib import sha256
+    with open(path, 'rb') as f:
+      return sha256(f.read()).hexdigest()

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import os
 import os.path
 
-from trueseeing.core.context import Context
+from trueseeing.core.context import Context, Fingerprint
 from trueseeing.core.env import get_cache_dir
 from trueseeing.core.ui import ui
 from trueseeing.core.ios.store import IPAStore
@@ -31,6 +31,11 @@ class IPAContext(Context):
   _path: str
   _store: Optional['IPAStore'] = None
   _type: Final[Set[ContextType]] = {'ipa', 'file'}
+  _fp = Fingerprint()
+
+  def invalidate(self) -> None:
+    super().invalidate()
+    self._fp.get.cache_clear()
 
   def _get_type(self) -> Set[ContextType]:
     return self._type
@@ -42,9 +47,7 @@ class IPAContext(Context):
     return os.stat(self._path).st_size
 
   def _get_fingerprint(self) -> str:
-    from hashlib import sha256
-    with open(self._path, 'rb') as f:
-      return sha256(f.read()).hexdigest()
+    return self._fp.get(self._path)
 
   async def _recheck_schema(self) -> None:
     pass
