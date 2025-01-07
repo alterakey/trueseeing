@@ -13,7 +13,7 @@ add https://github.com/alterakey/trueseeing-lief/raw/main/dist/lief-0.15.1-cp313
 
 from python:3.13-alpine
 run apk add --no-cache openjdk17-jre-headless zip android-tools
-run mkdir /data /ext /cache /out && ln -sfn /cache /root/.local
+run install -d -m 777 /data /ext /cache /out && ln -sfn /cache /root/.local
 copy --from=0 /tmp/build/dist/*.whl /tmp/dist/
 copy --from=1 /tmp/dist/*.whl /tmp/ext/
 run pip install -f /tmp/ext/ /tmp/dist/*.whl && rm -rf /tmp/dist /tmp/ext
