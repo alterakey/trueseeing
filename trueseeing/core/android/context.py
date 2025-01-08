@@ -235,7 +235,7 @@ class APKContext(Context):
     if level > 2:
       tarpath = os.path.join(os.path.dirname(self._path), 'disasm.tar.gz')
       if not os.path.exists(tarpath):
-        ui.warn(f'skipping native code analysis; prepare {tarpath}')
+        ui.warn(f'skipping native code analysis; prepare {tarpath} (try disassembling with ts2-disasm-ghidra)')
         return
 
       from time import time
