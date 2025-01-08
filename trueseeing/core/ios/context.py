@@ -76,7 +76,7 @@ class IPAContext(Context):
     if level > 2:
       tarpath = os.path.join(os.path.dirname(self._path), 'disasm.tar.gz')
       if not os.path.exists(tarpath):
-        ui.fatal(f'prepare {tarpath}')
+        ui.fatal(f'prepare {tarpath} (try disassembing with ts2-disasm-ghidra)')
       with self.store().query().scoped() as q:
         pub.sendMessage('progress.core.analysis.nat.begin')
         import tarfile
