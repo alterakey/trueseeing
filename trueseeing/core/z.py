@@ -1,8 +1,9 @@
 from __future__ import annotations
-import zstandard as zstd
+import pyzstd
+from trueseeing.core.env import get_cpu_count
 
 def zd(item: bytes) -> bytes:
-  return zstd.ZstdDecompressor().decompress(item)
+  return pyzstd.decompress(item)
 
 def ze(item: bytes) -> bytes:
-  return zstd.ZstdCompressor(threads=-1).compress(item)
+  return pyzstd.compress(item, level_or_option={pyzstd.CParameter.nbWorkers: get_cpu_count()})

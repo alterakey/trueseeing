@@ -74,14 +74,14 @@ class IPAContext(Context):
           q.file_put_batch(_decode(i.filename, zf.read(i)) for i in zf.infolist() if not i.is_dir())
 
     if level > 2:
-      tarpath = os.path.join(os.path.dirname(self._path), 'disasm.tar.gz')
-      if not os.path.exists(tarpath):
-        ui.fatal(f'prepare {tarpath} (try disassembing with ts2-disasm-ghidra)')
+      from trueseeing.core.nat import CodeArchiveReader
+      reader = CodeArchiveReader('disasm.tar')
+      if not reader.exists():
+        ui.fatal(f'prepare {reader.fn} (try disassembing with ts2-disasm-ghidra)')
+
       with self.store().query().scoped() as q:
         pub.sendMessage('progress.core.analysis.nat.begin')
-        import tarfile
-        with tarfile.open(tarpath) as tf:
-          q.file_put_batch(dict(path=f'disasm/{i.name}', blob=tf.extractfile(i).read(), z=True) for i in tf.getmembers() if (i.isreg() or i.islnk())) # type:ignore[union-attr]
+        q.file_put_batch(reader.read('disasm/'))
 
         if level > 3:
           pub.sendMessage('progress.core.analysis.nat.analyzing')

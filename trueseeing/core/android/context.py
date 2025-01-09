@@ -233,9 +233,10 @@ class APKContext(Context):
 
   async def _analyze_native(self, level: int) -> None:
     if level > 2:
-      tarpath = os.path.join(os.path.dirname(self._path), 'disasm.tar.gz')
-      if not os.path.exists(tarpath):
-        ui.warn(f'skipping native code analysis; prepare {tarpath} (try disassembling with ts2-disasm-ghidra)')
+      from trueseeing.core.nat import CodeArchiveReader
+      reader = CodeArchiveReader('disasm.tar')
+      if not reader.exists():
+        ui.warn(f'skipping native code analysis; prepare {reader.fn} (try disassembling with ts2-disasm-ghidra)')
         return
 
       from time import time
@@ -243,9 +244,7 @@ class APKContext(Context):
 
       with self.store().query().scoped() as q:
         pub.sendMessage('progress.core.analysis.nat.begin')
-        import tarfile
-        with tarfile.open(tarpath) as tf:
-          q.file_put_batch(dict(path=i.name, blob=tf.extractfile(i).read(), z=True) for i in tf.getmembers() if (i.isreg() or i.islnk())) # type:ignore[union-attr]
+        q.file_put_batch(reader.read())
 
         if level > 3:
           pub.sendMessage('progress.core.analysis.nat.analyzing')

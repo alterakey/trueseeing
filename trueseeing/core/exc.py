@@ -18,3 +18,6 @@ class InvalidFileFormatError(Exception):
 
 class InvalidConfigKeyError(Exception):
     pass
+
+class CodeArchiveNotFoundError(Exception):
+  pass
