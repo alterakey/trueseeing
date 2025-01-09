@@ -475,6 +475,38 @@ class EngageCommand(CommandMixin):
 
     return o
 
+  async def _prepare_frida_server(self, vers: str) -> Mapping[str, str]:
+    import os
+    from aiohttp import ClientSession
+    from aiohttp.client_exceptions import ClientConnectionError
+    context = self._helper.get_context()
+    feedtmpl = 'https://github.com/frida/frida/releases/download/{vers}/frida-gadget-{vers}-android-{arch}.so.xz'
+    pathtmpl = '{wd}/../t/frida-server-{vers}-android-{arch}.so.xz'
+    archmap = dict(arm64='aarch64', arm='armv7l', x86='i686', x86_64='x86_64')
+
+    o = dict()
+
+    async with ClientSession() as sess:
+      for da, aa in archmap.items():
+        feed = feedtmpl.format(vers=vers, arch=da)
+        path = pathtmpl.format(wd=context.wd, vers=vers, arch=da)
+        if not os.path.exists(path):
+          ui.info(f'fetching {feed}')
+          os.makedirs(os.path.dirname(path), exist_ok=True)
+          try:
+            async with sess.get(feed) as r:
+              with open(path, 'wb') as f:
+                if r.status != 200:
+                  ui.warn('failed to fetch {feed}: {status}'.format(feed=feed, status=r.status))
+                f.write(await r.read())
+          except ClientConnectionError as e:
+            ui.fatal(f'failed to fetch {feed}: {e}')
+        o[aa] = path
+
+    o['i386'] = o['i686']
+
+    return o
+
   async def _determine_recent_frida_gadget(self) -> str:
     import re
     from aiohttp import ClientSession
@@ -968,9 +1000,21 @@ class EngageCommand(CommandMixin):
 
     force = cmd.endswith('!')
 
-    ui.info("starting frida-server")
+    vers = None
+    for optname, optvalue in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
+      if optname == 'vers':
+        vers = optvalue
+    if not vers:
+      try:
+        vers = await self._determine_recent_frida_gadget()
+      except InvalidResponseError as e:
+        ui.fatal('cannot determine recent frida-server version (try @o:vers=X.Y.Z)', exc=e)
 
+    assert vers is not None
+
+    from asyncio import sleep
     from time import time
+    from tempfile import TemporaryDirectory
     from shlex import quote
     from trueseeing.core.android.device import AndroidDevice
     from trueseeing.core.tools import invoke_passthru
@@ -982,7 +1026,34 @@ class EngageCommand(CommandMixin):
     if force:
       ui.warn("killing frida-server if any")
       await dev.invoke_adb("shell 'killall frida-server || exit 0'")
+
+    exists = await dev.invoke_adb('ls /data/local/tmp/frida-server')
+    if force or not exists:
+      ui.info("injecting frida-server [{vers}]".format(vers=vers))
+      server_map = await self._prepare_frida_server(vers=vers)
+      arch = (await dev.invoke_adb('shell uname -m')).strip()
+      if arch not in server_map:
+        ui.fatal(f'unsupported architecture: {arch}')
+      with TemporaryDirectory(dir=context.wd) as td:
+        fn = Path(td) / 'frida-server'
+        path = '/data/local/tmp/frida-server'
+        with open(server_map[arch], 'rb') as f:
+          from lzma import decompress
+          fn.write_bytes(decompress(f.read()))
+        await dev.invoke_adb('push {fn} {path}'.format(fn=fn, path=path))
+        await dev.invoke_adb('shell chmod 755 {path}'.format(path=path))
+
+    ui.info("starting frida-server [{vers}]".format(vers=vers))
     await dev.invoke_adb("shell 'cd /data/local/tmp && ./frida-server &'")
+    found = False
+    for n in range(3):
+      await sleep(.5 * 2**n)
+      proclist = await dev.invoke_adb('shell ps')
+      if 'frida-server' in proclist:
+        found = True
+        break
+    if not found:
+      ui.fatal('failed to start frida-server')
 
     ui.info(f"starting frida on {pkg}")
     scripts_str = []
