@@ -54,7 +54,7 @@ class EngageCommand(CommandMixin):
 
   def get_options(self) -> OptionMap:
     return {
-      'vers':dict(n='vers=X.Y.Z', d='specify frida-gadget version to use [xf,xfs]', t={'apk'}),
+      'vers':dict(n='vers=X.Y.Z', d='specify frida server version to use [xf,xfs]', t={'apk'}),
       'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]', t={'apk'}),
     }
 
