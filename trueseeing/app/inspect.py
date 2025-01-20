@@ -37,6 +37,7 @@ class InspectMode:
         if ui.is_tty():
           ui.exit_inspect()
     except QuitSession as e:
+      ui.debug(f'.. quitting session with code {e.code}, context:', exc=e)
       sys.exit(e.code)
     else:
       sys.exit(0)
@@ -349,7 +350,9 @@ class Runner:
         await coro
       except KeyboardInterrupt:
         ui.fatal('interrupted')
-    except FatalError:
+    except FatalError as x:
+      if ui.is_debugging:
+        ui.debug('.. context of error', exc=x)
       if self._abort_on_errors:
         raise QuitSession(1)
 
