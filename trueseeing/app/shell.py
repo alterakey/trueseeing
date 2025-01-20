@@ -74,6 +74,9 @@ class Shell:
       log_level = ui.DEBUG
     if args.quiet:
       log_level = ui.WARN
+
+    ui.set_level(log_level)
+
     if args.noext:
       ui.warn('disabling extensions')
       Extension.disabled = True
@@ -106,8 +109,6 @@ class Shell:
       args.no_target = True
       args.mode = 'batch'
       cmdlines = ['?f?']
-
-    ui.set_level(log_level)
 
     if args.no_target:
       args.fn = None
@@ -164,8 +165,10 @@ def entry() -> None:
   from trueseeing.core.exc import FatalError
   try:
     _require_platform()
-    Shell().invoke()
+    sys.exit(Shell().invoke())
   except FatalError:
+    if ui.is_debugging:
+      raise
     sys.exit(2)
 
 def _require_platform() -> None:
