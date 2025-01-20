@@ -32,6 +32,7 @@ dependencies = [
     "lief~=0.14",
     "pyaxmlparser~=0.3",
     "prompt-toolkit~=3.0",
+    'frida-tools~=13.6',
 ]
 requires-python = ">=3.9"
 dynamic = ['version', 'description']
