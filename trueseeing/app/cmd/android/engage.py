@@ -449,9 +449,9 @@ class EngageCommand(CommandMixin):
     import os
     from aiohttp import ClientSession
     from aiohttp.client_exceptions import ClientConnectionError
-    context = self._helper.get_context()
+    from trueseeing.core.env import get_cache_dir
     feedtmpl = 'https://github.com/frida/frida/releases/download/{vers}/frida-gadget-{vers}-android-{arch}.so.xz'
-    pathtmpl = '{wd}/../t/frida-gadget-{vers}-android-{arch}.so.xz'
+    pathtmpl = '{cache}/t/frida-gadget-{vers}-android-{arch}.so.xz'
     archmap = dict(arm64='arm64-v8a', arm='armeabi-v7a', x86='x86', x86_64='x86_64')
 
     o = dict()
@@ -459,7 +459,7 @@ class EngageCommand(CommandMixin):
     async with ClientSession() as sess:
       for da, aa in archmap.items():
         feed = feedtmpl.format(vers=vers, arch=da)
-        path = pathtmpl.format(wd=context.wd, vers=vers, arch=da)
+        path = pathtmpl.format(cache=get_cache_dir(), vers=vers, arch=da)
         if not os.path.exists(path):
           ui.info(f'fetching {feed}')
           os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -479,9 +479,9 @@ class EngageCommand(CommandMixin):
     import os
     from aiohttp import ClientSession
     from aiohttp.client_exceptions import ClientConnectionError
-    context = self._helper.get_context()
+    from trueseeing.core.env import get_cache_dir
     feedtmpl = 'https://github.com/frida/frida/releases/download/{vers}/frida-gadget-{vers}-android-{arch}.so.xz'
-    pathtmpl = '{wd}/../t/frida-server-{vers}-android-{arch}.so.xz'
+    pathtmpl = '{cache}/t/frida-server-{vers}-android-{arch}.so.xz'
     archmap = dict(arm64='aarch64', arm='armv7l', x86='i686', x86_64='x86_64')
 
     o = dict()
@@ -489,7 +489,7 @@ class EngageCommand(CommandMixin):
     async with ClientSession() as sess:
       for da, aa in archmap.items():
         feed = feedtmpl.format(vers=vers, arch=da)
-        path = pathtmpl.format(wd=context.wd, vers=vers, arch=da)
+        path = pathtmpl.format(cache=get_cache_dir(), vers=vers, arch=da)
         if not os.path.exists(path):
           ui.info(f'fetching {feed}')
           os.makedirs(os.path.dirname(path), exist_ok=True)
