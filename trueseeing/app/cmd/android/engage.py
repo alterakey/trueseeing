@@ -11,6 +11,7 @@ if TYPE_CHECKING:
   from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
   from trueseeing.core.android.context import APKContext
   from trueseeing.core.android.model import XAPKManifest
+  from trueseeing.core.android.device import AndroidDevice
 
 class EngageCommand(CommandMixin):
   def __init__(self, helper: CommandHelper) -> None:
@@ -56,6 +57,7 @@ class EngageCommand(CommandMixin):
     return {
       'vers':dict(n='vers=X.Y.Z', d='specify frida server version to use [xf,xfs]', t={'apk'}),
       'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]', t={'apk'}),
+      'wait':dict(n='wait', d='do not launch app [xs]', t={'apk'}),
     }
 
   async def _engage_tamper_discard(self, args: deque[str]) -> None:
@@ -991,19 +993,30 @@ class EngageCommand(CommandMixin):
     assert manifest is not None
     return ET.tostring(manifest) # type: ignore[no-any-return]
 
+  async def _detect_if_rooted(self, dev: AndroidDevice) -> bool:
+    if (await dev.invoke_adb('shell which su')).strip():
+      return True
+    else:
+      return False
+
+  async def _detect_frida_server(self, dev: AndroidDevice) -> bool:
+    proclist = await dev.invoke_adb('shell ps')
+    return 'frida-server' in proclist
+
   async def _engage_frida_start_server(self, args: deque[str]) -> None:
     cmd = args.popleft()
-    context: APKContext = self._helper.get_context().require_type('apk')
 
-    pkg = context.get_package_name()
     scripts = list(args)
 
     force = cmd.endswith('!')
-
     vers = None
+    wait = False
+
     for optname, optvalue in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
       if optname == 'vers':
         vers = optvalue
+      elif optname == 'wait':
+        wait = True
     if not vers:
       try:
         vers = await self._determine_recent_frida_gadget()
@@ -1017,55 +1030,87 @@ class EngageCommand(CommandMixin):
     from tempfile import TemporaryDirectory
     from shlex import quote
     from trueseeing.core.android.device import AndroidDevice
-    from trueseeing.core.tools import invoke_passthru
     from pathlib import Path
 
     at = time()
     dev = AndroidDevice()
+    has_target = self._helper.get_target() is not None
+    rooted = await self._detect_if_rooted(dev)
 
-    if force:
-      ui.warn("killing frida-server if any")
-      await dev.invoke_adb("shell 'killall frida-server || exit 0'")
+    if not rooted and not has_target:
+      ui.fatal('device must be rooted to use frida-server')
 
-    exists = await dev.invoke_adb('ls /data/local/tmp/frida-server')
-    if force or not exists:
-      ui.info("injecting frida-server [{vers}]".format(vers=vers))
-      server_map = await self._prepare_frida_server(vers=vers)
-      arch = (await dev.invoke_adb('shell uname -m')).strip()
-      if arch not in server_map:
-        ui.fatal(f'unsupported architecture: {arch}')
-      with TemporaryDirectory(dir=context.wd) as td:
-        fn = Path(td) / 'frida-server'
-        path = '/data/local/tmp/frida-server'
-        with open(server_map[arch], 'rb') as f:
-          from lzma import decompress
-          fn.write_bytes(decompress(f.read()))
-        await dev.invoke_adb('push {fn} {path}'.format(fn=fn, path=path))
-        await dev.invoke_adb('shell chmod 755 {path}'.format(path=path))
-
-    ui.info("starting frida-server [{vers}]".format(vers=vers))
-    await dev.invoke_adb("shell 'cd /data/local/tmp && ./frida-server &'")
-    found = False
-    for n in range(3):
-      await sleep(.5 * 2**n)
-      proclist = await dev.invoke_adb('shell ps')
-      if 'frida-server' in proclist:
-        found = True
-        break
-    if not found:
-      ui.fatal('failed to start frida-server')
-
-    ui.info(f"starting frida on {pkg}")
-    scripts_str = []
-    for s in scripts:
-      p = Path(s)
-      if p.is_file():
-        scripts_str.append(f"-l {quote(str(p))}")
-      elif p.is_dir():
-        scripts_str.extend([f"-l {quote(str(m))}" for m in p.rglob('*.js')])
+    if rooted:
+      ui.info('device appears to be rooted; using frida-server')
+      if force:
+        ui.warn("killing frida-server if any")
+        await dev.invoke_adb("shell su -c 'killall -9 frida-server'")
+        server_active = False
       else:
-        ui.warn(f"ignoring unknown path: {p}")
-    await invoke_passthru(f"frida -U {pkg} {' '.join(scripts_str)}")
+        server_active = await self._detect_frida_server(dev)
+
+      if not server_active:
+        exists = await dev.invoke_adb('ls /data/local/tmp/frida-server')
+        if force or not exists:
+          ui.info("injecting frida-server [{vers}]".format(vers=vers))
+          server_map = await self._prepare_frida_server(vers=vers)
+          arch = (await dev.invoke_adb('shell uname -m')).strip()
+          if arch not in server_map:
+            ui.fatal(f'unsupported architecture: {arch}')
+          with TemporaryDirectory() as td:
+            fn = Path(td) / 'frida-server'
+            path = '/data/local/tmp/frida-server'
+            with open(server_map[arch], 'rb') as f:
+              from lzma import decompress
+              fn.write_bytes(decompress(f.read()))
+            await dev.invoke_adb('push {fn} {path}'.format(fn=fn, path=path))
+            await dev.invoke_adb('shell chmod 755 {path}'.format(path=path))
+
+        ui.info("starting frida-server [{vers}]".format(vers=vers))
+        await dev.invoke_adb("shell su -c 'cd /data/local/tmp && nohup ./frida-server &'")
+        found = False
+        for n in range(3):
+          await sleep(.5 * 2**n)
+          found = await self._detect_frida_server(dev)
+          if found:
+            break
+        if not found:
+          ui.warn('failed to start frida-server')
+
+    if has_target:
+      context: APKContext = self._helper.get_context().require_type('apk')
+      pkg = context.get_package_name()
+
+      if force:
+        ui.warn(f"killing {pkg}")
+        await dev.invoke_adb(f'shell pm kill {pkg}')
+
+      ui.info(f"starting frida on {pkg}")
+      scripts_str = []
+      for s in scripts:
+        p = Path(s)
+        if p.is_file():
+          scripts_str.append(f"-l {quote(str(p))}")
+        elif p.is_dir():
+          scripts_str.extend([f"-l {quote(str(m))}" for m in p.rglob('*.js')])
+        else:
+          ui.warn(f"ignoring unknown path: {p}")
+      from asyncio import create_subprocess_shell, wait_for, TimeoutError
+      if not wait:
+        proc = await create_subprocess_shell(f"frida -Uqf {pkg} {' '.join(scripts_str)}")
+        try:
+          await wait_for(proc.communicate(), timeout=3.)
+        except TimeoutError:
+          proc.kill()
+          ui.fatal('cannot attach to process')
+      else:
+        ui.info('waiting for the process; launch the app on the device in 60s')
+        proc = await create_subprocess_shell(f"frida -UqW {pkg} {' '.join(scripts_str)}")
+        try:
+          await wait_for(proc.communicate(), timeout=60.)
+        except TimeoutError:
+          proc.kill()
+          ui.fatal('cannot attach to process')
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
@@ -1077,8 +1122,15 @@ class EngageCommand(CommandMixin):
 
     at = time()
     dev = AndroidDevice()
+    has_target = self._helper.get_target() is not None
 
-    await dev.invoke_adb('shell killall frida-server')
+    await dev.invoke_adb("shell su -c 'killall -9 frida-server'")
+
+    if has_target:
+      context: APKContext = self._helper.get_context().require_type('apk')
+      pkg = context.get_package_name()
+      ui.info(f"killing {pkg}")
+      await dev.invoke_adb(f'shell pm kill {pkg}')
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
