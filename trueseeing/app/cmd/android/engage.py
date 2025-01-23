@@ -1078,6 +1078,7 @@ class EngageCommand(CommandMixin):
           ui.warn('failed to start frida-server')
 
     if has_target:
+      from subprocess import CalledProcessError
       context: APKContext = self._helper.get_context().require_type('apk')
       pkg = context.get_package_name()
 
@@ -1095,21 +1096,22 @@ class EngageCommand(CommandMixin):
           scripts_str.extend([f"-l {quote(str(m))}" for m in p.rglob('*.js')])
         else:
           ui.warn(f"ignoring unknown path: {p}")
-      from asyncio import create_subprocess_shell, wait_for, TimeoutError
       if not wait:
-        proc = await create_subprocess_shell(f"frida -Uqf {pkg} {' '.join(scripts_str)}")
         try:
-          await wait_for(proc.communicate(), timeout=3.)
-        except TimeoutError:
-          proc.kill()
+          await dev.invoke_frida_passthru("frida -Uqf {pkg} {scripts}".format(
+            pkg=pkg,
+            scripts=' '.join(scripts_str),
+          ), timeout=3.)
+        except (TimeoutError, CalledProcessError):
           ui.fatal('cannot attach to process')
       else:
         ui.info('waiting for the process; launch the app on the device in 60s')
-        proc = await create_subprocess_shell(f"frida -UqW {pkg} {' '.join(scripts_str)}")
         try:
-          await wait_for(proc.communicate(), timeout=60.)
-        except TimeoutError:
-          proc.kill()
+          await dev.invoke_frida_passthru("frida -UqW {pkg} {scripts}".format(
+            pkg=pkg,
+            scripts=' '.join(scripts_str),
+          ), timeout=60.)
+        except (TimeoutError, CalledProcessError):
           ui.fatal('cannot attach to process')
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
