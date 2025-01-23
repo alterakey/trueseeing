@@ -37,26 +37,36 @@ def require_in_path(cmd: str, cmdline: str) -> None:
   except CalledProcessError:
     ui.fatal('not found: {cmd}')
 
-async def invoke(as_: str, redir_stderr: bool = False, catch_stderr: bool = False) -> str:
-  from asyncio import create_subprocess_shell
+async def invoke(as_: str, redir_stderr: bool = False, catch_stderr: bool = False, timeout: Optional[float] = None) -> str:
+  from asyncio import create_subprocess_shell, wait_for, TimeoutError
   from subprocess import PIPE, STDOUT
   p = await create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else (PIPE if catch_stderr else None)))
-  out, err = await p.communicate()
-  _check_return_code(p, as_, out, err)
-  return out.decode('UTF-8')
+  try:
+    out, err = await wait_for(p.communicate(), timeout)
+  except TimeoutError:
+    p.kill()
+    raise
+  else:
+    _check_return_code(p, as_, out, err)
+    return out.decode('UTF-8')
 
-async def invoke_passthru(as_: str, nocheck: bool = False) -> None:
-  from asyncio import create_subprocess_shell
+async def invoke_passthru(as_: str, nocheck: bool = False, timeout: Optional[float] = None) -> None:
+  from asyncio import create_subprocess_shell, wait_for
   p = await create_subprocess_shell(as_)
-  await p.communicate()
-  if not nocheck:
-    _check_return_code(p, as_, None, None)
+  try:
+    await wait_for(p.communicate(), timeout)
+  except TimeoutError:
+    p.kill()
+    raise
+  else:
+    if not nocheck:
+      _check_return_code(p, as_, None, None)
 
 class _UniversalBufferPatch(bytearray):
   def find(self, __sub: Union[Buffer, SupportsIndex], __start: Optional[SupportsIndex] = None, __end: Optional[SupportsIndex] = None) -> int:
     return super().replace(b'\r', b'\n').find(__sub, __start, __end)
 
-async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterator[bytes]:
+async def invoke_streaming(as_: str, redir_stderr: bool = False, timeout: Optional[float] = None) -> AsyncIterator[bytes]:
   from subprocess import PIPE, STDOUT
   p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
   p.stdout._buffer = _UniversalBufferPatch(p.stdout._buffer) # type: ignore[union-attr]
@@ -70,24 +80,27 @@ async def invoke_streaming(as_: str, redir_stderr: bool = False) -> AsyncIterato
     if p.returncode is None:
       try:
         t = asyncio.create_task(p.wait())
-        await asyncio.wait([t], timeout=3., return_when=asyncio.ALL_COMPLETED)
+        await asyncio.wait([t], timeout=timeout, return_when=asyncio.ALL_COMPLETED)
       except asyncio.TimeoutError:
         ui.warn('process does not seem to terminate, killing it')
         p.kill()
         await p.wait()
 
-def invoke_sync(as_: str, redir_stderr: bool = False, catch_stderr: bool = False) -> str:
+def invoke_sync(as_: str, redir_stderr: bool = False, catch_stderr: bool = False, timeout: Optional[float] = None) -> str:
   from subprocess import PIPE, STDOUT, run
-  p = run(as_, shell=True, stdout=PIPE, stderr=(STDOUT if redir_stderr else (PIPE if catch_stderr else None)))
+  p = run(as_, shell=True, stdout=PIPE, stderr=(STDOUT if redir_stderr else (PIPE if catch_stderr else None)), timeout=timeout)
   out, err = p.stdout, p.stderr
   _check_return_code(p, as_, out, err)
   return out.decode('UTF-8')
 
-async def try_invoke(as_: str) -> Optional[str]:
+async def try_invoke(as_: str, timeout: Optional[float] = None) -> Optional[str]:
+  from asyncio import TimeoutError
   from subprocess import CalledProcessError
   try:
-    return await invoke(as_)
+    return await invoke(as_, timeout=timeout)
   except CalledProcessError:
+    return None
+  except TimeoutError:
     return None
 
 def copytree(src: str, dst: str, divisor: Optional[int] = 256) -> Iterator[int]:
