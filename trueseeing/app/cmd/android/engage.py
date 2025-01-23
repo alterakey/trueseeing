@@ -1044,7 +1044,7 @@ class EngageCommand(CommandMixin):
       ui.info('device appears to be rooted; using frida-server')
       if force:
         ui.warn("killing frida-server if any")
-        await dev.invoke_adb("shell su -c 'killall -9 frida-server'")
+        await dev.invoke_adb("shell su -c 'killall -9 frida-server || exit 0'")
         server_active = False
       else:
         server_active = await self._detect_frida_server(dev)
@@ -1067,7 +1067,7 @@ class EngageCommand(CommandMixin):
             await dev.invoke_adb('shell chmod 755 {path}'.format(path=path))
 
         ui.info("starting frida-server [{vers}]".format(vers=vers))
-        await dev.invoke_adb("shell su -c 'cd /data/local/tmp && nohup ./frida-server &'")
+        await dev.invoke_adb("shell su -c '/data/local/tmp/frida-server -D &'")
         found = False
         for n in range(3):
           await sleep(.5 * 2**n)
@@ -1083,7 +1083,7 @@ class EngageCommand(CommandMixin):
 
       if force:
         ui.warn(f"killing {pkg}")
-        await dev.invoke_adb(f'shell pm kill {pkg}')
+        await dev.invoke_adb(f"shell 'pm kill {pkg} || exit 0'")
 
       ui.info(f"starting frida on {pkg}")
       scripts_str = []
@@ -1124,13 +1124,13 @@ class EngageCommand(CommandMixin):
     dev = AndroidDevice()
     has_target = self._helper.get_target() is not None
 
-    await dev.invoke_adb("shell su -c 'killall -9 frida-server'")
+    await dev.invoke_adb("shell su -c 'killall -9 frida-server || exit 0'")
 
     if has_target:
       context: APKContext = self._helper.get_context().require_type('apk')
       pkg = context.get_package_name()
       ui.info(f"killing {pkg}")
-      await dev.invoke_adb(f'shell pm kill {pkg}')
+      await dev.invoke_adb(f"shell 'pm kill {pkg} || exit 0'")
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
