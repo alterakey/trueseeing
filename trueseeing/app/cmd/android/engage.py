@@ -482,7 +482,7 @@ class EngageCommand(CommandMixin):
     from aiohttp import ClientSession
     from aiohttp.client_exceptions import ClientConnectionError
     from trueseeing.core.env import get_cache_dir
-    feedtmpl = 'https://github.com/frida/frida/releases/download/{vers}/frida-gadget-{vers}-android-{arch}.so.xz'
+    feedtmpl = 'https://github.com/frida/frida/releases/download/{vers}/frida-server-{vers}-android-{arch}.xz'
     pathtmpl = '{cache}/t/frida-server-{vers}-android-{arch}.so.xz'
     archmap = dict(arm64='aarch64', arm='armv7l', x86='i686', x86_64='x86_64')
 
