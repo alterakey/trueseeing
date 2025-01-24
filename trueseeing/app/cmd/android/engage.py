@@ -996,7 +996,7 @@ class EngageCommand(CommandMixin):
     return ET.tostring(manifest) # type: ignore[no-any-return]
 
   async def _detect_if_rooted(self, dev: AndroidDevice) -> bool:
-    if (await dev.invoke_adb('shell which su')).strip():
+    if (await dev.invoke_adb('shell "which su || exit 0"')).strip():
       return True
     else:
       return False
