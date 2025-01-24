@@ -1088,6 +1088,12 @@ class EngageCommand(CommandMixin):
     at = time()
     dev = AndroidDevice()
     has_target = self._helper.get_target() is not None
+    rooted = await self._detect_if_rooted(dev)
+
+    if not rooted and not attach:
+      ui.warn('device is not rooted: focing prompted attach (try @o:attach to avoid prompt)')
+      attach = True
+      wait = True
 
     await self._start_frida_server(dev, vers, wait, attach, force)
     attacher = FridaAttacher(dev, [Path(s) for s in scripts])
@@ -1167,6 +1173,12 @@ class EngageCommand(CommandMixin):
     at = time()
     dev = AndroidDevice()
     has_target = self._helper.get_target() is not None
+    rooted = await self._detect_if_rooted(dev)
+
+    if not rooted and not attach:
+      ui.warn('device is not rooted: focing prompted attach (try @o:attach to avoid prompt)')
+      attach = True
+      wait = True
 
     await self._start_frida_server(dev, vers, wait, attach, force)
     attacher = FridaTracer(dev, targets, [Path(s) for s in scripts])
