@@ -51,15 +51,24 @@ class EngageCommand(CommandMixin):
       'xg!':dict(e=self._engage_grab_package, t={'apk'}),
       'xs':dict(e=self._engage_frida_start_server, n='xs[!] [config]', d='engage: start frida-server (!: force)', t={'apk'}),
       'xs!':dict(e=self._engage_frida_start_server, t={'apk'}),
+      'xst':dict(e=self._engage_frida_trace_call, n='xst[!] [init.js]', d='engage: trace calls (!: force)', t={'apk'}),
+      'xst!':dict(e=self._engage_frida_trace_call, t={'apk'}),
       'xk':dict(e=self._engage_frida_kill_server, n='xk', d='engage: kill frida server', t={'apk'}),
     }
 
   def get_options(self) -> OptionMap:
     return {
-      'vers':dict(n='vers=X.Y.Z', d='specify frida server version to use [xf,xfs]', t={'apk'}),
+      'vers':dict(n='vers=X.Y.Z', d='specify frida server version to use [xf,xfs,xs,xst]', t={'apk'}),
       'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]', t={'apk'}),
-      'wait':dict(n='wait', d='do not launch app [xs]', t={'apk'}),
-      'attach':dict(n='attach', d='attach to the foremost app [xs]', t={'apk'}),
+      'wait':dict(n='wait', d='do not launch app [xs,xst]', t={'apk'}),
+      'attach':dict(n='attach', d='attach to the foremost app [xs,xst]', t={'apk'}),
+      'mod':dict(n='mod=MODULE,...', d='trace module (! to exclude) [xst]', t={'apk'}),
+      'fun':dict(n='fun=[MODULE!]FUNCTION,...', d='trace function (! to exclude) [xst]', t={'apk'}),
+      'offs':dict(n='offs=MODULE!OFFSET,...', d='trace offset [xst]', t={'apk'}),
+      'imp':dict(n='imp=INCLUDE_IMPORTS,...', d='trace program imports [xst]', t={'apk'}),
+      'mimp':dict(n='mimp=MODULE,...', d='trace module imports [xst]', t={'apk'}),
+      'java':dict(n='java=JAVA_METHOD,...', d='trace java method (! to exclude) [xst]', t={'apk'}),
+      'sym':dict(n='sym=SYMBOL,...', d='trace debug symbol [xst]', t={'apk'}),
     }
 
   async def _engage_tamper_discard(self, args: deque[str]) -> None:
@@ -1005,39 +1014,10 @@ class EngageCommand(CommandMixin):
     proclist = await dev.invoke_adb('shell ps')
     return 'frida-server' in proclist
 
-  async def _engage_frida_start_server(self, args: deque[str]) -> None:
-    cmd = args.popleft()
-
-    scripts = [a for a in args if not a.startswith('@')]
-
-    force = cmd.endswith('!')
-    vers = None
-    wait = False
-    attach = False
-
-    for optname, optvalue in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
-      if optname == 'vers':
-        vers = optvalue
-      elif optname == 'wait':
-        wait = True
-      elif optname == 'attach':
-        attach = True
-    if not vers:
-      try:
-        vers = await self._determine_recent_frida_gadget()
-      except InvalidResponseError as e:
-        ui.fatal('cannot determine recent frida-server version (try @o:vers=X.Y.Z)', exc=e)
-
-    assert vers is not None
-
+  async def _start_frida_server(self, dev: AndroidDevice, vers: str, wait: bool, attach: bool, force: bool) -> None:
     from asyncio import sleep
-    from time import time
     from tempfile import TemporaryDirectory
-    from trueseeing.core.android.device import AndroidDevice
 
-    at = time()
-    dev = AndroidDevice()
-    has_target = self._helper.get_target() is not None
     rooted = await self._detect_if_rooted(dev)
 
     if rooted:
@@ -1077,6 +1057,39 @@ class EngageCommand(CommandMixin):
         if not found:
           ui.warn('failed to start frida-server')
 
+  async def _engage_frida_start_server(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+
+    scripts = [a for a in args if not a.startswith('@')]
+
+    force = cmd.endswith('!')
+    vers = None
+    wait = False
+    attach = False
+
+    for optname, optvalue in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
+      if optname == 'vers':
+        vers = optvalue
+      elif optname == 'wait':
+        wait = True
+      elif optname == 'attach':
+        attach = True
+    if not vers:
+      try:
+        vers = await self._determine_recent_frida_gadget()
+      except InvalidResponseError as e:
+        ui.fatal('cannot determine recent frida-server version (try @o:vers=X.Y.Z)', exc=e)
+
+    assert vers is not None
+
+    from time import time
+    from trueseeing.core.android.device import AndroidDevice
+
+    at = time()
+    dev = AndroidDevice()
+    has_target = self._helper.get_target() is not None
+
+    await self._start_frida_server(dev, vers, wait, attach, force)
     attacher = FridaAttacher(dev, [Path(s) for s in scripts])
 
     if attach or not has_target:
@@ -1119,6 +1132,66 @@ class EngageCommand(CommandMixin):
       await dev.invoke_adb(f"shell 'pm kill {pkg} || exit 0'")
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
+
+  async def _engage_frida_trace_call(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+
+    scripts = [a for a in args if not a.startswith('@')]
+
+    force = cmd.endswith('!')
+    vers = None
+    wait = False
+    attach = False
+    targets = dict()
+
+    for optname, optvalue in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
+      if optname == 'vers':
+        vers = optvalue
+      elif optname == 'wait':
+        wait = True
+      elif optname == 'attach':
+        attach = True
+      elif optname in ['mod', 'fun', 'offs', 'imp', 'mimp', 'java', 'sym']:
+        targets[optname] = optvalue.split(',')
+    if not vers:
+      try:
+        vers = await self._determine_recent_frida_gadget()
+      except InvalidResponseError as e:
+        ui.fatal('cannot determine recent frida-server version (try @o:vers=X.Y.Z)', exc=e)
+
+    assert vers is not None
+
+    from time import time
+    from trueseeing.core.android.device import AndroidDevice
+
+    at = time()
+    dev = AndroidDevice()
+    has_target = self._helper.get_target() is not None
+
+    await self._start_frida_server(dev, vers, wait, attach, force)
+    attacher = FridaTracer(dev, targets, [Path(s) for s in scripts])
+
+    if attach or not has_target:
+      if wait:
+        await attacher.prompt()
+      await attacher.attach()
+    else:
+      context: APKContext = self._helper.get_context().require_type('apk')
+      pkg = context.get_package_name()
+
+      if force:
+        ui.warn(f"killing {pkg}")
+        await dev.invoke_adb(f"shell 'pm kill {pkg} || exit 0'")
+
+      ui.info(f"starting frida on {pkg}")
+
+      if not wait:
+        await attacher.spawn(pkg)
+      else:
+        await attacher.gate(pkg)
+
+    ui.success("done ({t:.2f} sec.)".format(t=time() - at))
+
 
 class InvalidResponseError(Exception):
   pass
@@ -1182,6 +1255,77 @@ class FridaAttacher:
         o.extend([f"-l {quote(str(m))}" for m in p.rglob('*.js')])
       else:
         ui.warn(f"ignoring unknown path: {p}")
+    return ' '.join(o)
+
+# XXX refactor
+class FridaTracer:
+  def __init__(self, dev: AndroidDevice, targets: Mapping[str, List[str]], scripts: List[Path]) -> None:
+    self._dev = dev
+    self._targets = targets
+    self._scripts = scripts
+
+  async def attach(self) -> None:
+    from subprocess import CalledProcessError
+    from asyncio import TimeoutError
+    ui.info('attaching to the foreground process')
+    try:
+      await self._dev.invoke_frida_passthru("frida-trace -UF {args}".format(
+        args=self._format_args(),
+      ))
+    except (TimeoutError, CalledProcessError):
+      ui.fatal('cannot attach to process')
+
+  async def prompt(self) -> None:
+    if ui.is_tty(stdin=True):
+      import sys
+      from trueseeing.core.ui import KeySeqDetector
+      ui.info('launch the app on the device and press ENTER')
+      async for ch in KeySeqDetector(sys.stdin).detect():
+        if ch == b'\n':
+          break
+
+  async def spawn(self, pkg: str) -> None:
+    from subprocess import CalledProcessError
+    from asyncio import TimeoutError
+    try:
+      await self._dev.invoke_frida_passthru("frida-trace -Uf {pkg} {args}".format(
+        pkg=pkg,
+        args=self._format_args(),
+      ))
+    except (TimeoutError, CalledProcessError):
+      ui.fatal('cannot attach to process (try @o:attach)')
+
+  async def gate(self, pkg: str) -> None:
+    from subprocess import CalledProcessError
+    from asyncio import TimeoutError
+    ui.info('waiting for the process; launch the app on the device in 60s')
+    try:
+      await self._dev.invoke_frida_passthru("frida-trace -UW {pkg} {args}".format(
+        pkg=pkg,
+        args=self._format_args(),
+      ))
+    except (TimeoutError, CalledProcessError):
+      ui.fatal('cannot attach to process (try @o:attach)')
+
+  def _format_args(self) -> str:
+    from shlex import quote
+    o = ['-d']
+    for s in self._scripts:
+      p = Path(s)
+      if p.is_file():
+        o.append(f"-S {quote(str(p))}")
+      elif p.is_dir():
+        o.extend([f"-S {quote(str(m))}" for m in p.rglob('*.js')])
+      else:
+        ui.warn(f"ignoring unknown path: {p}")
+    opts = dict(mod='IX', fun='ix', offs='a', imp='T', mimp='t', java='jJ', sym='s')
+    for k, v in self._targets.items():
+      if k in opts:
+        for t0 in v:
+          if t0.startswith('!') and len(opts[k]) > 1:
+            o.append(f'-{opts[k][1]} {quote(t0[1:])}')
+          else:
+            o.append(f'-{opts[k][0]} {quote(t0)}')
     return ' '.join(o)
 
 class XAPKManifestGenerator:
