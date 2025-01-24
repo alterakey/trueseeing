@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 import sys
 from contextlib import contextmanager
@@ -8,7 +8,7 @@ from pubsub import pub
 from trueseeing.core.exc import FatalError
 
 if TYPE_CHECKING:
-  from typing import NoReturn, Optional, TextIO, Set, Any, Iterator, Iterable, Tuple
+  from typing import NoReturn, Optional, Set, Any, Iterator, Iterable, Tuple, List, BinaryIO, AsyncIterable
   from typing_extensions import Final
   from progressbar import ProgressBar
   from trueseeing.core.model.issue import Issue
@@ -492,6 +492,82 @@ class OpLister:
     for is_header, line in self._formatter.format(ops):
       if not is_header:
         ui.info(line)
+
+
+class KeySeqDetector:
+  _f: TextIO
+  def __init__(self, f: TextIO) -> None:
+    self._f = f
+
+  async def detect(self) -> AsyncIterable[bytes]:
+    import asyncio
+    import termios
+    fd = self._f.fileno()
+    old_attrs = termios.tcgetattr(fd)
+    new_attrs = old_attrs[:]
+    new_attrs[3] = new_attrs[3] & ~(termios.ECHO | termios.ICANON)
+    try:
+      termios.tcsetattr(fd, termios.TCSADRAIN, new_attrs)
+
+      loop = asyncio.get_running_loop()
+      reader = asyncio.StreamReader()
+      await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), _TextIO_NoClose(self._f))
+
+      while not reader.at_eof():
+        ch = await reader.read(1)
+        yield ch
+    finally:
+      termios.tcsetattr(fd, termios.TCSADRAIN, old_attrs)
+
+
+class _TextIO_NoClose(TextIO):
+  _f: TextIO
+  def __init__(self, f: TextIO) -> None:
+    self._f = f
+
+  def close(self) -> None:
+    pass
+
+  # IO[str] methods
+  @property
+  def mode(self) -> str: return self._f.mode
+  @property
+  def name(self) -> str: return self._f.name
+
+  @property
+  def closed(self) -> bool: return self._f.closed
+  def fileno(self) -> int: return self._f.fileno()
+  def flush(self) -> None: self._f.flush()
+  def isatty(self) -> bool: return self._f.isatty()
+  def read(self, n: int = -1) -> str: return self._f.read(n)
+  def readable(self) -> bool: return self._f.readable()
+  def readline(self, limit: int = -1) -> str: return self._f.readline(limit)
+  def readlines(self, hint: int = -1) -> List[str]: return self._f.readlines(hint)
+  def seek(self, offset: int, whence: int = 0) -> int: return self._f.seek(offset, whence)
+  def seekable(self) -> bool: return self._f.seekable()
+  def tell(self) -> int: return self._f.tell()
+  def truncate(self, size: Optional[int] = None) -> int: return self._f.truncate(size)
+  def writable(self) -> bool: return self._f.writable()
+  def write(self, s: str) -> int: return self._f.write(s)
+  def writelines(self, lines: Iterable[str]) -> None: self._f.writelines(lines)
+  def __enter__(self) -> TextIO: return self._f.__enter__()
+  def __exit__(self, type: Any, value: Any, traceback: Any) -> None: self._f.__exit__(type, value, traceback)
+
+  # TextIO methods
+  @property
+  def buffer(self) -> BinaryIO: return self._f.buffer
+  @property
+  def encoding(self) -> str: return self._f.encoding
+  @property
+  def errors(self) -> Optional[str]: return self._f.errors
+  @property
+  def line_buffering(self) -> int: return self._f.line_buffering
+  @property
+  def newlines(self) -> Any: return self._f.newlines
+
+  # further methods
+  def __iter__(self) -> Any: return self._f.__iter__()
+  def __next__(self) -> Any: return self._f.__next__()
 
 
 ui = UI()
