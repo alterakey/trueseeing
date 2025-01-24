@@ -1040,9 +1040,6 @@ class EngageCommand(CommandMixin):
     has_target = self._helper.get_target() is not None
     rooted = await self._detect_if_rooted(dev)
 
-    if not rooted and not has_target:
-      ui.fatal('device must be rooted to use frida-server')
-
     if rooted:
       ui.info('device appears to be rooted; using frida-server')
       if force:
