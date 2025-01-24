@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from collections import deque
+from pathlib import Path
 
 from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
@@ -58,6 +59,7 @@ class EngageCommand(CommandMixin):
       'vers':dict(n='vers=X.Y.Z', d='specify frida server version to use [xf,xfs]', t={'apk'}),
       'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]', t={'apk'}),
       'wait':dict(n='wait', d='do not launch app [xs]', t={'apk'}),
+      'attach':dict(n='attach', d='attach to the foremost app [xs]', t={'apk'}),
     }
 
   async def _engage_tamper_discard(self, args: deque[str]) -> None:
@@ -1006,17 +1008,20 @@ class EngageCommand(CommandMixin):
   async def _engage_frida_start_server(self, args: deque[str]) -> None:
     cmd = args.popleft()
 
-    scripts = list(args)
+    scripts = [a for a in args if not a.startswith('@')]
 
     force = cmd.endswith('!')
     vers = None
     wait = False
+    attach = False
 
     for optname, optvalue in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
       if optname == 'vers':
         vers = optvalue
       elif optname == 'wait':
         wait = True
+      elif optname == 'attach':
+        attach = True
     if not vers:
       try:
         vers = await self._determine_recent_frida_gadget()
@@ -1028,9 +1033,7 @@ class EngageCommand(CommandMixin):
     from asyncio import sleep
     from time import time
     from tempfile import TemporaryDirectory
-    from shlex import quote
     from trueseeing.core.android.device import AndroidDevice
-    from pathlib import Path
 
     at = time()
     dev = AndroidDevice()
@@ -1077,8 +1080,13 @@ class EngageCommand(CommandMixin):
         if not found:
           ui.warn('failed to start frida-server')
 
-    if has_target:
-      from subprocess import CalledProcessError
+    attacher = FridaAttacher(dev, [Path(s) for s in scripts])
+
+    if attach or not has_target:
+      if wait:
+        await attacher.prompt()
+      await attacher.attach()
+    else:
       context: APKContext = self._helper.get_context().require_type('apk')
       pkg = context.get_package_name()
 
@@ -1087,32 +1095,11 @@ class EngageCommand(CommandMixin):
         await dev.invoke_adb(f"shell 'pm kill {pkg} || exit 0'")
 
       ui.info(f"starting frida on {pkg}")
-      scripts_str = []
-      for s in scripts:
-        p = Path(s)
-        if p.is_file():
-          scripts_str.append(f"-l {quote(str(p))}")
-        elif p.is_dir():
-          scripts_str.extend([f"-l {quote(str(m))}" for m in p.rglob('*.js')])
-        else:
-          ui.warn(f"ignoring unknown path: {p}")
+
       if not wait:
-        try:
-          await dev.invoke_frida_passthru("frida -Uqf {pkg} {scripts}".format(
-            pkg=pkg,
-            scripts=' '.join(scripts_str),
-          ), timeout=3.)
-        except (TimeoutError, CalledProcessError):
-          ui.fatal('cannot attach to process')
+        await attacher.spawn(pkg)
       else:
-        ui.info('waiting for the process; launch the app on the device in 60s')
-        try:
-          await dev.invoke_frida_passthru("frida -UqW {pkg} {scripts}".format(
-            pkg=pkg,
-            scripts=' '.join(scripts_str),
-          ), timeout=60.)
-        except (TimeoutError, CalledProcessError):
-          ui.fatal('cannot attach to process')
+        await attacher.gate(pkg)
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
@@ -1138,6 +1125,67 @@ class EngageCommand(CommandMixin):
 
 class InvalidResponseError(Exception):
   pass
+
+class FridaAttacher:
+  def __init__(self, dev: AndroidDevice, scripts: List[Path]) -> None:
+    self._dev = dev
+    self._scripts = scripts
+
+  async def attach(self) -> None:
+    from subprocess import CalledProcessError
+    from asyncio import TimeoutError
+    ui.info('attaching to the foreground process')
+    try:
+      await self._dev.invoke_frida_passthru("frida -UF {args}".format(
+        args=self._format_args(),
+      ))
+    except (TimeoutError, CalledProcessError):
+      ui.fatal('cannot attach to process')
+
+  async def prompt(self) -> None:
+    if ui.is_tty(stdin=True):
+      import sys
+      from trueseeing.core.ui import KeySeqDetector
+      ui.info('launch the app on the device and press ENTER')
+      async for ch in KeySeqDetector(sys.stdin).detect():
+        if ch == b'\n':
+          break
+
+  async def spawn(self, pkg: str) -> None:
+    from subprocess import CalledProcessError
+    from asyncio import TimeoutError
+    try:
+      await self._dev.invoke_frida_passthru("frida -Uf {pkg} {args}".format(
+        pkg=pkg,
+        args=self._format_args(),
+      ), timeout=3.)
+    except (TimeoutError, CalledProcessError):
+      ui.fatal('cannot attach to process (try @o:attach)')
+
+  async def gate(self, pkg: str) -> None:
+    from subprocess import CalledProcessError
+    from asyncio import TimeoutError
+    ui.info('waiting for the process; launch the app on the device in 60s')
+    try:
+      await self._dev.invoke_frida_passthru("frida -UW {pkg} {args}".format(
+        pkg=pkg,
+        args=self._format_args(),
+      ), timeout=60.)
+    except (TimeoutError, CalledProcessError):
+      ui.fatal('cannot attach to process (try @o:attach)')
+
+  def _format_args(self) -> str:
+    from shlex import quote
+    o = ['-q']
+    for s in self._scripts:
+      p = Path(s)
+      if p.is_file():
+        o.append(f"-l {quote(str(p))}")
+      elif p.is_dir():
+        o.extend([f"-l {quote(str(m))}" for m in p.rglob('*.js')])
+      else:
+        ui.warn(f"ignoring unknown path: {p}")
+    return ' '.join(o)
 
 class XAPKManifestGenerator:
   def __init__(self, slicemap: Dict[str, str]) -> None:
