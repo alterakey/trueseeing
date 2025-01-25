@@ -53,7 +53,6 @@ class EngageCommand(CommandMixin):
       'xs!':dict(e=self._engage_frida_start_server, t={'apk'}),
       'xst':dict(e=self._engage_frida_trace_call, n='xst[!] [init.js]', d='engage: trace calls (!: force)', t={'apk'}),
       'xst!':dict(e=self._engage_frida_trace_call, t={'apk'}),
-      'xk':dict(e=self._engage_frida_kill_server, n='xk', d='engage: kill frida server', t={'apk'}),
     }
 
   def get_options(self) -> OptionMap:
@@ -1116,26 +1115,6 @@ class EngageCommand(CommandMixin):
         await attacher.spawn(pkg)
       else:
         await attacher.gate(pkg)
-
-    ui.success("done ({t:.2f} sec.)".format(t=time() - at))
-
-  async def _engage_frida_kill_server(self, args: deque[str]) -> None:
-    from time import time
-    from trueseeing.core.android.device import AndroidDevice
-
-    ui.info("killing frida-server")
-
-    at = time()
-    dev = AndroidDevice()
-    has_target = self._helper.get_target() is not None
-
-    await dev.invoke_adb("shell su -c 'killall -9 frida-server || exit 0'")
-
-    if has_target:
-      context: APKContext = self._helper.get_context().require_type('apk')
-      pkg = context.get_package_name()
-      ui.info(f"killing {pkg}")
-      await dev.invoke_adb(f"shell 'pm kill {pkg} || exit 0'")
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
