@@ -283,9 +283,13 @@ class EngageCommand(CommandMixin):
         vers = optvalue
     if not vers:
       try:
-        vers = await self._determine_recent_frida_gadget()
+        vers = await self._determine_recent_frida()
       except InvalidResponseError:
-        ui.fatal('cannot determine recent frida-gadget version (try @o:vers=X.Y.Z)')
+        ui.warn('cannot determine recent frida-gadget version (try @o:vers=X.Y.Z)')
+        try:
+          vers = await self._determine_recent_frida_gadget_in_cache()
+        except InvalidResponseError:
+          ui.fatal('frida-gadget not found; retry when you are online')
 
     assert vers is not None
 
@@ -519,7 +523,7 @@ class EngageCommand(CommandMixin):
 
     return o
 
-  async def _determine_recent_frida_gadget(self) -> str:
+  async def _determine_recent_frida(self) -> str:
     import re
     from aiohttp import ClientSession
     from aiohttp.client_exceptions import ClientConnectionError
@@ -535,6 +539,42 @@ class EngageCommand(CommandMixin):
             raise InvalidResponseError()
       except ClientConnectionError:
         raise InvalidResponseError()
+
+  async def _determine_recent_frida_gadget_in_cache(self) -> str:
+    import re
+    from trueseeing.core.env import get_cache_dir
+    root = Path(get_cache_dir()) / 't'
+
+    vers: List[str] = []
+
+    for p in root.glob('frida-gadget-*-android-*.so.xz'):
+        m = re.search(r'frida-gadget-([0-9.]+)-android', p.name)
+        if m:
+          vers.append(m.group(1))
+        else:
+          ui.warn(f'ignoring unknown file in cache: {p.name}')
+
+    if not vers:
+      raise InvalidResponseError()
+    return sorted(vers, reverse=True)[0]
+
+  async def _determine_recent_frida_server_in_cache(self) -> str:
+    import re
+    from trueseeing.core.env import get_cache_dir
+    root = Path(get_cache_dir()) / 't'
+
+    vers: List[str] = []
+
+    for p in root.glob('frida-server-*-android-*.xz'):
+        m = re.search(r'frida-server-([0-9.]+)-android', p.name)
+        if m:
+          vers.append(m.group(1))
+        else:
+          ui.warn(f'ignoring unknown file in cache: {p.name}')
+
+    if not vers:
+      raise InvalidResponseError()
+    return sorted(vers, reverse=True)[0]
 
   async def _engage_device_copyout(self, args: deque[str]) -> None:
     success: bool = False
@@ -1075,9 +1115,13 @@ class EngageCommand(CommandMixin):
         attach = True
     if not vers:
       try:
-        vers = await self._determine_recent_frida_gadget()
-      except InvalidResponseError as e:
-        ui.fatal('cannot determine recent frida-server version (try @o:vers=X.Y.Z)', exc=e)
+        vers = await self._determine_recent_frida()
+      except InvalidResponseError:
+        ui.warn('cannot determine recent frida-server version (try @o:vers=X.Y.Z)')
+        try:
+          vers = await self._determine_recent_frida_server_in_cache()
+        except InvalidResponseError:
+          ui.fatal('frida-server not found; retry when you are online')
 
     assert vers is not None
 
@@ -1140,7 +1184,7 @@ class EngageCommand(CommandMixin):
         targets[optname] = optvalue.split(',')
     if not vers:
       try:
-        vers = await self._determine_recent_frida_gadget()
+        vers = await self._determine_recent_frida()
       except InvalidResponseError as e:
         ui.fatal('cannot determine recent frida-server version (try @o:vers=X.Y.Z)', exc=e)
 
