@@ -1183,6 +1183,8 @@ class EngageCommand(CommandMixin):
         attach = True
       elif optname in ['mod', 'fun', 'offs', 'imp', 'mimp', 'java', 'sym']:
         targets[optname] = optvalue.split(',')
+      else:
+        ui.warn(f'ignoring unknown opt: {optname}')
     if not vers:
       try:
         vers = await self._determine_recent_frida()
@@ -1391,12 +1393,12 @@ class FridaTracer:
         ui.warn(f"ignoring unknown path: {p}")
     opts = dict(mod='IX', fun='ix', offs='a', imp='T', mimp='t', java='jJ', sym='s')
     for k, v in self._targets.items():
-      if k in opts:
-        for t0 in v:
-          if t0.startswith('!') and len(opts[k]) > 1:
-            o.append(f'-{opts[k][1]} {quote(t0[1:])}')
-          else:
-            o.append(f'-{opts[k][0]} {quote(t0)}')
+      assert k in opts
+      for t0 in v:
+        if t0.startswith('!') and len(opts[k]) > 1:
+          o.append(f'-{opts[k][1]} {quote(t0[1:])}')
+        else:
+          o.append(f'-{opts[k][0]} {quote(t0)}')
     return ' '.join(o)
 
 class XAPKManifestGenerator:

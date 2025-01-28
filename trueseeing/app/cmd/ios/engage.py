@@ -32,15 +32,15 @@ class EngageCommand(CommandMixin):
 
   def get_options(self) -> OptionMap:
     return {
-      'wait':dict(n='wait', d='do not launch app [xs,xst]', t={'ipa'}),
-      'attach':dict(n='attach', d='attach to the foremost app [xs,xst]', t={'ipa'}),
+      'wait':dict(n='wait', d='do not launch app [xs,xst]'),
+      'attach':dict(n='attach', d='attach to the foremost app [xs,xst]'),
       'mod':dict(n='mod=MODULE,...', d='trace module (! to exclude) [xst]', t={'ipa'}),
       'fun':dict(n='fun=[MODULE!]FUNCTION,...', d='trace function (! to exclude) [xst]', t={'ipa'}),
       'offs':dict(n='offs=MODULE!OFFSET,...', d='trace offset [xst]', t={'ipa'}),
       'imp':dict(n='imp=INCLUDE_IMPORTS,...', d='trace program imports [xst]', t={'ipa'}),
       'mimp':dict(n='mimp=MODULE,...', d='trace module imports [xst]', t={'ipa'}),
-      'objc':dict(n='objc=OBJC_METHOD,...', d='trace objc method (! to exclude) [xst]', t={'ipa'}),
-      'swif':dict(n='swif=SWIFT_FUNC,...', d='trace swift function (! to exclude) [xst]', t={'ipa'}),
+      'objc':dict(n='objc=OBJC_METHOD,...', d='[iOS] trace objc method (! to exclude) [xst]', t={'ipa'}),
+      'swif':dict(n='swif=SWIFT_FUNC,...', d='[iOS] trace swift function (! to exclude) [xst]', t={'ipa'}),
       'sym':dict(n='sym=SYMBOL,...', d='trace debug symbol [xst]', t={'ipa'}),
     }
 
@@ -106,6 +106,8 @@ class EngageCommand(CommandMixin):
         attach = True
       elif optname in ['mod', 'fun', 'offs', 'imp', 'mimp', 'java', 'sym']:
         targets[optname] = optvalue.split(',')
+      else:
+        ui.warn(f'ignoring unknown opt: {optname}')
 
     from time import time
     from trueseeing.core.ios.device import IOSDevice
@@ -281,10 +283,10 @@ class FridaTracer:
         ui.warn(f"ignoring unknown path: {p}")
     opts = dict(mod='IX', fun='ix', offs='a', imp='T', mimp='t', objc='mM', swif='yY', sym='s')
     for k, v in self._targets.items():
-      if k in opts:
-        for t0 in v:
-          if t0.startswith('!') and len(opts[k]) > 1:
-            o.append(f'-{opts[k][1]} {quote(t0[1:])}')
-          else:
-            o.append(f'-{opts[k][0]} {quote(t0)}')
+      assert k in opts
+      for t0 in v:
+        if t0.startswith('!') and len(opts[k]) > 1:
+          o.append(f'-{opts[k][1]} {quote(t0[1:])}')
+        else:
+          o.append(f'-{opts[k][0]} {quote(t0)}')
     return ' '.join(o)

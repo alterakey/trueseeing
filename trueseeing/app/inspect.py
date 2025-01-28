@@ -186,7 +186,7 @@ class SessionCommands:
     return o
 
   def _get_matches(self, ks: Iterator[str]) -> Iterator[str]:
-    for k in sorted(ks, key=len):
+    for k in sorted(sorted(ks), key=len):
       if self._typ is None:
         yield k
       elif not k:
