@@ -137,19 +137,27 @@ class SessionCommands:
 
   def add_cmds(self, cmap: CommandMap) -> None:
     for k, v in cmap.items():
-      self._cmds[k] = {p:v for p in v.get('t', {''})}
+      if k not in self._cmds:
+        self._cmds[k] = {}
+      self._cmds[k].update({p:v for p in v.get('t', {''})})
 
   def add_cmdpats(self, cmap: CommandPatternMap) -> None:
     for k, v in cmap.items():
-      self._cmdpats[k] = {p:v for p in v.get('t', {''})}
+      if k not in self._cmdpats:
+        self._cmdpats[k] = {}
+      self._cmdpats[k].update({p:v for p in v.get('t', {''})})
 
   def add_mods(self, cmap: ModifierMap) -> None:
     for k, v in cmap.items():
-      self._mods[k] = {p:v for p in v.get('t', {''})}
+      if k not in self._mods:
+        self._mods[k] = {}
+      self._mods[k].update({p:v for p in v.get('t', {''})})
 
   def add_opts(self, cmap: OptionMap) -> None:
     for k, v in cmap.items():
-      self._opts[k] = {p:v for p in v.get('t', {''})}
+      if k not in self._opts:
+        self._opts[k] = {}
+      self._opts[k].update({p:v for p in v.get('t', {''})})
 
   def add_configs(self, cmap: ConfigMap) -> None:
     self._confbag.update(cmap)
