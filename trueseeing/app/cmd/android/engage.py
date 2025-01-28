@@ -1374,7 +1374,13 @@ class FridaTracer:
 
   def _format_args(self) -> str:
     from shlex import quote
+    from trueseeing.core.env import get_frida_trace_port
     o = ['-d']
+
+    port = get_frida_trace_port()
+    if port:
+      o.append('--ui-port {port}'.format(port=port))
+
     for s in self._scripts:
       p = Path(s)
       if p.is_file():
