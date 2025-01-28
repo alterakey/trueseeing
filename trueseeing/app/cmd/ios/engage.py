@@ -23,6 +23,7 @@ class EngageCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
+      '!!!':dict(e=self._run_frida_shell, n='!!!', d='attach frida to the foreground process', t={'ipa'}),
       'xs':dict(e=self._engage_frida_attach, n='xs[!] [config]', d='engage: attach frida scripts (!: force)', t={'ipa'}),
       'xs!':dict(e=self._engage_frida_attach, t={'ipa'}),
       'xst':dict(e=self._engage_frida_trace_call, n='xst[!] [init.js]', d='engage: trace calls (!: force)', t={'ipa'}),
@@ -139,10 +140,19 @@ class EngageCommand(CommandMixin):
   def _get_context(self) -> IPAContext:
     return self._helper.get_context().require_type('ipa')  # type:ignore[return-value]
 
+  async def _run_frida_shell(self, args: deque[str]) -> None:
+    from trueseeing.core.ios.device import IOSDevice
+
+    dev = IOSDevice()
+    attacher = FridaAttacher(dev, [], interactive=True)
+
+    await attacher.attach()
+
 class FridaAttacher:
-  def __init__(self, dev: IOSDevice, scripts: List[Path]) -> None:
+  def __init__(self, dev: IOSDevice, scripts: List[Path], interactive: bool = False) -> None:
     self._dev = dev
     self._scripts = scripts
+    self._interactive = interactive
 
   async def attach(self) -> None:
     from subprocess import CalledProcessError
@@ -189,7 +199,9 @@ class FridaAttacher:
 
   def _format_args(self) -> str:
     from shlex import quote
-    o = ['-q']
+    o: List[str] = []
+    if not self._interactive:
+      o.append('-q')
     for s in self._scripts:
       p = Path(s)
       if p.is_file():

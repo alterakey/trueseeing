@@ -24,6 +24,7 @@ class EngageCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
+      '!!!':dict(e=self._run_frida_shell, n='!!!', d='attach frida on the foreground process', t={'apk'}),
       'xtq':dict(e=self._engage_tamper_discard, n='xtq', d='engage: discard changes', t={'apk'}),
       'xtx':dict(e=self._engage_tamper_apply, n='xtx[!]', d='engage: apply and rebuild apk', t={'apk'}),
       'xtx!':dict(e=self._engage_tamper_apply, t={'apk'}),
@@ -57,7 +58,7 @@ class EngageCommand(CommandMixin):
 
   def get_options(self) -> OptionMap:
     return {
-      'vers':dict(n='vers=X.Y.Z', d='specify frida server version to use [xf,xfs,xs,xst]', t={'apk'}),
+      'vers':dict(n='vers=X.Y.Z', d='specify frida server version to use [!!!,xf,xfs,xs,xst]', t={'apk'}),
       'w':dict(n='wNAME=FN', d='wordlist, use as {NAME} [xz]', t={'apk'}),
       'wait':dict(n='wait', d='do not launch app [xs,xst]', t={'apk'}),
       'attach':dict(n='attach', d='attach to the foremost app [xs,xst]', t={'apk'}),
@@ -1227,14 +1228,41 @@ class EngageCommand(CommandMixin):
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
 
+  async def _run_frida_shell(self, args: deque[str]) -> None:
+    vers = None
+
+    for optname, optvalue in self._helper.get_effective_options(self._helper.get_modifiers(args)).items():
+      if optname == 'vers':
+        vers = optvalue
+    if not vers:
+      try:
+        vers = await self._determine_recent_frida()
+      except InvalidResponseError:
+        ui.warn('cannot determine recent frida-server version (try @o:vers=X.Y.Z)')
+        try:
+          vers = await self._determine_recent_frida_server_in_cache()
+        except InvalidResponseError:
+          ui.fatal('frida-server not found; retry when you are online')
+
+    assert vers is not None
+
+    from trueseeing.core.android.device import AndroidDevice
+
+    dev = AndroidDevice()
+
+    await self._start_frida_server(dev, vers, wait=False, attach=True, force=False)
+    attacher = FridaAttacher(dev, [], interactive=True)
+
+    await attacher.attach()
 
 class InvalidResponseError(Exception):
   pass
 
 class FridaAttacher:
-  def __init__(self, dev: AndroidDevice, scripts: List[Path]) -> None:
+  def __init__(self, dev: AndroidDevice, scripts: List[Path], interactive: bool = False) -> None:
     self._dev = dev
     self._scripts = scripts
+    self._interactive = interactive
 
   async def attach(self) -> None:
     from subprocess import CalledProcessError
@@ -1281,7 +1309,9 @@ class FridaAttacher:
 
   def _format_args(self) -> str:
     from shlex import quote
-    o = ['-q']
+    o: List[str] = []
+    if not self._interactive:
+      o.append('-q')
     for s in self._scripts:
       p = Path(s)
       if p.is_file():
