@@ -60,7 +60,6 @@ class AssembleCommand(CommandMixin):
 
     stem = re.sub(r'\.x?apk$', '', apk)
     for typ in ['apk', 'xapk']:
-      print(origapk, f'{stem}.{typ}.orig')
       if os.path.exists(f'{stem}.{typ}.orig') and not cmd.endswith('!'):
         ui.fatal('backup file exists; force (!) to overwrite')
 
