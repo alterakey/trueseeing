@@ -19,6 +19,9 @@ Currently we can:
 * Deduce constants/typesets for args of op
 * Scan API/private calls for native codes (NB: you need [ts2-disasm-ghidra](https://github.com/alterakey/ts2-disasm-ghidra))
 * Scan iOS apps for basic vulnerabilities (NB: you need [ts2-disasm-ghidra](https://github.com/alterakey/ts2-disasm-ghidra))
+* Attach frida scripts
+* Provide frida interative session
+* Tracing calls
 * etc.
 
 ## Installation
@@ -52,7 +55,7 @@ Alternatively, you can install our package with pip as follows. This form of ins
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
     $ trueseeing target.apk
-    [+] trueseeing 2.2.5
+    [+] trueseeing 2.2.6
     ts[target.apk]> ?
     ...
     ts[target.apk]> i                      # show generic information
