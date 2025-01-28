@@ -17,7 +17,7 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
 readme = "README.md"
-keywords = ['android', 'security', 'pentest', 'hacking']
+keywords = ['ios', 'android', 'security', 'pentest', 'hacking']
 dependencies = [
     "lxml~=5.0",
     "pyyaml~=6.0",

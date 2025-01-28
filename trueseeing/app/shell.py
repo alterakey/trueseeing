@@ -16,7 +16,7 @@ class Shell:
     from trueseeing import __version__
     #   ..............................................................................80
     return (
-      f'Trueseeing {__version__}, an non-decompiling Android app vulnerability scanner\n'
+      f'Trueseeing {__version__}, an non-decompiling iOS/Android app vulnerability scanner\n'
        'Copyright (C) Takahiro Yoshimura <alterakey@protonmail.com> et al.\n' # noqa: E131
        'All rights reserved.  Licensed under the terms of GNU General Public License Version 3 or later.\n'
     )
@@ -34,7 +34,7 @@ class Shell:
     log_level = ui.INFO
     cmdlines = []
 
-    parser = ArgumentParser(description='Non-decompiling Android app vulnerability scanner')
+    parser = ArgumentParser(description='Non-decompiling iOS/Android app vulnerability scanner')
     args_mut0 = parser.add_mutually_exclusive_group()
     args_mut1 = parser.add_mutually_exclusive_group()
     parser.add_argument('fn', nargs='?', metavar='FILE', help='Target APK file')
