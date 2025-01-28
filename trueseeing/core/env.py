@@ -36,6 +36,23 @@ def get_adb_host() -> Optional[str]:
   return os.environ.get('TS2_ADB_HOST', ('tcp:host.docker.internal:5037' if is_in_container() else None))
 
 @cache
+def get_usbmuxd_host() -> Optional[str]:
+  return os.environ.get('TS2_USBMUXD_HOST', ('host.docker.internal:2222' if is_in_container() else None))
+
+@cache
+def get_frida_trace_port() -> Optional[int]:
+  o = os.environ.get('TS2_FRIDA_TRACE_PORT', ('3000' if is_in_container() else None))
+  try:
+    if o is not None:
+      return int(o)
+    else:
+      return None
+  except ValueError:
+    from trueseeing.core.ui import ui
+    ui.warn('invalid frida-trace port number, ignoring: {o}')
+    return None
+
+@cache
 def is_in_container() -> bool:
   return 'TS2_IN_DOCKER' in os.environ
 

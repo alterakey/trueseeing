@@ -59,6 +59,29 @@ class IPAContext(Context):
       self._store = IPAStore(self.wd)
     return self._store
 
+  def get_display_name(self) -> str:
+    def _get_manif() -> Optional[Mapping[str, Any]]:
+      import re
+      from zipfile import ZipFile
+      with ZipFile(self._path, 'r') as zf:
+        for i in zf.infolist():
+          if i.is_dir():
+            continue
+          if re.match(r'Payload/.*?.app/Info.plist', i.filename):
+            from plistlib import loads
+            o = loads(zf.read(i))
+            assert isinstance(o, dict)
+            return o
+      return None
+
+    manif = _get_manif()
+    if manif is not None:
+      name = manif['CFBundleDisplayName']
+      assert isinstance(name, str)
+      return name
+    else:
+      raise KeyError()
+
   async def _analyze(self, level: int) -> None:
     q: IPAQuery
     if level > 0:
