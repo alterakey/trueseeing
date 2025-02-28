@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     e: SignatureEntrypoint
     d: str
 
-  class FormatEntry(TypedDict, total=False):
+  class FormatEntry(TypedDict):
     e: FormatHandlerEntrypoint
     r: str
     d: str
