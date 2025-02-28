@@ -55,7 +55,7 @@ Alternatively, you can install our package with pip as follows. This form of ins
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
     $ trueseeing target.apk
-    [+] trueseeing 2.2.6
+    [+] trueseeing 2.2.7
     ts[target.apk]> ?
     ...
     ts[target.apk]> i                      # show generic information
@@ -288,7 +288,7 @@ class APKFileFormatHandler(FileFormatHandler):
     return APKFileFormatHandler()
 
   def get_formats(self) -> FormatMap:
-    return {'apk2':dict(e=self._handle, r=r'\.apk$', d='sample file format')}
+    return {'apk2':dict(e=self._handle, r=r'\.apk$', d='sample file format', t=None)}  # if this handler can suggest device context type, advertise at t
 
   def get_configs(self) -> ConfigMap:
     return dict()
