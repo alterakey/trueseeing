@@ -58,7 +58,7 @@ class FileOpener:
     if self._force_opener is None:
       return None
     if self._force_opener in self._formats:
-      t = self._formats[self._force_opener].get('t')
+      t = self._formats[self._force_opener]['t']
       if t is not None:
         return t
     raise InvalidFileFormatError()
@@ -72,7 +72,7 @@ class FileOpener:
 
     self._formats.update({
       'apk':dict(e=self._handle_apk, r=r'\.apk$', d='Android application package', t={'apk','file'}),
-      'xapk':dict(e=self._handle_xapk, r=r'\.xapk$', d='Android appllication bundle'),
+      'xapk':dict(e=self._handle_xapk, r=r'\.xapk$', d='Android appllication bundle', t=None),
       'ipa': dict(e=self._handle_ipa, r=r'\.ipa$', d='iOS application archive', t={'ipa', 'file'}),
     })
 
