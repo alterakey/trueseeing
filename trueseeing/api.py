@@ -50,10 +50,11 @@ if TYPE_CHECKING:
     e: SignatureEntrypoint
     d: str
 
-  class FormatEntry(TypedDict):
+  class FormatEntry(TypedDict, total=False):
     e: FormatHandlerEntrypoint
     r: str
     d: str
+    t: Optional[Set[ContextType]]
 
   CommandMap = Mapping[str, CommandEntry]
   CommandPatternMap = Mapping[str, CommandPatternEntry]
