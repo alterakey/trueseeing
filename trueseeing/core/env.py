@@ -81,6 +81,19 @@ def get_swift_demangler_url() -> str:
   return os.environ.get('TS2_SWIFT_DEMANGLER_URL', 'http://127.0.0.1:8000')
 
 @cache
+def get_frida_ios_dump_interp() -> str:
+  from sys import executable
+  return os.environ.get('TS2_FRIDA_IOS_DUMP_INTERP', executable) # XXX
+
+@cache
+def get_frida_ios_dump_path() -> str:
+  try:
+    return os.environ['TS2_FRIDA_IOS_DUMP_PATH']
+  except KeyError:
+    from trueseeing.core.ui import ui
+    ui.fatal('need frida-ios-dump (try setting TS2_FRIDA_IOS_DUMP_PATH to the path to its dump.py)') # XXX
+
+@cache
 def get_cpu_count() -> int:
   from os import cpu_count
   return cpu_count() or 0

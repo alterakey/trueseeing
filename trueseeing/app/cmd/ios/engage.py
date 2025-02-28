@@ -24,6 +24,8 @@ class EngageCommand(CommandMixin):
   def get_commands(self) -> CommandMap:
     return {
       '!!!':dict(e=self._run_frida_shell, n='!!!', d='attach frida to the foreground process', t={'ipa'}),
+      'xg':dict(e=self._engage_grab_package, n='xg[!] package [output.ipa]', d='engage: grab package', t={'ipa'}),
+      'xg!':dict(e=self._engage_grab_package, t={'ipa'}),
       'xs':dict(e=self._engage_frida_attach, n='xs[!] [config]', d='engage: attach frida scripts (!: force)', t={'ipa'}),
       'xs!':dict(e=self._engage_frida_attach, t={'ipa'}),
       'xst':dict(e=self._engage_frida_trace_call, n='xst[!] [init.js]', d='engage: trace calls (!: force)', t={'ipa'}),
@@ -138,6 +140,60 @@ class EngageCommand(CommandMixin):
         await attacher.gate(name)
 
     ui.success("done ({t:.2f} sec.)".format(t=time() - at))
+
+  async def _engage_grab_package(self, args: deque[str]) -> None:
+    cmd = args.popleft()
+
+    import os
+    if not args:
+      ui.fatal('need the package name')
+
+    pkg = args.popleft()
+
+    if args:
+      outfn = args.popleft()
+    else:
+      outfn = f'{pkg}.ipa'
+
+    if os.path.exists(outfn):
+      if not cmd.endswith('!'):
+        ui.fatal('output file exists; force (!) to overwrite')
+      else:
+        os.remove(outfn)
+
+    from time import time
+    from tempfile import TemporaryDirectory
+    from trueseeing.core.ios.device import IOSDevice
+
+    dev = IOSDevice()
+    at = time()
+    outfn = os.path.realpath(outfn)
+
+    ui.info(f'grabbing package: {pkg} -> {outfn}')
+
+    with TemporaryDirectory() as td:
+      from os import chdir, getcwd
+      from trueseeing.core.env import get_frida_ios_dump_interp, get_frida_ios_dump_path
+      from shlex import quote
+      cd = getcwd()
+      try:
+        chdir(td)
+        from subprocess import CalledProcessError
+        try:
+          await dev.invoke_frida_passthru("{interp} {dump} -o t.ipa {name}".format(
+            interp=get_frida_ios_dump_interp(),
+            dump=get_frida_ios_dump_path(),
+            name=quote(pkg),
+          ))
+        except CalledProcessError:
+          ui.fatal('cannot attach to process')
+
+        from shutil import copy2
+        copy2('t.ipa', outfn)
+
+        ui.success('done ({t:.02f} sec)'.format(t=time() - at))
+      finally:
+        chdir(cd)
 
   def _get_context(self) -> IPAContext:
     return self._helper.get_context().require_type('ipa')  # type:ignore[return-value]
