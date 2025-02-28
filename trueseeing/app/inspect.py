@@ -452,7 +452,10 @@ class CommandHelperImpl:
     from trueseeing.core.exc import InvalidFileFormatError
     t = self.get_target()
     if not t:
-      return None
+      try:
+        return self._opener.get_device_context_type()
+      except InvalidFileFormatError:
+        raise ui.fatal('invalid file type for device (try "apk" or "ipa", or not at all)')
     try:
       return self._opener.get_context(t).type
     except InvalidFileFormatError:

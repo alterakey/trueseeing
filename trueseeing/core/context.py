@@ -53,6 +53,16 @@ class FileOpener:
           return c
       raise InvalidFileFormatError()
 
+  def get_device_context_type(self) -> Optional[Set[ContextType]]:
+    from trueseeing.core.exc import InvalidFileFormatError
+    if self._force_opener is None:
+      return None
+    if self._force_opener in self._formats:
+      t = self._formats[self._force_opener].get('t')
+      if t is not None:
+        return t
+    raise InvalidFileFormatError()
+
   def get_formats(self) -> Iterator[Mapping[str, str]]:
     for k,v in self._formats.items():
       yield dict(n=k, d=v['d'])
@@ -61,9 +71,9 @@ class FileOpener:
     from trueseeing.core.ext import Extension
 
     self._formats.update({
-      'apk':dict(e=self._handle_apk, r=r'\.apk$', d='Android application package'),
+      'apk':dict(e=self._handle_apk, r=r'\.apk$', d='Android application package', t={'apk','file'}),
       'xapk':dict(e=self._handle_xapk, r=r'\.xapk$', d='Android appllication bundle'),
-      'ipa': dict(e=self._handle_ipa, r=r'\.ipa$', d='iOS application archive'),
+      'ipa': dict(e=self._handle_ipa, r=r'\.ipa$', d='iOS application archive', t={'ipa', 'file'}),
     })
 
     for clazz in Extension.get().get_fileformathandlers():
