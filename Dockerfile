@@ -5,7 +5,7 @@ run (cd /tmp/build && flit build)
 
 from python:3.13-slim
 run apt-get update -y && apt-get install -y git
-run (cd /opt && git clone https://github.com/AloneMonkey/frida-ios-dump.git && cd frida-ios-dump && python3 -m venv .venv && .venv/bin/pip install -r ./requirements.txt)
+run (cd /opt && git clone https://github.com/alterakey/ts2-frida-ios-dump.git frida-ios-dump && cd frida-ios-dump && python3 -m venv .venv && .venv/bin/pip install -r ./requirements.txt)
 
 from python:3.13-slim
 run apt-get update -y && apt-get install -y openjdk-17-jre-headless zip adb
