@@ -39,17 +39,17 @@ class ReconCommand(CommandMixin):
 
   def get_commands(self) -> CommandMap:
     return {
-      '!!':dict(e=self._recon_shell, n='!!', d='run shell on device'),
-      'rwl':dict(e=self._recon_watch_logcat, n='rwl[!] [pat]', d='recon: watch logcat (!: system-wide)'),
-      'rwl!':dict(e=self._recon_watch_logcat),
-      'rwf':dict(e=self._recon_watch_fs, n='rwf', d='recon: watch filesystem'),
-      'rwt':dict(e=self._recon_watch_intent, n='rwt[!] [pat]', d='recon: watch intent'),
-      'rwt!':dict(e=self._recon_watch_intent),
-      'rwu':dict(e=self._recon_watch_ui, n='rwu[!] [pat|xp:xpath] [output.xml]', d='recon: watch device UI'),
-      'rwu!':dict(e=self._recon_watch_ui),
-      'rwx':dict(e=self._recon_watch_start, n='rwx', d='recon: start watching'),
-      'rp':dict(e=self._recon_list_packages, n='rp', d='recon: list installed packages'),
-      'ru':dict(e=self._recon_dump_ui, n='ru [output.xml]', d='recon: dump device UI'),
+      '!!':dict(e=self._recon_shell, n='!!', d='run shell on device', t={'apk'}),
+      'rwl':dict(e=self._recon_watch_logcat, n='rwl[!] [pat]', d='recon: watch logcat (!: system-wide)', t={'apk'}),
+      'rwl!':dict(e=self._recon_watch_logcat, t={'apk'}),
+      'rwf':dict(e=self._recon_watch_fs, n='rwf', d='recon: watch filesystem', t={'apk'}),
+      'rwt':dict(e=self._recon_watch_intent, n='rwt[!] [pat]', d='recon: watch intent', t={'apk'}),
+      'rwt!':dict(e=self._recon_watch_intent, t={'apk'}),
+      'rwu':dict(e=self._recon_watch_ui, n='rwu[!] [pat|xp:xpath] [output.xml]', d='recon: watch device UI', t={'apk'}),
+      'rwu!':dict(e=self._recon_watch_ui, t={'apk'}),
+      'rwx':dict(e=self._recon_watch_start, n='rwx', d='recon: start watching', t={'apk'}),
+      'rp':dict(e=self._recon_list_packages, n='rp', d='recon: list installed packages', t={'apk'}),
+      'ru':dict(e=self._recon_dump_ui, n='ru [output.xml]', d='recon: dump device UI', t={'apk'}),
     }
 
   def _get_apk_context(self) -> APKContext:
