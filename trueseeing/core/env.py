@@ -35,9 +35,10 @@ def get_cache_dir_v2() -> str:
 def get_adb_host() -> Optional[str]:
   return os.environ.get('TS2_ADB_HOST', ('tcp:host.docker.internal:5037' if is_in_container() else None))
 
+
 @cache
-def get_usbmuxd_host() -> Optional[str]:
-  return os.environ.get('TS2_USBMUXD_HOST', ('host.docker.internal:2222' if is_in_container() else None))
+def get_ios_frida_server_host() -> Optional[str]:
+  return os.environ.get('TS2_IOS_FRIDA_HOST', ('host.docker.internal:27042' if is_in_container() else None))
 
 @cache
 def get_frida_trace_port() -> Optional[int]:
@@ -92,6 +93,10 @@ def get_frida_ios_dump_path() -> str:
   except KeyError:
     from trueseeing.core.ui import ui
     ui.fatal('need frida-ios-dump (try setting TS2_FRIDA_IOS_DUMP_PATH to the path to its dump.py)') # XXX
+
+@cache
+def get_frida_ios_dump_ssh_host() -> Optional[str]:
+  return os.environ.get('TS2_FRIDA_IOS_DUMP_SSH_HOST', ('host.docker.internal:2222' if is_in_container() else None))
 
 @cache
 def get_cpu_count() -> int:

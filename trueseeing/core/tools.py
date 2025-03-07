@@ -30,12 +30,12 @@ def _check_return_code(p: Any, args: Any, out: Any, err: Any) -> None:
     raise CalledProcessError(code, args, out, err)
 
 @cache
-def require_in_path(cmd: str, cmdline: str) -> None:
+def require_in_path(cmd: str, cmdline: str, msg: Optional[str] = None) -> None:
   from subprocess import run, CalledProcessError
   try:
     run(cmdline, capture_output=True, check=True, shell=True)
   except CalledProcessError:
-    ui.fatal('not found: {cmd}')
+    ui.fatal(msg if msg else f'not found: {cmd}')
 
 async def invoke(as_: str, redir_stderr: bool = False, catch_stderr: bool = False, timeout: Optional[float] = None) -> str:
   from asyncio import create_subprocess_shell, wait_for, TimeoutError
