@@ -8,7 +8,7 @@ from trueseeing.core.model.cmd import CommandMixin
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Mapping, List
+  from typing import Mapping, List, Tuple
   from trueseeing.api import CommandHelper, Command, CommandMap, OptionMap
   from trueseeing.core.ios.context import IPAContext
   from trueseeing.core.ios.device import IOSDevice
@@ -173,20 +173,25 @@ class EngageCommand(CommandMixin):
 
     with TemporaryDirectory() as td:
       from os import chdir, getcwd
-      from trueseeing.core.env import get_frida_ios_dump_interp, get_frida_ios_dump_path
+      from trueseeing.core.env import get_frida_ios_dump_interp, get_frida_ios_dump_path, get_ios_frida_server_host, get_frida_ios_dump_ssh_host
       from shlex import quote
       cd = getcwd()
+      hoststr = get_frida_ios_dump_ssh_host()
+      ssh_host, ssh_port = self._parse_host(hoststr, 2222)
       try:
         chdir(td)
         from subprocess import CalledProcessError
         try:
-          await dev.invoke_frida_passthru("{interp} {dump} -o t.ipa {name}".format(
+          await dev.invoke_frida_passthru("env FRIDA_HOST={host} {interp} {dump} -H {ssh_host} -p {ssh_port} -o t.ipa {name}".format(
+            host=get_ios_frida_server_host(),
             interp=get_frida_ios_dump_interp(),
             dump=get_frida_ios_dump_path(),
+            ssh_host=ssh_host,
+            ssh_port=ssh_port,
             name=quote(pkg),
           ))
         except CalledProcessError:
-          ui.fatal('cannot attach to process')
+          ui.fatal(f'grab failed (try tunnelling {ssh_host}:{ssh_port} to device port 22 or 44)')
 
         from shutil import copy2
         copy2('t.ipa', outfn)
@@ -194,6 +199,13 @@ class EngageCommand(CommandMixin):
         ui.success('done ({t:.02f} sec)'.format(t=time() - at))
       finally:
         chdir(cd)
+
+  def _parse_host(self, hoststr: str, default_port: int) -> Tuple[str, int]:
+    c = hoststr.split(':', maxsplit=1)
+    if len(c) > 1:
+      return c[0], int(c[1])
+    else:
+      return c[0], default_port
 
   def _get_context(self) -> IPAContext:
     return self._helper.get_context().require_type('ipa')  # type:ignore[return-value]
