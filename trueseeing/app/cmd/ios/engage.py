@@ -80,7 +80,7 @@ class EngageCommand(CommandMixin):
 
       if force:
         ui.warn(f"killing {name}")
-        await dev.invoke_frida_passthru(f"frida-kill -U {name}")
+        await dev.invoke_frida_passthru(f"frida-kill @dev@ {name}")
 
       ui.info(f"starting frida on {name}")
 
@@ -130,7 +130,7 @@ class EngageCommand(CommandMixin):
 
       if force:
         ui.warn(f"killing {name}")
-        await dev.invoke_frida_passthru(f"frida-kill -U {name}")
+        await dev.invoke_frida_passthru(f"frida-kill @dev@ {name}")
 
       ui.info(f"starting frida on {name}")
 
@@ -217,7 +217,7 @@ class FridaAttacher:
     from asyncio import TimeoutError
     ui.info('attaching to the foreground process')
     try:
-      await self._dev.invoke_frida_passthru("frida -UF {args}".format(
+      await self._dev.invoke_frida_passthru("frida @dev@ -F {args}".format(
         args=self._format_args(),
       ))
     except (TimeoutError, CalledProcessError):
@@ -236,7 +236,7 @@ class FridaAttacher:
     from subprocess import CalledProcessError
     from asyncio import TimeoutError
     try:
-      await self._dev.invoke_frida_passthru("frida -Uf {name} {args}".format(
+      await self._dev.invoke_frida_passthru("frida @dev@ -f {name} {args}".format(
         name=name,
         args=self._format_args(),
       ), timeout=3.)
@@ -248,7 +248,7 @@ class FridaAttacher:
     from asyncio import TimeoutError
     ui.info('waiting for the process; launch the app on the device in 60s')
     try:
-      await self._dev.invoke_frida_passthru("frida -UW {name} {args}".format(
+      await self._dev.invoke_frida_passthru("frida @dev@ -W {name} {args}".format(
         name=name,
         args=self._format_args(),
       ), timeout=60.)
@@ -282,7 +282,7 @@ class FridaTracer:
     from asyncio import TimeoutError
     ui.info('attaching to the foreground process')
     try:
-      await self._dev.invoke_frida_passthru("frida-trace -UF {args}".format(
+      await self._dev.invoke_frida_passthru("frida-trace @dev@ -F {args}".format(
         args=self._format_args(),
       ))
     except (TimeoutError, CalledProcessError):
@@ -301,7 +301,7 @@ class FridaTracer:
     from subprocess import CalledProcessError
     from asyncio import TimeoutError
     try:
-      await self._dev.invoke_frida_passthru("frida-trace -Uf {name} {args}".format(
+      await self._dev.invoke_frida_passthru("frida-trace @dev@ -f {name} {args}".format(
         name=name,
         args=self._format_args(),
       ))
@@ -313,7 +313,7 @@ class FridaTracer:
     from asyncio import TimeoutError
     ui.info('waiting for the process; launch the app on the device in 60s')
     try:
-      await self._dev.invoke_frida_passthru("frida-trace -UW {name} {args}".format(
+      await self._dev.invoke_frida_passthru("frida-trace @dev@ -W {name} {args}".format(
         name=name,
         args=self._format_args(),
       ))
