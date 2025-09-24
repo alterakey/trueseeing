@@ -71,7 +71,7 @@ class InspectMode:
       sys.ps1, sys.ps2 = ps1, ps2
 
 class LambdaConsole(InteractiveConsole):
-  def __init__(self, /, runner: Runner, locals: Optional[Mapping[str, Any]] = None) -> None:
+  def __init__(self, /, runner: Runner, locals: Optional[Dict[str, Any]] = None) -> None:
     super().__init__(locals=locals, filename='<input>')
     from prompt_toolkit import PromptSession
     self._sess: Any = PromptSession()
