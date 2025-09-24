@@ -219,7 +219,7 @@ class EngageCommand(CommandMixin):
     ui.info('enabling full backup {apk}'.format(apk=apk))
 
     at = time.time()
-    context = await self._helper.get_context().require_type('apk').analyze(level=1)
+    context = await self._helper.get_context().require_type('apk').analyze(level=2)
     with context.store().query().scoped() as q:
       path = 'AndroidManifest.xml'
       blob = q.file_get(path, patched=True)
