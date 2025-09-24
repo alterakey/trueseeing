@@ -1,13 +1,13 @@
-from python:3.13-slim
+from python:3.13.5-slim
 run pip install flit
 copy . /tmp/build/
 run (cd /tmp/build && flit build)
 
-from python:3.13-slim
+from python:3.13.5-slim
 run apt-get update -y && apt-get install -y git
 run (cd /opt && git clone https://github.com/alterakey/ts2-frida-ios-dump.git frida-ios-dump && cd frida-ios-dump && python3 -m venv .venv && .venv/bin/pip install -r ./requirements.txt)
 
-from python:3.13-slim
+from python:3.13.5-slim
 run apt-get update -y && apt-get install -y openjdk-17-jre-headless zip adb
 run install -d -m 777 /data /ext /cache /out && ln -sfn /cache /root/.local
 copy --from=1 /opt/frida-ios-dump /opt/frida-ios-dump
