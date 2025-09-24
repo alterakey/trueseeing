@@ -31,7 +31,7 @@ class CodeArchiveReader:
     if tarpath.endswith('.zst'):
       from pyzstd import open as zstdopen
       with zstdopen(tarpath, 'rb') as f:
-        yield tarfile.open(tarpath, fileobj=f) # type:ignore[call-overload]
+        yield tarfile.open(tarpath, fileobj=f)
     else:
       yield tarfile.open(tarpath)
 
