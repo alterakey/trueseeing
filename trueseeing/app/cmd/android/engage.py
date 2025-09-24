@@ -888,7 +888,7 @@ class EngageCommand(CommandMixin):
           if b'success' in l.lower():
             ui.warn('removing existing package')
       except CalledProcessError as e:
-        ui.fatal('uninstall failed: {}'.format(e.stdout.decode().rstrip()))
+        ui.warn('uninstalling appears to have failed (continuing anyway): {}'.format(e.stdout.decode().rstrip()))
 
     with AndroidInstallProgressReporter().scoped():
       pub.sendMessage('progress.android.adb.begin', what='installing ... ')
