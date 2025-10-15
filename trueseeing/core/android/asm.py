@@ -166,6 +166,31 @@ class APKAssembler:
 
     return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
 
+class APKSigner:
+  @classmethod
+  async def sign(cls, path: str, wd: str) -> Tuple[str, str]:
+    import os
+    from shlex import quote
+    from trueseeing.core.tools import invoke_streaming
+    from trueseeing.core.android.tools import toolchains
+
+    pub.sendMessage('progress.core.asm.asm.begin')
+
+    with toolchains() as tc:
+      async for l in invoke_streaming(
+        '(rm -f {wd}/output.apk* && cp {path} {wd}/output.apk && java -jar {apksigner} sign --ks {keystore} --ks-pass pass:android {wd}/output.apk)'.format(
+          wd=quote(wd), path=quote(path),
+          apksigner=tc['apksigner'],
+          keystore=await SigningKey().key(),
+        ), redir_stderr=True
+      ):
+        pub.sendMessage('progress.core.asm.asm.update')
+
+    pub.sendMessage('progress.core.asm.asm.done')
+
+    return os.path.join(wd, 'output.apk'), os.path.join(wd, 'output.apk.idsig')
+
+
 class SigningKey:
   _path: str
 

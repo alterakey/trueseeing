@@ -868,6 +868,7 @@ class EngageCommand(CommandMixin):
     context: APKContext = self._helper.get_context().require_type('apk')
     apk = context.target
 
+    from tempfile import TemporaryDirectory
     from time import time
     from shlex import quote
     from pubsub import pub
@@ -890,21 +891,33 @@ class EngageCommand(CommandMixin):
       except CalledProcessError as e:
         ui.warn('uninstalling appears to have failed (continuing anyway): {}'.format(e.stdout.decode().rstrip()))
 
-    with AndroidInstallProgressReporter().scoped():
-      pub.sendMessage('progress.android.adb.begin', what='installing ... ')
-      try:
-        async for l in dev.invoke_adb_streaming(f'install --no-streaming {quote(apk)}', redir_stderr=True):
-          pub.sendMessage('progress.android.adb.update')
-          if b'failure' in l.lower():
-            ui.stderr('')
-            if not cmd.endswith('!'):
-              ui.fatal('install failed; force (!) to replace ({})'.format(l.decode('UTF-8')))
-            else:
-              ui.fatal('install failed ({})'.format(l.decode('UTF-8')))
+      async def _do(apk: str, *, in_retry: bool = False) -> None:
+        with AndroidInstallProgressReporter().scoped():
+          pub.sendMessage('progress.android.adb.begin', what='installing ... ')
+          try:
+            async for l in dev.invoke_adb_streaming(f'install --no-streaming {quote(apk)}', redir_stderr=True):
+              pub.sendMessage('progress.android.adb.update')
+              msg = l.lower()
+              if b'failure' in msg:
+                ui.stderr('')
 
-        pub.sendMessage('progress.android.adb.done')
-      except CalledProcessError as e:
-        ui.fatal('install failed: {}'.format(e.stdout.decode().rstrip()))
+                if b'signature' in msg and not in_retry: # XXX
+                  ui.warn('package signature seems to be broken: re-signing')
+                  with TemporaryDirectory() as td:
+                    from trueseeing.core.android.asm import APKSigner
+                    apk, _ = await APKSigner().sign(apk, td)
+                    return await _do(apk, in_retry=True)
+
+                if not cmd.endswith('!'):
+                  ui.fatal('install failed; force (!) to replace ({})'.format(l.decode('UTF-8')))
+                else:
+                  ui.fatal('install failed ({})'.format(l.decode('UTF-8')))
+
+            pub.sendMessage('progress.android.adb.done')
+          except CalledProcessError as e:
+            ui.fatal('install failed: {}'.format(e.stdout.decode().rstrip()))
+
+      await _do(apk)
 
       ui.success('done ({t:.02f} sec){trailer}'.format(t=time() - at, trailer=' '*8))
 
