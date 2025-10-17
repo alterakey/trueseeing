@@ -19,30 +19,23 @@ classifiers = [
 readme = "README.md"
 keywords = ['ios', 'android', 'security', 'pentest', 'hacking']
 dependencies = [
-    "lxml~=5.0",
-    "pyyaml~=6.0",
-    "jinja2~=3.1",
-    "pypubsub~=4.0",
-    "termcolor~=2.4",
-    "progressbar2~=4.3",
-    "importlib_metadata~=7.0",
-    "asn1crypto~=1.5",
-    "pyzstd~=0.16",
     "aiohttp~=3.9",
+    "asn1crypto~=1.5",
+    "frida-tools~=13.6",
+    "importlib-metadata~=7.0",
+    "jinja2~=3.1",
     "lief~=0.14",
-    "pyaxmlparser~=0.3",
+    "lxml~=5.0",
+    "progressbar2~=4.3",
     "prompt-toolkit~=3.0",
-    'frida-tools~=13.6',
+    "pyaxmlparser~=0.3",
+    "pypubsub~=4.0",
+    "pyyaml~=6.0",
+    "pyzstd~=0.16",
+    "termcolor~=2.4",
 ]
 requires-python = ">=3.9"
 dynamic = ['version', 'description']
-
-[project.optional-dependencies]
-dev = [
-  "mypy~=1.13",
-  "pyproject-flake8~=7.0",
-  "typing_extensions~=4.12",
-]
 
 [project.urls]
 Source = "https://github.com/alterakey/trueseeing"
@@ -69,3 +62,11 @@ ignore_missing_imports = true
 [tool.flake8]
 extend-ignore = "E301,E302,E265,E114,E501,E231,E252,E261,E701,E722,E741"
 indent-size = 2
+
+[dependency-groups]
+dev = [
+    "mypy~=1.13",
+    "pyproject-flake8~=7.0",
+    "types-pygments>=2.19.0.20250809",
+    "typing_extensions~=4.12",
+]
