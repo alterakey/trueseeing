@@ -12,9 +12,6 @@ run apt-get install -y --no-install-recommends openjdk-17-jre-headless zip adb &
 run install -d -m 777 /data /ext /cache /out && ln -sfn /cache /root/.local
 copy --from=0 /usr/lib/frida-ios-dump /usr/lib/frida-ios-dump
 copy --from=0 /usr/lib/ts2 /usr/lib/ts2
-
-from scratch
-copy --from=1 / /
 env PATH=/usr/lib/ts2/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 env TS2_IN_DOCKER=1
 env TS2_CACHEDIR=/cache
