@@ -1,2 +1,2 @@
 """Trueseeing is a non-decompiling iOS/Android application vulnerability scanner."""
-__version__ = '2.2.7'
+__version__ = '2.2.8'

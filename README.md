@@ -60,7 +60,7 @@ Or, with [uv](https://github.com/astral-sh/uv) you could do:
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
     $ trueseeing target.apk
-    [+] trueseeing 2.2.7
+    [+] trueseeing 2.2.8
     ts[target.apk]> ?
     ...
     ts[target.apk]> i                      # show generic information
