@@ -10,7 +10,7 @@ from trueseeing.core.env import get_home_dir
 from trueseeing.core.ui import ui
 
 if TYPE_CHECKING:
-  from typing import Tuple, Optional
+  from typing import Tuple, Optional, AsyncIterator
   from trueseeing.core.context import Context
   from trueseeing.core.db import FileEntry
 
@@ -119,6 +119,32 @@ class APKDisassembler:
 
     pub.sendMessage('progress.core.asm.disasm.done')
 
+  @classmethod
+  async def get_slices(cls, xapk: str, wd: str) -> AsyncIterator[str]:
+    from shlex import quote
+    from trueseeing.core.tools import invoke_streaming
+    from trueseeing.core.android.tools import toolchains
+
+    td = wd
+
+    pub.sendMessage('progress.core.asm.disasm.begin')
+    with toolchains() as tc:
+      async for l in invoke_streaming(
+          '(java -jar {apkeditor} d -o {path} -i {xapk} -dex -t raw)'.format(
+            xapk=quote(xapk),
+            apkeditor=tc['apkeditor'],
+            path=quote(td),
+          ), redir_stderr=True
+      ):
+        pub.sendMessage('progress.core.asm.disasm.update')
+    pub.sendMessage('progress.core.asm.disasm.done')
+
+    with open(f'{td}/root/manifest.json') as f:
+      import json
+      dom = json.loads(f.read())
+      for s in dom['split_apks']:
+        yield os.path.join(td, 'root', s['file'])
+
 class APKAssembler:
   @classmethod
   async def assemble_from_path(cls, wd: str, path: str) -> Tuple[str, str]:
@@ -169,6 +195,9 @@ class APKAssembler:
 class APKSigner:
   @classmethod
   async def sign(cls, path: str, wd: str) -> Tuple[str, str]:
+    if path.endswith('.xapk'):
+      return await APKAssembler.merge_slices(path, wd)
+
     import os
     from shlex import quote
     from trueseeing.core.tools import invoke_streaming
