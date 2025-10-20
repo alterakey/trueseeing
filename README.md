@@ -41,12 +41,17 @@ If you want to run statelessly you omit mounting volume onto /cache (not recomme
     $ docker run --rm -v $(pwd):/out ghcr.io/alterakey/trueseeing
 
 
-### With pip
+### With pip / uvx
 
 Alternatively, you can install our package with pip as follows. This form of installation might be useful for extensions, as it grants them the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
 
     $ pip install --user trueseeing
     $ trueseeing
+
+Or, with [uv](https://github.com/astral-sh/uv) you could do:
+
+    $ uvx trueseeing
+
 
 ## Usage
 
@@ -142,6 +147,17 @@ To hack it, you need to create a proper build environment. To create one, set up
     Success: no issues found in XX source files
     (.venv) $ flit build                             # to build (wheel)
     (.venv) $ docker build -t trueseeing .           # to build (container)
+
+Or, with [uv](https://github.com/astral-sh/uv) you could do:
+
+    $ git clone https://github.com/alterakey/trueseeing.git wc
+    $ uv sync --locked
+    $ (... hack ...)
+    $ uv run trueseeing ...                                # to run
+    $ uv run mypy trueseeing && uv run pflake8 trueseeing  # to validate
+    Success: no issues found in XX source files
+    $ uv run flit build                                    # to build (wheel)
+    $ docker build -t trueseeing .                         # to build (container)
 
 
 ## Details
