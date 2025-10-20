@@ -16,19 +16,19 @@ class AndroidDevice:
   async def invoke_adb(self, cmd: str, **kwargs: Any) -> str:
     self._require_adb()
     line = self._get_adb_cmdline(cmd)
-    ui.debug("invoking: {line}")
+    ui.debug(f"invoking: {line}")
     return await invoke(line, **kwargs)
 
   async def invoke_adb_passthru(self, cmd: str, **kwargs: Any) -> None:
     self._require_adb()
     line = self._get_adb_cmdline(cmd)
-    ui.debug("invoking: {line}")
+    ui.debug(f"invoking: {line}")
     await invoke_passthru(line, **kwargs)
 
   async def invoke_adb_streaming(self, cmd: str, **kwargs: Any) -> AsyncIterator[bytes]:
     self._require_adb()
     line = self._get_adb_cmdline(cmd)
-    ui.debug("invoking: {line}")
+    ui.debug(f"invoking: {line}")
     async for l in invoke_streaming(line, **kwargs):
       yield l
 
@@ -55,19 +55,19 @@ class AndroidDevice:
   async def invoke_frida(self, cmd: str, **kwargs: Any) -> str:
     self._require_frida()
     line = self._get_frida_cmdline(cmd)
-    ui.debug("invoking: {line}")
+    ui.debug(f"invoking: {line}")
     return await invoke(line, **kwargs)
 
   async def invoke_frida_passthru(self, cmd: str, **kwargs: Any) -> None:
     self._require_frida()
     line = self._get_frida_cmdline(cmd)
-    ui.debug("invoking: {line}")
+    ui.debug(f"invoking: {line}")
     await invoke_passthru(line, **kwargs)
 
   async def invoke_frida_streaming(self, cmd: str, **kwargs: Any) -> AsyncIterator[bytes]:
     self._require_frida()
     line = self._get_frida_cmdline(cmd)
-    ui.debug("invoking: {line}")
+    ui.debug(f"invoking: {line}")
     async for l in invoke_streaming(line, **kwargs):
       yield l
 
