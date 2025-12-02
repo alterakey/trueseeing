@@ -18,7 +18,7 @@ def analyze_api(path: str) -> Iterator[Mapping[str, Any]]:
 
 def analyze_api_in(gen: Iterable[Tuple[str, bytes]]) -> Iterator[Mapping[str, Any]]:
     # XXX: focusing on oneline
-    pats = rb'^([_.].*?:[0-9a-f]{8}) +?[0-9a-f]+ +?b[a-z]* +(.*?);(\[[A-Za-z]+ .*?\]|undefined _.*)$'
+    pats = rb'^([_.].*?:[0-9a-f]{8,}) +?[0-9a-f]+ +?b[a-z]* +(.*?);(\[[A-Za-z_\$]+ .*?\]|undefined _.*)$'
     blacklist = '|'.join([
         ' _objc_',
         ' _swift_',
