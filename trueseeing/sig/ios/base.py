@@ -47,6 +47,7 @@ class IOSDetector(Signature):
       'ios-detect-copyrights':dict(e=self._detect_copyrights, d='[iOS] Detects copyright banners'),
       'ios-detect-crypto-xor':dict(e=self._detect_crypto_xor, d='[iOS] Detects Vernum cipher usage with static keys'),
       'ios-detect-libs':dict(e=self._detect_libs, d='[iOS] Detects statically-linked libs'),
+      'ios-detect-frameworks':dict(e=self._detect_frameworks, d='[iOS] Detects bundled frameworks'),
     }
 
   def get_configs(self) -> ConfigMap:
@@ -878,3 +879,22 @@ class IOSDetector(Signature):
       return cls._entropy_of(string) / float(math.log(len(string)) / math.log(2))
     except ValueError:
       return 0
+
+  async def _detect_frameworks(self) -> None:
+    q: IPAQuery
+    from plistlib import loads
+    context = self._get_ipa_context()
+    cvss = 'CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N/'
+    with context.store().query().scoped() as q:
+      for n, b in q.file_enum('Payload/.*?.framework/Info.plist', regex=True):
+        dom = loads(b)
+        bundleid = dom['CFBundleIdentifier']
+        vers = dom['CFBundleShortVersionString']
+        self._helper.raise_issue(self._helper.build_issue(
+          sigid='ios-detect-frameworks',
+          cvss=cvss,
+          title=f'detected framework: {bundleid}',
+          cfd='firm',
+          aff0=n,
+          info0=vers,
+        ))
