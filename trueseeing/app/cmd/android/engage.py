@@ -671,6 +671,43 @@ class EngageCommand(CommandMixin):
     else:
       ui.failure('copyout failed')
 
+  def _validate_tar_archive(self, tar_path: str, reason: str = "tar archive") -> None:
+    """
+    Validate that a tar archive contains no current/parent directory entries (. or ..)
+    This works around an adb quirk where archives created with "tar -c ." (which
+    include ./ entries) cause issues during the copy-in process.
+
+    Args:
+        tar_path: Path to the tar archive
+        reason: Human-readable reason for validation
+
+    Raises:
+        SystemExit: If current (.) or parent (..) directory entries are found
+    """
+    try:
+      import tarfile
+      import os
+
+      # Check if tar file exists
+      if not os.path.exists(tar_path):
+        return  # File might not exist if we're checking multiple variants
+
+      # Validate tar entries without extracting
+      try:
+        with tarfile.open(tar_path, 'r') as tar:
+          for member in tar.getmembers():
+            # Check for current dir (.) or parent dir (..) entries, or paths starting with ./
+            if member.name == '.' or member.name == '..' or member.name.startswith('./'):
+              ui.fatal(
+                f'invalid entry in {reason}: {member.name} '
+                f'(try recreating the archive without explicit . reference)'
+              )
+      except tarfile.TarError:
+        pass  # Not a valid tar file or other error
+    except Exception as e:
+      # If validation fails for any reason, warn but don't abort
+      ui.info(f'validation of {tar_path} skipped: {str(e)}')
+
   async def _engage_device_copyin(self, args: deque[str]) -> None:
     success: bool = False
 
@@ -691,6 +728,13 @@ class EngageCommand(CommandMixin):
 
     if not any(os.path.exists(x) for x in [fn, fn0, fn1]):
       ui.fatal('bundle file not found')
+
+    # Validate all tar archives to work around adb quirks with ./ entries
+    self._validate_tar_archive(fn, f'primary archive {fn}')
+    if os.path.exists(fn0):
+      self._validate_tar_archive(fn0, f'int archive {fn0}')
+    if os.path.exists(fn1):
+      self._validate_tar_archive(fn1, f'ext archive {fn1}')
 
     ui.info(f'copying in: {fn} -> {target}')
 
