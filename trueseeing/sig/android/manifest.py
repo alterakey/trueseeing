@@ -66,11 +66,20 @@ class ManifestManipActivity(SignatureMixin):
     context = self._get_context()
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
+    target_sdk = context.get_target_sdk_version()
 
-    for name in set(itertools.chain(
+    # API 31+ requires explicit exported attr; implicit export via intent-filter no longer applies
+    if target_sdk >= 31:
+      xpaths = [
+        context.parsed_manifest().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
+      ]
+    else:
+      xpaths = [
         context.parsed_manifest().xpath('//activity[not(@android:permission)]/intent-filter/../@android:name', namespaces=ns),
         context.parsed_manifest().xpath('//activity[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
-    )):
+      ]
+
+    for name in set(itertools.chain.from_iterable(xpaths)):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//activity[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         self._helper.raise_issue(self._helper.build_issue(
@@ -114,12 +123,21 @@ class ManifestManipBroadcastReceiver(SignatureMixin):
     context = self._get_context()
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
+    target_sdk = context.get_target_sdk_version()
 
-    # FIXME: catch API < 9
-    for name in set(itertools.chain(
+    # FIXME: catch API &lt; 9
+    # API 31+ requires explicit exported attr
+    if target_sdk >= 31:
+      xpaths = [
+        context.parsed_manifest().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
+      ]
+    else:
+      xpaths = [
         context.parsed_manifest().xpath('//receiver[not(@android:permission) and not(@android:exported="false")]/intent-filter/../@android:name', namespaces=ns),
         context.parsed_manifest().xpath('//receiver[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=ns),
-    )):
+      ]
+
+    for name in set(itertools.chain.from_iterable(xpaths)):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         self._helper.raise_issue(self._helper.build_issue(
@@ -163,11 +181,20 @@ class ManifestManipContentProvider(SignatureMixin):
     context = self._get_context()
     policy = ComponentNamePolicy()
     ns = dict(android='http://schemas.android.com/apk/res/android')
+    target_sdk = context.get_target_sdk_version()
 
-    for name in set(itertools.chain(
+    # API 31+ requires explicit exported attr
+    if target_sdk >= 31:
+      xpaths = [
+        context.parsed_manifest().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
+      ]
+    else:
+      xpaths = [
         context.parsed_manifest().xpath('//provider[not(@android:permission)]/intent-filter/../@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
         context.parsed_manifest().xpath('//provider[not(@android:permission) and (@android:exported="true")]/@android:name', namespaces=dict(android='http://schemas.android.com/apk/res/android')),
-    )):
+      ]
+
+    for name in set(itertools.chain.from_iterable(xpaths)):
       filter_ = [name for name in context.parsed_manifest().xpath(f'//receiver[@android:name="{name}"]/intent-filter/action/@android:name', namespaces=ns) if not policy.looks_public(name)]
       if not filter_:
         self._helper.raise_issue(self._helper.build_issue(
