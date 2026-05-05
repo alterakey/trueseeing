@@ -210,13 +210,18 @@ class ProGuardDetector(SignatureMixin):
 
   async def detect(self) -> None:
     context = self._get_context()
+    package = context.get_package_name()
+    found_in_package = False
     for c in (self._class_name_of(context.source_name_of_disassembled_class(r)) for r in context.disassembled_classes()):
-      m = re.search(r'(?:^|\.)(.)$', c)
-      if m and m.group(1) not in self._whitelist:
-        self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd='certain', cvss=self._cvss_true, title='detected obfuscator', info0='ProGuard'))
-        break
+      if c.startswith(f'{package}.'):
+        found_in_package = True
+        m = re.search(r'(?:^|\.)(.)$', c)
+        if m and m.group(1) not in self._whitelist:
+          self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cfd='certain', cvss=self._cvss_true, title='detected obfuscator', info0='ProGuard'))
+          break
     else:
-      self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cvss=self._cvss_false, title='lack of obfuscation'))
+      if found_in_package:
+        self._helper.raise_issue(self._helper.build_issue(sigid=self._id, cvss=self._cvss_false, title='lack of obfuscation'))
 
 class UrlLikeDetector(SignatureMixin):
   _id = 'detect-url'
