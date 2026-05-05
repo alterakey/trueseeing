@@ -37,9 +37,9 @@ class EngageCommand(CommandMixin):
       'xtb':dict(e=self._engage_tamper_enable_backup, n='xtb', d='engage: make backupable', t={'apk'}),
       'xtt':dict(e=self._engage_tamper_patch_target_api_level, n='xtt[!] <api level>', d='engage: patch target api level', t={'apk'}),
       'xtt!':dict(e=self._engage_tamper_patch_target_api_level, t={'apk'}),
-      'xco':dict(e=self._engage_device_copyout, n='xco[!] package [data.tar]', d='engage: copy-out package data', t={'apk'}),
+      'xco':dict(e=self._engage_device_copyout, n='xco[!] [package] [data.tar]', d='engage: copy-out package data (package defaults to target)', t={'apk'}),
       'xco!':dict(e=self._engage_device_copyout, t={'apk'}),
-      'xci':dict(e=self._engage_device_copyin, n='xci[!] package [data.tar]', d='engage: copy-in package data', t={'apk'}),
+      'xci':dict(e=self._engage_device_copyin, n='xci[!] [package] [data.tar]', d='engage: copy-in package data (package defaults to target)', t={'apk'}),
       'xci!':dict(e=self._engage_device_copyin, t={'apk'}),
       'xpd':dict(e=self._engage_deploy_package, n='xpd[!]', d='engage: deploy target package', t={'apk'}),
       'xpd!':dict(e=self._engage_deploy_package, t={'apk'}),
@@ -581,10 +581,11 @@ class EngageCommand(CommandMixin):
     success: bool = False
 
     cmd = args.popleft()
-    if not args:
-      ui.fatal('need package name')
-
-    target = args.popleft()
+    if args:
+      target = args.popleft()
+    else:
+      context = self._helper.get_context().require_type('apk')
+      target = context.get_package_name()
 
     import os
     if not args:
@@ -712,20 +713,27 @@ class EngageCommand(CommandMixin):
     success: bool = False
 
     _ = args.popleft()
-    if not args:
-      ui.fatal('need package name')
-
-    target = args.popleft()
-
-    import os
-    if not args:
-      fn = f'{target}.tar'
+    if args:
+      arg0 = args.popleft()
+      # If arg ends with .tar, it's a file; otherwise it's a package name
+      if arg0.endswith('.tar'):
+        target = self._helper.get_context().require_type('apk').get_package_name()
+        fn = arg0
+      else:
+        target = arg0
+        if not args:
+          fn = f'{target}.tar'
+        else:
+          fn = args.popleft()
     else:
-      fn = args.popleft()
+      context = self._helper.get_context().require_type('apk')
+      target = context.get_package_name()
+      fn = f'{target}.tar'
 
     fn0 = fn.replace('.tar', '') + '-int.tar'
     fn1 = fn.replace('.tar', '') + '-ext.tar'
 
+    import os
     if not any(os.path.exists(x) for x in [fn, fn0, fn1]):
       ui.fatal('bundle file not found')
 
