@@ -59,13 +59,26 @@ class AssembleCommand(CommandMixin):
     origapk = re.sub(r'(\.x?apk)$', r'\1.orig', apk)
 
     stem = re.sub(r'\.x?apk$', '', apk)
+    if apk.endswith('.xapk'):
+      manifest_path = os.path.join(root, 'manifest.json')
+      if not os.path.exists(manifest_path):
+        ui.fatal('assembling xapk requires manifest.json')
+
+      from json import loads
+      with open(manifest_path, 'r') as f:
+        manif = loads(f.read())
+
+      for s in manif.get('split_apks', []):
+        apk_file = s.get('file')
+        if not apk_file:
+          ui.fatal(f'missing file entry in split_apks: {s}')
+        apk_path = os.path.join(root, apk_file)
+        if not os.path.exists(apk_path):
+          ui.fatal(f'file referenced in manifest does not exist: {apk_file}')
+
     for typ in ['apk', 'xapk']:
       if os.path.exists(f'{stem}.{typ}.orig') and not cmd.endswith('!'):
         ui.fatal('backup file exists; force (!) to overwrite')
-
-    if apk.endswith('.xapk'):
-      ui.warn('assembling xapk is not supported; assembling as merged apk')
-      apk = apk.replace('.xapk', '.apk')
 
     opts = self._helper.get_effective_options(self._helper.get_modifiers(args))
 
@@ -99,7 +112,18 @@ class AssembleCommand(CommandMixin):
             os.rename(os.path.join(td, prefix), path)
             progress.done()
 
-      outapk, outsig = await APKAssembler.assemble_from_path(td, path)
+      if apk.endswith('.xapk'):
+        from zipfile import ZipFile, ZIP_DEFLATED
+        ui.info('packing xapk')
+        with ZipFile(os.path.join(td, 'output.xapk'), 'w', compression=ZIP_DEFLATED) as zf:
+          for rootpath, dirs, files in os.walk(path):
+            for filename in files:
+              filepath = os.path.join(rootpath, filename)
+              arcname = os.path.relpath(filepath, path)
+              zf.write(filepath, arcname)
+        outapk = os.path.join(td, 'output.xapk')
+      else:
+        outapk, outsig = await APKAssembler.assemble_from_path(td, path)
 
       if os.path.exists(apk):
         move_apk(apk, origapk)
