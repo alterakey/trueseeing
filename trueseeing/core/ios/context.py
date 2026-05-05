@@ -82,6 +82,29 @@ class IPAContext(Context):
     else:
       raise KeyError()
 
+  def get_package_name(self) -> str:
+    def _get_manif() -> Optional[Mapping[str, Any]]:
+      import re
+      from zipfile import ZipFile
+      with ZipFile(self._path, 'r') as zf:
+        for i in zf.infolist():
+          if i.is_dir():
+            continue
+          if re.match(r'Payload/.*?.app/Info.plist', i.filename):
+            from plistlib import loads
+            o = loads(zf.read(i))
+            assert isinstance(o, dict)
+            return o
+      return None
+
+    manif = _get_manif()
+    if manif is not None:
+      pkg = manif.get('CFBundleIdentifier')
+      if pkg:
+        assert isinstance(pkg, str)
+        return pkg
+    raise KeyError('CFBundleIdentifier not found')
+
   async def _analyze(self, level: int) -> None:
     q: IPAQuery
     if level > 0:
