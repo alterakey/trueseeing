@@ -13,7 +13,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
-          enable-cache: false
+          enable-cache: true
 
       - name: Install Python
         run: uv python install
@@ -23,5 +23,5 @@ jobs:
 
       - name: Analysing the code
         run: |
-          uv run mypy trueseeing
-          uv run pflake8 --color=never trueseeing
+          uv run zuban check trueseeing
+          uv run ruff check --output-format=concise trueseeing

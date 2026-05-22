@@ -15,8 +15,8 @@ from trueseeing.core.exc import FatalError, InvalidSchemaError
 if TYPE_CHECKING:
   from typing import Mapping, Optional, Any, NoReturn, List, Dict, Awaitable, Type, Set, Iterator
   from prompt_toolkit.styles import Style
-  from trueseeing.core.context import ContextType
   from trueseeing.api import Entry, Command, CommandHelper, CommandEntry, CommandPatternEntry, ModifierEntry, OptionEntry, ConfigMap, ModifierEvent, CommandMap, CommandPatternMap, OptionMap, ModifierMap
+  from trueseeing.core.model.context import ContextType
 
 class InspectMode:
   def do(

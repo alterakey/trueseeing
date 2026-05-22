@@ -6,8 +6,9 @@ from contextlib import contextmanager
 if TYPE_CHECKING:
   from typing import List, Optional, Iterator, Dict, Any, Set
   from trueseeing.api import SignatureEntry, SignatureHelper, SignatureMap
-  from trueseeing.core.context import Context, ContextType
+  from trueseeing.core.context import Context
   from trueseeing.core.db import Query
+  from trueseeing.core.model.context import ContextType
   from trueseeing.core.model.issue import Issue, IssueConfidence
 
 class Scanner:

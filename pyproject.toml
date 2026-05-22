@@ -45,8 +45,6 @@ trueseeing = "trueseeing.app.shell:entry"
 
 [tool.mypy]
 strict = true
-show_error_codes = true
-enable_error_code = "redundant-expr"
 
 [[tool.mypy.overrides]]
 module = [
@@ -58,16 +56,27 @@ module = [
 ]
 ignore_missing_imports = true
 
-# pyproject-flake8 (pflake8)
-[tool.flake8]
-extend-ignore = "E301,E302,E265,E114,E501,E231,E252,E261,E701,E722,E741"
-indent-size = 2
+# zuban (type checker; mypy-compatible mode)
+[tool.zuban]
+mode = "mypy"
+strict = true
+show_error_codes = true
+enable_error_code = "redundant-expr"
+
+# ruff (linter)
+[tool.ruff]
+target-version = "py39"
+indent-width = 2
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E301", "E302", "E265", "E114", "E501", "E231", "E252", "E261", "E701", "E722", "E741", "F601"]
 
 [dependency-groups]
 dev = [
     "flit>=3.12.0",
-    "mypy~=1.13",
-    "pyproject-flake8~=7.0",
+    "ruff>=0.11.0",
     "types-pygments>=2.19.0.20250809",
     "typing_extensions~=4.12",
+    "zuban>=0.7.2",
 ]

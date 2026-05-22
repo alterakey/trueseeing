@@ -14,7 +14,7 @@ from trueseeing.core.context import Context, Fingerprint
 
 if TYPE_CHECKING:
   from typing import List, Any, Iterable, Tuple, Optional, ClassVar, Set, AsyncIterator, Iterator, Mapping
-  from trueseeing.core.context import ContextType, ContextInfo
+  from trueseeing.core.model.context import ContextType, ContextInfo
   from trueseeing.core.android.asm import APKDisassembler
   from trueseeing.core.android.store import APKStore
   from trueseeing.core.android.model import XAPKManifest, Call

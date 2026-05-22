@@ -6,8 +6,9 @@ if TYPE_CHECKING:
   from collections import deque
   from typing import Any, TypedDict, Protocol, Optional, Callable, Coroutine, Union, List, Mapping, overload, Literal, Set
   from typing_extensions import deprecated
-  from trueseeing.core.context import Context, ContextType
   from trueseeing.core.android.context import APKContext
+  from trueseeing.core.context import Context
+  from trueseeing.core.model.context import ContextType
   from trueseeing.core.model.issue import Issue, IssueConfidence
 
   ModifierEvent = Literal['begin', 'end']
@@ -54,7 +55,7 @@ if TYPE_CHECKING:
     e: FormatHandlerEntrypoint
     r: str
     d: str
-    t: Optional[Set[ContextType]]
+    t: Optional[Set['ContextType']]
 
   CommandMap = Mapping[str, CommandEntry]
   CommandPatternMap = Mapping[str, CommandPatternEntry]

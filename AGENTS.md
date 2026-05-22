@@ -9,7 +9,7 @@
 - Follow naming pattern matching module + class: `trueseeing.app.cmd.<module>.<ClassName>` (e.g., `trueseeing.app.cmd.android.app.AppDebugCommand`)
 - Diagnose errors immediately: `get_missing_methods(c)` assertion in `trueseeing/app/cmd/__init__.py:18` raises if required methods omitted
 
-**Validating changes** (ordered check): `mypy trueseeing && pflake8 trueseeing` (CI uses `uv run` for both; local dev can use `.venv/bin/mypy` and `.venv/bin/pflake8`)
+**Validating changes** (ordered check): `uv run zuban check trueseeing && uv run ruff check trueseeing`
 
 **Building a wheel**: `flit build` (via project config) - builds directly from `src` layout, not a monorepo. Building from Dockerfile uses `uv sync --locked --no-dev` under `/usr/lib/ts2` directory.
 
