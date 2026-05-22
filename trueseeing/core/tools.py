@@ -69,7 +69,7 @@ class _UniversalBufferPatch(bytearray):
 async def invoke_streaming(as_: str, redir_stderr: bool = False, timeout: Optional[float] = None) -> AsyncIterator[bytes]:
   from subprocess import PIPE, STDOUT
   p = await asyncio.create_subprocess_shell(as_, stdout=PIPE, stderr=(STDOUT if redir_stderr else None))
-  p.stdout._buffer = _UniversalBufferPatch(p.stdout._buffer) # type: ignore[union-attr]
+  p.stdout._buffer = _UniversalBufferPatch(p.stdout._buffer) # type: ignore[union-attr, attr-defined]
   try:
     l: Optional[bytes] = None
     if p.stdout is not None:

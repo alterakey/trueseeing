@@ -134,7 +134,7 @@ class Extension:
         bn = os.path.basename(n)
         if os.path.isfile(n):
           ns, ne = os.path.splitext(bn)
-          if not (ne in ['py', 'pyc', 'pyo']):
+          if ne not in ['py', 'pyc', 'pyo']:
             ui.warn(f'cannot load extension {bn}: invalid filename')
             continue
           if not re.fullmatch(r'[0-9A-Za-z_]+', ns):

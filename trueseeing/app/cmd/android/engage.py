@@ -356,8 +356,8 @@ class EngageCommand(CommandMixin):
             config = config_override
           else:
             assert configfn # XXX
-            with open(configfn, 'r') as f:
-              config = f.read()
+            with open(configfn, 'r') as g:
+              config = g.read()
           q.patch_put(f'root/{memberfn}', config.encode('utf-8'), z=True)
           if should_store:
             store_map['paths'].append(memberfn)

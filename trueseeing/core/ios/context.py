@@ -13,9 +13,9 @@ from trueseeing.core.ios.store import IPAStore
 
 if TYPE_CHECKING:
   from typing import List, Optional, Final, Set, TypedDict, Iterator, Any, Mapping
-  from trueseeing.core.context import ContextType
   from trueseeing.core.db import FileEntry
   from trueseeing.core.ios.db import IPAQuery
+  from trueseeing.core.model.context import ContextType
 
   class Call(TypedDict):
     path: str

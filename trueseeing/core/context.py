@@ -9,11 +9,9 @@ if TYPE_CHECKING:
   from typing import List, Dict, Optional, Set, Literal, Any, Mapping, AsyncIterator, Tuple, Iterator
   from typing_extensions import Self
   from trueseeing.api import FormatEntry
+  from trueseeing.core.model.context import ContextType, ContextInfo
   from trueseeing.core.store import Store
   from trueseeing.core.android.context import APKContext
-
-  ContextType = str
-  ContextInfo = Mapping[str, Any]
 
 class FileOpener:
   _formats: Dict[str, FormatEntry]
