@@ -34,7 +34,7 @@ dependencies = [
     "pyzstd~=0.16",
     "termcolor~=2.4",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.13"
 dynamic = ['version', 'description']
 
 [project.urls]

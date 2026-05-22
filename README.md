@@ -41,17 +41,20 @@ If you want to run statelessly you omit mounting volume onto /cache (not recomme
     $ docker run --rm -v $(pwd):/out ghcr.io/alterakey/trueseeing
 
 
-### With pip / uvx
+### Install with [uv](https://github.com/astral-sh/uv)
 
-Alternatively, you can install our package with pip as follows. This form of installation might be useful for extensions, as it grants them the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
-
-    $ pip install --user trueseeing
-    $ trueseeing
-
-Or, with [uv](https://github.com/astral-sh/uv) you could do:
+Alternatively, you can install our package with [uv](https://github.com/astral-sh/uv) as follows. Especially the `uv tool install` form of installation might be useful for extensions (see below), as it grants them the greatest freedom. Just remember you need a JRE and Android SDK (optionally; to mess with devices):
 
     $ uvx trueseeing
 
+    $ uv tool install trueseeing
+    $ trueseeing
+
+### Install with pip (deprecated)
+
+Of course you can always use the good old pip if you must:
+
+    $ pip install trueseeing
 
 ## Usage
 
@@ -122,7 +125,7 @@ To get report generated in stdout, specify '-' as filename:
 
 ### Extensions
 
-You can write your own commands and signatures as extensions.  Extensions are placed under `/ext` (containers) or `~/.trueseeing2/extensions/` (pip) . Alternatively you can distribute your extensions as wheels. We provide type information so you can not only type-check your extensions with [mypy](https://github.com/python/mypy) but also get a decent assist from IDEs. See the details section for details.
+You can write your own commands and signatures as extensions.  Extensions are placed under `/ext` (containers) or `~/.trueseeing2/extensions/` (uv/pip) . Alternatively you can distribute your extensions as wheels. We provide type information so you can not only type-check your extensions with [zuban](https://github.com/zubanls/zuban) but also get a decent assist from IDEs. See the details section for details.
 
 ## Build
 
@@ -134,30 +137,30 @@ To build wheels you can do with [flit](https://flit.pypa.io/en/stable/), as foll
 
     $ flit build
 
-To hack it, you need to create a proper build environment. To create one, set up a venv, install [flit](https://flit.pypa.io/en/stable/) in there, and have it pull dependencies and validating toolchains; esp. [mypy](https://github.com/python/mypy) and [pflake8](https://github.com/csachs/pyproject-flake8).  In short, do something like this:
+To hack it, you need to create a proper build environment. With [uv](https://github.com/astral-sh/uv) you could just do:
+
+    $ git clone https://github.com/alterakey/trueseeing.git wc
+    $ uv sync --locked --dev
+    $ (... hack ...)
+    $ uv run trueseeing ...                                    # to run
+    $ uv run zuban check trueseeing && uv run ruff trueseeing  # to validate
+    Success: no issues found in XX source files
+    $ uv run flit build                                        # to build (wheel)
+    $ docker build -t trueseeing .                             # to build (container)
+
+With pip, to create one, firstly set up a venv, install [flit](https://flit.pypa.io/en/stable/) and validating toolchains ([zuban](https://github.com/zubanls/zuban) and [ruff](https://github.com/astral-sh/ruff)) in there, and have flit pull dependencies. In short, do something like this:
 
     $ git clone https://github.com/alterakey/trueseeing.git wc
     $ python3 -m venv wc/.venv
     $ source wc/.venv/bin/activate
-    (.venv) $ pip install flit
+    (.venv) $ pip install flit zuban ruff
     (.venv) $ flit install --deps=develop -s
     (.venv) $ (... hack ...)
-    (.venv) $ trueseeing ...                         # to run
-    (.venv) $ mypy trueseeing && pflake8 trueseeing  # to validate
+    (.venv) $ trueseeing ...                                   # to run
+    (.venv) $ zuban check trueseeing && ruff check trueseeing  # to validate
     Success: no issues found in XX source files
-    (.venv) $ flit build                             # to build (wheel)
-    (.venv) $ docker build -t trueseeing .           # to build (container)
-
-Or, with [uv](https://github.com/astral-sh/uv) you could do:
-
-    $ git clone https://github.com/alterakey/trueseeing.git wc
-    $ uv sync --locked
-    $ (... hack ...)
-    $ uv run trueseeing ...                                # to run
-    $ uv run mypy trueseeing && uv run pflake8 trueseeing  # to validate
-    Success: no issues found in XX source files
-    $ uv run flit build                                    # to build (wheel)
-    $ docker build -t trueseeing .                         # to build (container)
+    (.venv) $ flit build                                       # to build (wheel)
+    (.venv) $ docker build -t trueseeing .                     # to build (container)
 
 
 ## Details
@@ -204,7 +207,7 @@ Currently we can detect the following class of vulnerabilities, largely ones cov
 
 ### Extension API
 
-Our extension API lays under the `trueseeing.api` package. As we provide type information with it, your IDE will assist you when writing your extensions.
+Our extension API lays under the `trueseeing.api` package. As we provide type information with it, your IDE will assist you when writing your extensions. Just make sure its (or its language server's) PYTHONPATH covers the venv in where our package; see `uv tool list --show-paths` if you installed it with `uv tool install`. If you installed with `uvx`, consider re-install it with `uvx install`. If you installed with pip, you've already know where it is.
 
 #### Commands
 
