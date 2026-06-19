@@ -63,7 +63,7 @@ Of course you can always use the good old pip if you must:
 You can interactively scan/analyze/patch/etc. apps -- making it the ideal choice for manual analysis:
 
     $ trueseeing target.apk
-    [+] trueseeing 2.2.8
+    [+] trueseeing x.y.z
     ts[target.apk]> ?
     ...
     ts[target.apk]> i                      # show generic information
